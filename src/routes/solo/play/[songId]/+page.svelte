@@ -7,6 +7,9 @@
 	let pixiApp = $state<Application | null>(null); // Use $state
 	let canvasContainer: HTMLDivElement;
 	let audioElement = $state<HTMLAudioElement | null>(null); // Use $state
+	let beatLines = $state<Graphics[]>([]); // Store active beat line Graphics objects
+	let timeSinceLastBeat = $state(0); // Time accumulator for beat spawning
+	const scrollSpeed = $state(300); // Pixels per second notes/lines travel down
 
 	// Extract data for easier access
 	const { songId, metadata, chart } = data;
@@ -16,6 +19,7 @@
 	$effect(() => {
 		let appInstance: Application | null = null; 
 		let audioInstance: HTMLAudioElement | null = null;
+		let gameLoop: ((ticker: any) => void) | null = null; // Store ticker callback for removal
 
 		const initGameplay = async () => {
 			if (!canvasContainer) return; 
@@ -65,19 +69,72 @@
 				}
 				
 				
-				
 				appInstance.stage.addChild(lineGraphics); // Add lines graphics to stage
 
-				// Draw Hit Zone (Judgment Line) - Already using v8 style stroke
+				// Draw Hit Zone (Judgment Line) - Now using a rectangle
 				const hitZoneYRatio = 0.85; // Position hit zone 85% down the screen
 				const hitZoneY = stageHeight * hitZoneYRatio;
+				const hitZoneHeight = 4; // Height of the hit zone rectangle (was line width)
+				const hitZoneColor = 0xffffff;
+				const hitZoneAlpha = 0.9;
+
 				const hitZoneGraphics = new Graphics();
-				hitZoneGraphics.stroke({ width: 4, color: 0xffffff, alpha: 0.9 }); // Thicker white line
-				hitZoneGraphics.moveTo(highwayX, hitZoneY);
-				hitZoneGraphics.lineTo(highwayX + highwayWidth, hitZoneY);
+				hitZoneGraphics.rect(highwayX, hitZoneY - hitZoneHeight / 2, highwayWidth, hitZoneHeight) // Define the rectangle, centering it vertically
+							   .fill({ color: hitZoneColor, alpha: hitZoneAlpha }); // Fill it
 				appInstance.stage.addChild(hitZoneGraphics);
 
 				console.log('Chart Data:', chart);
+
+				// --- Beat Line Setup ---
+				const bpm = metadata.bpm > 0 ? metadata.bpm : 120; // Default to 120 if bpm is invalid
+				const beatIntervalMs = (60 / bpm) * 1000;
+				const beatLineHeight = 2;
+				const beatLineColor = 0x555555;
+				const beatLineAlpha = 0.7;
+				timeSinceLastBeat = 0; // Reset on init
+				beatLines = []; // Reset on init
+
+				gameLoop = (ticker) => {
+					if (!appInstance) return; // Guard against race conditions during cleanup
+					const deltaMs = ticker.deltaMS;
+					const deltaSeconds = deltaMs / 1000;
+
+					// --- Move existing beat lines ---
+					beatLines.forEach(line => {
+						line.y += scrollSpeed * deltaSeconds;
+					});
+
+					// --- Despawn lines below screen ---
+					const remainingLines: Graphics[] = [];
+					beatLines.forEach(line => {
+						// Check if the top edge of the line is below the stage
+						if (line.y - beatLineHeight / 2 > stageHeight) { 
+							appInstance?.stage.removeChild(line); // Use optional chaining
+							line.destroy();
+						} else {
+							remainingLines.push(line);
+						}
+					});
+					// Only update state if it actually changed to avoid infinite loops with $effect
+					if (remainingLines.length !== beatLines.length) {
+						beatLines = remainingLines; 
+					}
+					
+					// --- Spawn new beat lines ---
+					timeSinceLastBeat += deltaMs;
+					while (timeSinceLastBeat >= beatIntervalMs) {
+						 const newBeatLine = new Graphics();
+						 newBeatLine.rect(highwayX, -beatLineHeight / 2, highwayWidth, beatLineHeight)
+									.fill({ color: beatLineColor, alpha: beatLineAlpha });
+						 newBeatLine.y = 0; // Start at the top of the stage
+						 appInstance?.stage.addChild(newBeatLine); // Use optional chaining
+						 // Update state by creating a new array
+						 beatLines = [...beatLines, newBeatLine]; 
+						 timeSinceLastBeat -= beatIntervalMs;
+					}
+				};
+
+				appInstance.ticker.add(gameLoop);
 				
 			} catch (error) {
 				console.error("Failed to initialize PixiJS:", error);
@@ -102,14 +159,29 @@
 
 		// Cleanup function
 		return () => {
-			console.log('Cleaning up Gameplay (PixiJS & Audio)...');
-			// Cleanup PixiJS
-			const appToDestroy = pixiApp || appInstance;
-			if (appToDestroy) {
-				appToDestroy.destroy(true); 
+			console.log('Cleaning up Gameplay (PixiJS, Audio & Beat Lines)...');
+			const currentApp = pixiApp || appInstance; // Use the instance that was actually created
+
+			// Cleanup Ticker (before destroying app)
+			if (currentApp && gameLoop) {
+				currentApp.ticker.remove(gameLoop);
+				gameLoop = null; // Clear reference
+			}
+
+			// Cleanup Beat Lines Graphics
+			beatLines.forEach(line => {
+				// Remove from stage first if app/stage still exist
+				currentApp?.stage?.removeChild(line); // Optional chaining for safety
+				line.destroy(); // Destroy the graphics object
+			});
+			beatLines = []; // Clear the state array
+
+			// Cleanup PixiJS App
+			if (currentApp) {
+				currentApp.destroy(true, { children: true }); // Destroy app and its children 
 			}
 			pixiApp = null; 
-			if(canvasContainer) canvasContainer.innerHTML = ''; 
+			if(canvasContainer) canvasContainer.innerHTML = ''; // Clear canvas container
 
 			// Cleanup Audio
 			const audioToClean = audioElement || audioInstance;
@@ -119,10 +191,11 @@
 				audioToClean.load(); // Abort loading
 			}
 			audioElement = null;
+			timeSinceLastBeat = 0; // Reset time accumulator
 			
 			console.log('Cleanup Complete');
 		};
-	});
+	}); // End of $effect
 
 </script>
 

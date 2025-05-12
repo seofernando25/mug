@@ -82,11 +82,11 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [x] Load the audio file specified in `song.json` using HTML5 Audio API (`new Audio()`).
 
 3.  **PixiJS - Visual Elements Rendering:**
-    *   [ ] **Note Highway:**
-        *   [ ] Draw 4 vertical lane lines or distinct colored lane backgrounds.
-        *   [ ] Draw a horizontal "Hit Zone" or "Judgment Line" near the bottom of the highway.
-    *   [ ] **Beat Lines (Basic):**
-        *   [ ] Create a system to draw horizontal lines representing beats, moving down the highway. (Initially, these might just be decorative or tied to a simple interval).
+    *   [x] **Note Highway:**
+        *   [x] Draw 4 vertical lane lines or distinct colored lane backgrounds.
+        *   [x] Draw a horizontal "Hit Zone" or "Judgment Line" near the bottom of the highway.
+    *   [x] **Beat Lines (Basic):**
+        *   [x] Create a system to draw horizontal lines representing beats, moving down the highway. (Initially, these might just be decorative or tied to a simple interval).
     *   [ ] **Notes:**
         *   [ ] Create a `Note` class or factory function for PixiJS graphics.
         *   [ ] It should be able to render "tap" notes (e.g., simple `PIXI.Graphics` rectangles).
