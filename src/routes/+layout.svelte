@@ -1,14 +1,27 @@
 <script lang="ts">
 	import '../app.css';
-	import { username } from "$lib/stores/userStore";
+	import { username, logout } from "$lib/stores/userStore";
 	import { onMount } from "svelte";
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
+	import type { Unsubscriber } from 'svelte/store';
 
 	// Assuming TweakpaneManager exists and has toggleVisibility
 	// import TweakpaneManager from '$lib/utils/TweakpaneManager'; // Adjust path if needed
 
 	onMount(() => {
+		let usernameUnsubscriber: Unsubscriber;
+
+		// Subscribe to username changes and handle redirection
+		usernameUnsubscriber = username.subscribe(currentUsername => {
+			// Check page store within subscription to get current path
+			const currentPath = $page.url.pathname;
+			if (!currentUsername && currentPath !== '/') {
+				console.log('Redirecting to login (onMount check)...', currentUsername, currentPath);
+				goto('/', { replaceState: true }); // Use replaceState to avoid breaking back button
+			}
+		});
+
 		// Example: Initialize Tweakpane if needed
 		// TweakpaneManager.init(); // Assuming an init method
 
@@ -22,28 +35,38 @@
 		window.addEventListener('keydown', handleKeyDown);
 
 		return () => {
+			// Cleanup
 			window.removeEventListener('keydown', handleKeyDown);
+			if (usernameUnsubscriber) {
+				usernameUnsubscriber();
+			}
 			// Optional: Add Tweakpane cleanup if necessary
 			// TweakpaneManager.dispose(); // Assuming a dispose method
 		};
 	});
 
-	// Redirect logic
-	$: {
-		if (!$username && $page.url.pathname !== '/') {
-			console.log('Redirecting to login...', $username, $page.url.pathname);
-			goto('/');
-		}
-	}
+	// REMOVED Redirect logic reactive block
+	// $: {
+	// 	if (!$username && $page.url.pathname !== '/') {
+	// 		console.log('Redirecting to login...', $username, $page.url.pathname);
+	// 		goto('/');
+	// 	}
+	// }
 </script>
 
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
 	<header class="bg-gray-800 p-4 shadow-md">
 		<div class="container mx-auto flex justify-between items-center">
 			<a href="/home" class="text-xl font-bold text-purple-400 hover:text-purple-300">MUG Rhythm</a>
-			<div>
+			<div class="flex items-center space-x-4">
 				{#if $username}
-					<span>Welcome, {$username}!</span>
+					<span class="text-gray-300">Welcome, <span class="font-semibold text-purple-300">{$username}</span>!</span>
+					<button 
+						on:click={logout} 
+						class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"
+					>
+						Logout
+					</button>
 				{/if}
 			</div>
 		</div>
