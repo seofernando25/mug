@@ -22,18 +22,18 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [x] Add a placeholder for the username display.
 
 3.  **Login System (Anonymous, UI Only):**
-    *   [ ] Create `src/lib/stores/userStore.js` (or `.ts`):
-        *   [ ] Define a writable Svelte store for `username`.
-    *   [ ] Implement `src/routes/+page.svelte` (Login Screen):
-        *   [ ] Add an input field for username.
-        *   [ ] Add a "JOIN" button.
-        *   [ ] On "JOIN" click:
-            *   [ ] If input is empty, generate `GUEST-[random_alphanumeric_id]` (e.g., `GUEST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`).
-            *   [ ] Update the `username` store.
-            *   [ ] Navigate to `/home` (using `goto` from `$app/navigation`).
-    *   [ ] In `src/routes/+layout.svelte`:
-        *   [ ] Subscribe to `username` store and display it in the header.
-        *   [ ] If `username` is not set, redirect to `/` (login) from `+layout.svelte`'s load function or an `onMount` check (except for `/` itself).
+    *   [x] Create `src/lib/stores/userStore.js` (or `.ts`):
+        *   [x] Define a writable Svelte store for `username`.
+    *   [x] Implement `src/routes/+page.svelte` (Login Screen):
+        *   [x] Add an input field for username.
+        *   [x] Add a "JOIN" button.
+        *   [x] On "JOIN" click:
+            *   [x] If input is empty, generate `GUEST-[random_alphanumeric_id]` (e.g., `GUEST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`).
+            *   [x] Update the `username` store.
+            *   [x] Navigate to `/home` (using `goto` from `$app/navigation`).
+    *   [x] In `src/routes/+layout.svelte`:
+        *   [x] Subscribe to `username` store and display it in the header.
+        *   [x] If `username` is not set, redirect to `/` (login) from `+layout.svelte`'s load function or an `onMount` check (except for `/` itself).
 
 4.  **Home Navigation Screen (`src/routes/home/+page.svelte`):**
     *   [ ] Add large, styled buttons (using Tailwind CSS) for:
