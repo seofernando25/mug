@@ -3,3 +3,13 @@
 body {
     @apply bg-gray-900;
 }
+
+/* Tweakpane specific adjustments */
+.tp-dfwv { /* This is a common Tweakpane root class. Inspect if not working. */
+    position: fixed !important;
+    top: 4.5rem !important; /* Header is p-4 (1rem). text-xl (1.25rem font / 1.75rem line-height). Total ~3.75rem. Add some gap. */
+    /* Tweakpane usually positions itself left or right with a small offset (e.g., 10px or 16px) */
+    /* If it's on the left by default, you might want: left: 16px !important; */
+    /* If it's on the right by default, you might want: right: 16px !important; */
+    z-index: 10000 !important; /* Ensure it's above all other content */
+}

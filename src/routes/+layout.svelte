@@ -5,6 +5,7 @@
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
 	import type { Unsubscriber } from 'svelte/store';
+	import TweakpaneManager from '$lib/utils/TweakpaneManager'; // Import TweakpaneManager
 
 	// Assuming TweakpaneManager exists and has toggleVisibility
 	// import TweakpaneManager from '$lib/utils/TweakpaneManager'; // Adjust path if needed
@@ -22,14 +23,14 @@
 			}
 		});
 
-		// Example: Initialize Tweakpane if needed
-		// TweakpaneManager.init(); // Assuming an init method
+		TweakpaneManager.init(); // Initialize Tweakpane
 
-		// Add key listener for Tweakpane toggle
+		// Key listener for Tweakpane toggle
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === '~') {
-				// TweakpaneManager.toggleVisibility(); // Assuming this method exists
-				console.log('Tweakpane toggle triggered (placeholder)');
+			// Use event.code to detect the physical key press, ignoring Shift state
+			if (event.code === 'Backquote') { 
+				console.log('Backquote key pressed, toggling Tweakpane...'); // Added log for confirmation
+				TweakpaneManager.toggleVisibility();
 			}
 		};
 		window.addEventListener('keydown', handleKeyDown);
@@ -40,10 +41,28 @@
 			if (usernameUnsubscriber) {
 				usernameUnsubscriber();
 			}
-			// Optional: Add Tweakpane cleanup if necessary
-			// TweakpaneManager.dispose(); // Assuming a dispose method
+			TweakpaneManager.dispose(); // Dispose Tweakpane
 		};
 	});
+
+	// Combined Redirect & Skip Login Logic
+	$: {
+		if ($page.url.pathname !== '/') { // Only apply logic outside login page
+			if (!$username) { // If no user is set
+				if (TweakpaneManager.getSkipLogin()) { // And skipLogin is enabled
+					console.log('Auto-logging in via Skip Login...');
+					const randomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+					const guestUsername = `GUEST-${randomId}`;
+					username.set(guestUsername); // Set the store
+					// No explicit redirect needed here, reactive updates will handle UI
+				} else { // No user, skipLogin is disabled
+					console.log('Redirecting to login (user not set, skipLogin off)...', $page.url.pathname);
+					goto('/');
+				}
+			}
+			// If $username IS set, do nothing, allow access
+		}
+	}
 
 	// REMOVED Redirect logic reactive block
 	// $: {
