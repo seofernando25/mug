@@ -9,6 +9,20 @@
 	let audioElement = $state<HTMLAudioElement | null>(null); // Use $state
 	let beatLines = $state<Graphics[]>([]); // Store active beat line Graphics objects
 	let timeSinceLastBeat = $state(0); // Time accumulator for beat spawning
+
+	type ActiveNote = {
+		id: number; // Index from original chart.notes
+		lane: number;
+		time: number;
+		type: 'tap' | 'hold';
+		duration?: number;
+		headGraphics: Graphics;
+		bodyGraphics?: Graphics; // For hold notes
+	}; 
+	let activeNotes = $state<ActiveNote[]>([]); // Store notes currently on screen
+	let currentNoteIndex = $state(0); // Track next note to spawn from chart
+	let songTime = $state(0); // Elapsed time in ms
+
 	const scrollSpeed = $state(300); // Pixels per second notes/lines travel down
 
 	// Extract data for easier access
@@ -94,10 +108,27 @@
 				timeSinceLastBeat = 0; // Reset on init
 				beatLines = []; // Reset on init
 
+				// --- Note Setup ---
+				const lookaheadSeconds = 2.0; // How many seconds in advance notes appear
+				const noteHeight = 20;
+				const noteColorTap = 0x00ff00; // Green for tap
+				const noteColorHoldHead = 0x00aaff; // Light blue for hold head
+				const noteColorHoldBody = 0x0077cc; // Darker blue for hold body
+				const noteWidthRatio = 0.9; // % of laneWidth
+
+				// Ensure notes (hitObjects) are sorted by time (now in ms)
+				const sortedHitObjects = [...(chart.hitObjects || [])].sort((a, b) => a.time - b.time);
+
+				activeNotes = [];
+				currentNoteIndex = 0;
+				songTime = 0;
+
 				gameLoop = (ticker) => {
 					if (!appInstance) return; // Guard against race conditions during cleanup
 					const deltaMs = ticker.deltaMS;
 					const deltaSeconds = deltaMs / 1000;
+
+					songTime += deltaMs; // Update song time
 
 					// --- Move existing beat lines ---
 					beatLines.forEach(line => {
@@ -132,6 +163,78 @@
 						 beatLines = [...beatLines, newBeatLine]; 
 						 timeSinceLastBeat -= beatIntervalMs;
 					}
+
+					// --- Note Spawning, Movement, Despawning ---
+					// 1. Spawn new notes
+					while (currentNoteIndex < sortedHitObjects.length && 
+						   sortedHitObjects[currentNoteIndex].time <= songTime + (lookaheadSeconds * 1000))
+					{
+						const noteData = sortedHitObjects[currentNoteIndex];
+						const noteVisualWidth = laneWidth * noteWidthRatio;
+						const noteX = highwayX + (noteData.lane * laneWidth) + (laneWidth - noteVisualWidth) / 2;
+
+						// Initial Y position relative to hit zone, notes appear at top and scroll down
+						// noteData.time and songTime are in ms. scrollSpeed is in px/sec.
+						const initialY = hitZoneY - ((noteData.time - songTime) / 1000 * scrollSpeed);
+						
+						const headGraphics = new Graphics();
+						headGraphics.rect(0, 0, noteVisualWidth, noteHeight)
+								   .fill({ color: noteData.type === 'hold' ? noteColorHoldHead : noteColorTap });
+						headGraphics.x = noteX;
+						headGraphics.y = initialY;
+						appInstance.stage.addChild(headGraphics);
+
+						let bodyGraphics: Graphics | undefined = undefined;
+						if (noteData.type === 'hold' && noteData.duration && noteData.duration > 0) {
+							// duration is in ms, scrollSpeed in px/sec
+							const bodyHeight = (noteData.duration / 1000) * scrollSpeed; 
+							bodyGraphics = new Graphics();
+							bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
+										 .fill({ color: noteColorHoldBody });
+							bodyGraphics.x = noteX;
+							bodyGraphics.y = initialY + noteHeight; // Position body below the head
+							appInstance.stage.addChild(bodyGraphics);
+						}
+
+						activeNotes = [...activeNotes, {
+							id: currentNoteIndex,
+							lane: noteData.lane,
+							time: noteData.time, // Already in ms
+							type: noteData.type as 'tap' | 'hold',
+							duration: noteData.duration, // Already in ms
+							headGraphics,
+							bodyGraphics
+						}];
+						currentNoteIndex++;
+					}
+
+					// 2. Move and update existing notes
+					const notesToKeep: ActiveNote[] = [];
+					activeNotes.forEach(note => {
+						note.headGraphics.y += scrollSpeed * deltaSeconds;
+						if (note.bodyGraphics) {
+							note.bodyGraphics.y += scrollSpeed * deltaSeconds;
+							// For hold notes, the tail should effectively shrink from the bottom as it passes the hit zone
+							// This can be complex; for now, it just moves with the head.
+							// A more accurate approach would involve masking or recalculating the body's height/y based on songTime.
+						}
+
+						// 3. Despawn notes that are way off-screen (e.g., hitZoneY + some buffer)
+						const despawnBuffer = 200; // Pixels below hit zone to despawn
+						if (note.headGraphics.y > stageHeight + despawnBuffer) { 
+							appInstance?.stage.removeChild(note.headGraphics);
+							note.headGraphics.destroy();
+							if (note.bodyGraphics) {
+								appInstance?.stage.removeChild(note.bodyGraphics);
+								note.bodyGraphics.destroy();
+							}
+						} else {
+							notesToKeep.push(note);
+						}
+					});
+					if (notesToKeep.length !== activeNotes.length) {
+						activeNotes = notesToKeep;
+					}
 				};
 
 				appInstance.ticker.add(gameLoop);
@@ -148,8 +251,10 @@
 				audioElement = audioInstance; // Assign to component variable
 				console.log('Audio Element Created:', audioSrc);
 				
+				// Autoplay the song
+				audioInstance.play().catch(e => console.error("Error playing audio:", e));
+
 				// TODO: Add event listeners (onloadeddata, onended, etc.) if needed
-				// TODO: Start playback? audioInstance.play(); (Likely after user interaction or countdown)
 			} catch (error) {
 				console.error("Failed to create Audio element:", error);
 			}
@@ -175,6 +280,19 @@
 				line.destroy(); // Destroy the graphics object
 			});
 			beatLines = []; // Clear the state array
+
+			// Cleanup Active Notes Graphics
+			activeNotes.forEach(note => {
+				currentApp?.stage?.removeChild(note.headGraphics);
+				note.headGraphics.destroy();
+				if (note.bodyGraphics) {
+					currentApp?.stage?.removeChild(note.bodyGraphics);
+					note.bodyGraphics.destroy();
+				}
+			});
+			activeNotes = [];
+			currentNoteIndex = 0;
+			songTime = 0;
 
 			// Cleanup PixiJS App
 			if (currentApp) {
