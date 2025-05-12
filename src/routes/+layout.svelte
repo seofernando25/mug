@@ -1,56 +1,42 @@
 <script lang="ts">
 	import '../app.css';
 	import { username, logout } from "$lib/stores/userStore";
-	import { onMount } from "svelte";
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
-	import { browser } from '$app/environment'; // Import browser
-	import type { Unsubscriber } from 'svelte/store';
-	import TweakpaneManager from '$lib/utils/TweakpaneManager'; // Import TweakpaneManager
+	import { browser } from '$app/environment';
+	import TweakpaneManager from '$lib/utils/TweakpaneManager'; 
 
-	// Assuming TweakpaneManager exists and has toggleVisibility
-	// import TweakpaneManager from '$lib/utils/TweakpaneManager'; // Adjust path if needed
+	let { children } = $props(); // Svelte 5: Get children prop
 
-	onMount(() => {
-		let usernameUnsubscriber: Unsubscriber;
+	// Svelte 5: Use $derived for computed values
+	let isGameplayPage = $derived($page.url.pathname.startsWith('/solo/play/'));
 
-		// Subscribe to username changes and handle redirection
-		usernameUnsubscriber = username.subscribe(currentUsername => {
-			// Check page store within subscription to get current path
-			const currentPath = $page.url.pathname;
-			if (!currentUsername && currentPath !== '/') {
-				// Redirect logic might be better handled in the reactive block below now
-				// But keeping this for immediate client-side reaction if needed
-				console.log('Redirecting to login (onMount check)... Should be handled by reactive block?');
-				// if (browser) goto('/', { replaceState: true }); 
-			}
-		});
-
-		TweakpaneManager.init(); // Initialize Tweakpane
+	// Svelte 5: $effect for side effects (runs after render, client-side implicitly)
+	$effect(() => {
+		// Initialize Tweakpane on component mount (client-side)
+		TweakpaneManager.init();
 
 		// Key listener for Tweakpane toggle
 		const handleKeyDown = (event: KeyboardEvent) => {
-			// Use event.code to detect the physical key press, ignoring Shift state
 			if (event.code === 'Backquote') { 
-				console.log('Backquote key pressed, toggling Tweakpane...'); // Added log for confirmation
+				console.log('Backquote key pressed, toggling Tweakpane...'); 
 				TweakpaneManager.toggleVisibility();
 			}
 		};
 		window.addEventListener('keydown', handleKeyDown);
 
+		// Cleanup function for the effect
 		return () => {
-			// Cleanup
+			console.log('Layout effect cleanup');
 			window.removeEventListener('keydown', handleKeyDown);
-			if (usernameUnsubscriber) {
-				usernameUnsubscriber();
-			}
 			TweakpaneManager.dispose(); // Dispose Tweakpane
 		};
 	});
 
-	// Combined Redirect & Skip Login Logic (Client-side Guarded)
-	$: {
-		if (browser && $page.url.pathname !== '/') { // *** Added browser check ***
+	// Svelte 5: Separate $effect for redirection logic (runs after render, client-side implicitly)
+	$effect(() => {
+		console.log('Checking auth state...', $username, $page.url.pathname);
+		if ($page.url.pathname !== '/') { 
 			if (!$username) { // If no user is set
 				if (TweakpaneManager.getSkipLogin()) { // And skipLogin is enabled
 					console.log('Auto-logging in via Skip Login...');
@@ -58,25 +44,19 @@
 					const guestUsername = `GUEST-${randomId}`;
 					username.set(guestUsername); // Set the store
 				} else { // No user, skipLogin is disabled
-					console.log('Redirecting to login (reactive, browser, user not set, skipLogin off)...', $page.url.pathname);
-					goto('/', { replaceState: true }); // Use replaceState for better history
+					console.log('Redirecting to login (effect, user not set, skipLogin off)...', $page.url.pathname);
+					goto('/', { replaceState: true }); 
 				}
 			}
 			// If $username IS set, do nothing, allow access
 		}
-	}
+	});
 
-	// REMOVED Redirect logic reactive block
-	// $: {
-	// 	if (!$username && $page.url.pathname !== '/') {
-	// 		console.log('Redirecting to login...', $username, $page.url.pathname);
-	// 		goto('/');
-	// 	}
-	// }
 </script>
 
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
-	<header class="bg-gray-800 p-4 shadow-md fixed top-0 left-0 right-0 z-10">
+	{#if !isGameplayPage}
+	<header class="bg-gray-800 p-4 shadow-md">
 		<div class="container mx-auto flex justify-between items-center">
 			<a href="/home" class="text-xl font-bold text-purple-400 hover:text-purple-300">MUG Rhythm</a>
 			<div class="flex items-center space-x-4">
@@ -92,12 +72,15 @@
 			</div>
 		</div>
 	</header>
+	{/if}
 
-	<main class="flex-grow container mx-auto p-4 pt-20 pb-10">
-		<slot />
+	<main class="flex-grow container mx-auto p-4">
+		{@render children()}
 	</main>
 
-	<footer class="bg-gray-800 p-2 text-center text-xs text-gray-500 fixed bottom-0 left-0 right-0 z-10">
+	{#if !isGameplayPage}
+	<footer class="bg-gray-800 p-2 text-center text-xs text-gray-500">
 		MUG MVP
 	</footer>
+	{/if}
 </div>
