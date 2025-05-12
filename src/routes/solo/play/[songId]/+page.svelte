@@ -29,7 +29,6 @@
 </svelte:head>
 
 <div>
-	<h1 class="text-2xl font-bold mb-4">Gameplay Screen</h1>
 	<p class="mb-2">Now Playing: <span class="font-mono text-purple-300">{data.songId}</span></p>
 	<div bind:this={canvasContainer} class="aspect-video bg-gray-700 border border-gray-600 rounded shadow-inner flex items-center justify-center min-h-[400px]">
 		<!-- PixiJS canvas will be appended here -->

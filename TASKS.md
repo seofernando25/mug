@@ -67,10 +67,10 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
 ## Phase 1: Core Gameplay Loop (Est. ~4-5 hours)
 
 1.  **Gameplay Screen Setup (`src/routes/solo/play/[songId]/+page.svelte`):**
-    *   [ ] Create a Svelte component that will host the PixiJS canvas.
-    *   [ ] In `onMount`, initialize a PixiJS Application, appending its view (canvas) to a DOM element.
-    *   [ ] Ensure the canvas takes up the desired gameplay area.
-    *   [ ] In `onDestroy`, properly destroy the PixiJS application.
+    *   [x] Create a Svelte component that will host the PixiJS canvas.
+    *   [x] In `onMount`, initialize a PixiJS Application, appending its view (canvas) to a DOM element.
+    *   [x] Ensure the canvas takes up the desired gameplay area.
+    *   [x] In `onDestroy`, properly destroy the PixiJS application.
 
 2.  **Song Data Loading & Parsing:**
     *   [ ] In the `load` function of `src/routes/solo/play/[songId]/+page.svelte`:
