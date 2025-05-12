@@ -3,7 +3,22 @@
 </svelte:head>
 
 <div>
-	<h1 class="text-3xl font-bold mb-4">Select Song</h1>
-	<p class="text-gray-400">Song list will appear here.</p>
-	<!-- Placeholder for song list and leaderboard -->
+	<h1 class="text-3xl font-bold mb-6">Select Song</h1>
+	<div class="space-y-3 max-w-xl">
+		<!-- Hardcoded link for the MVP test song -->
+		<a 
+			href="/solo/play/test-song-1" 
+			class="block bg-gray-700 hover:bg-gray-600 p-4 rounded-md shadow transition-colors duration-150 ease-in-out"
+		>
+			<h2 class="text-xl font-semibold text-purple-300">Lesson by DJ</h2>
+			<p class="text-sm text-gray-400">U.T.D & Friends</p>
+		</a>
+
+		<!-- Placeholder for more songs -->
+		<div class="block bg-gray-800 p-4 rounded-md shadow opacity-50">
+			<h2 class="text-xl font-semibold text-gray-500">More Songs Coming Soon...</h2>
+			<p class="text-sm text-gray-600">...</p>
+		</div>
+	</div>
+	<!-- TODO: Placeholder for leaderboard display -->
 </div> 

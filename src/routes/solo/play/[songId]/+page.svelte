@@ -1,65 +1,94 @@
 <script lang="ts">
 	import { Application } from 'pixi.js';
-	import type { PageData } from './$types';
+	import type { PageData } from './$types'; // PageData now includes metadata and chart
 
-	let { data } = $props<{ data: PageData }>(); // Use Svelte 5 $props
+	let { data } = $props<{ data: PageData }>(); 
 
 	let pixiApp: Application | null = null;
 	let canvasContainer: HTMLDivElement;
+	let audioElement: HTMLAudioElement | null = null;
+
+	// Extract data for easier access
+	const { songId, metadata, chart } = data;
+	const audioSrc = `/songs/${songId}/${metadata.audioFilename}`;
 
 	// Svelte 5: $effect for setup and teardown
 	$effect(() => {
-		let appInstance: Application | null = null; // Local instance for async handling
+		let appInstance: Application | null = null; 
+		let audioInstance: HTMLAudioElement | null = null;
 
-		const initPixi = async () => {
-			if (!canvasContainer) return; // Ensure container element exists
+		const initGameplay = async () => {
+			if (!canvasContainer) return; 
 
+			// --- PixiJS Setup ---
 			try {
 				appInstance = new Application();
 				await appInstance.init({ background: '#18181b', resizeTo: canvasContainer });
 				
-				// Clear container before appending (important for HMR)
 				canvasContainer.innerHTML = ''; 
 				canvasContainer.appendChild(appInstance.canvas);
 				
-				pixiApp = appInstance; // Assign to component variable *after* successful init
+				pixiApp = appInstance; 
 				console.log('PixiJS Initialized');
 
-				// --- TODO: Add PixiJS stage setup logic here --- 
+				// --- TODO: Add PixiJS stage setup logic here (using chart data) --- 
+				console.log('Chart Data:', chart);
 				
 			} catch (error) {
 				console.error("Failed to initialize PixiJS:", error);
+				// Optionally stop here if Pixi fails
+			}
+
+			// --- Audio Setup ---
+			try {
+				audioInstance = new Audio(audioSrc);
+				audioInstance.preload = 'auto'; // Suggest preloading
+				audioElement = audioInstance; // Assign to component variable
+				console.log('Audio Element Created:', audioSrc);
+				
+				// TODO: Add event listeners (onloadeddata, onended, etc.) if needed
+				// TODO: Start playback? audioInstance.play(); (Likely after user interaction or countdown)
+			} catch (error) {
+				console.error("Failed to create Audio element:", error);
 			}
 		};
 
-		initPixi();
+		initGameplay();
 
 		// Cleanup function
 		return () => {
-			console.log('Cleaning up PixiJS app...');
-			// Use the local appInstance captured by the closure if pixiApp wasn't assigned or was cleared
+			console.log('Cleaning up Gameplay (PixiJS & Audio)...');
+			// Cleanup PixiJS
 			const appToDestroy = pixiApp || appInstance;
 			if (appToDestroy) {
-				appToDestroy.destroy(true); // destroy(true) removes canvas from DOM
-				console.log('PixiJS Destroyed');
+				appToDestroy.destroy(true); 
 			}
-			pixiApp = null; // Ensure component variable is cleared
-			// Explicitly clear container as destroy might not always remove it instantly on HMR
+			pixiApp = null; 
 			if(canvasContainer) canvasContainer.innerHTML = ''; 
+
+			// Cleanup Audio
+			const audioToClean = audioElement || audioInstance;
+			if (audioToClean) {
+				audioToClean.pause(); // Stop playback
+				audioToClean.removeAttribute('src'); // Release resource
+				audioToClean.load(); // Abort loading
+			}
+			audioElement = null;
+			
+			console.log('Cleanup Complete');
 		};
 	});
 
 </script>
 
 <svelte:head>
-	<title>Playing {data.songId} - MUG</title>
+	<title>Playing {metadata.title} by {metadata.artist} - MUG</title> <!-- Use loaded metadata -->
 </svelte:head>
 
 <div>
-	<h1 class="text-2xl font-bold mb-4">Gameplay Screen</h1>
-	<p class="mb-2">Now Playing: <span class="font-mono text-purple-300">{data.songId}</span></p>
+	<h1 class="text-2xl font-bold mb-4">{metadata.title} - {metadata.artist}</h1> <!-- Use loaded metadata -->
+	<p class="mb-2">Difficulty: <span class="font-mono text-purple-300">{chart.difficultyName}</span></p> <!-- Use loaded chart data -->
 	<div bind:this={canvasContainer} class="relative aspect-video bg-gray-800 border border-gray-600 rounded shadow-inner overflow-hidden min-h-[400px]">
-		<!-- PixiJS canvas will be appended here replacing this placeholder -->
 		{#if !pixiApp}
 			<p class="absolute inset-0 flex items-center justify-center text-gray-400">Loading Gameplay...</p>
 		{/if}

@@ -73,13 +73,13 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
     *   [x] In `onDestroy`, properly destroy the PixiJS application.
 
 2.  **Song Data Loading & Parsing:**
-    *   [ ] In the `load` function of `src/routes/solo/play/[songId]/+page.svelte`:
-        *   [ ] Get `songId` from params.
-        *   [ ] Fetch `static/songs/${songId}/song.json`.
-        *   [ ] Pass song data (specifically `charts[0]`) to the page component as a prop.
-    *   [ ] In the gameplay component:
-        *   [ ] Access the passed song data.
-        *   [ ] Load the audio file specified in `song.json` using HTML5 Audio API (`new Audio()`).
+    *   [x] In the `load` function of `src/routes/solo/play/[songId]/+page.svelte`:
+        *   [x] Get `songId` from params.
+        *   [x] Fetch `static/songs/${songId}/song.json`.
+        *   [x] Pass song data (specifically `charts[0]`) to the page component as a prop.
+    *   [x] In the gameplay component:
+        *   [x] Access the passed song data.
+        *   [x] Load the audio file specified in `song.json` using HTML5 Audio API (`new Audio()`).
 
 3.  **PixiJS - Visual Elements Rendering:**
     *   [ ] **Note Highway:**
