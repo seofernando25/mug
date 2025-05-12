@@ -56,7 +56,7 @@
 
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
 	{#if !isGameplayPage}
-	<header class="bg-gray-800 p-4 shadow-md">
+	<header class="bg-gray-800 p-4 shadow-md !fixed !top-0 !left-0 !right-0 !z-10">
 		<div class="container mx-auto flex justify-between items-center">
 			<a href="/home" class="text-xl font-bold text-purple-400 hover:text-purple-300">MUG Rhythm</a>
 			<div class="flex items-center space-x-4">
@@ -74,12 +74,12 @@
 	</header>
 	{/if}
 
-	<main class="flex-grow container mx-auto p-4">
+	<main class="flex-grow container mx-auto p-4 {isGameplayPage ? '' : 'pt-20 pb-10'}">
 		{@render children()}
 	</main>
 
 	{#if !isGameplayPage}
-	<footer class="bg-gray-800 p-2 text-center text-xs text-gray-500">
+	<footer class="bg-gray-800 p-2 text-center text-xs text-gray-500 !fixed !bottom-0 !left-0 !right-0 !z-10">
 		MUG MVP
 	</footer>
 	{/if}
