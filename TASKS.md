@@ -43,14 +43,14 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [x] "ABOUT" (links to `/about`)
 
 5.  **Tweakpane Setup:**
-    *   [ ] Create `src/lib/utils/TweakpaneManager.js` (or `.ts`):
-        *   [ ] Initialize Tweakpane instance.
-        *   [ ] Add a "Skip Login" boolean setting.
-        *   [ ] Add a method to toggle Tweakpane visibility.
-    *   [ ] In `src/routes/+layout.svelte`:
-        *   [ ] Import and initialize TweakpaneManager.
-        *   [ ] Add global key listener (e.g., tilde `~`) to toggle Tweakpane.
-        *   [ ] If "Skip Login" is true and no username is set, auto-set a guest username and navigate to `/home` on initial load.
+    *   [x] Create `src/lib/utils/TweakpaneManager.js` (or `.ts`):
+        *   [x] Initialize Tweakpane instance.
+        *   [x] Add a "Skip Login" boolean setting.
+        *   [x] Add a method to toggle Tweakpane visibility.
+    *   [x] In `src/routes/+layout.svelte`:
+        *   [x] Import and initialize TweakpaneManager.
+        *   [x] Add global key listener (e.g., tilde `~`) to toggle Tweakpane.
+        *   [x] If "Skip Login" is true and no username is set, auto-set a guest username and navigate to `/home` on initial load.
 
 6.  **Initial Song Data & Structure:**
     *   [x] Create `static/songs/test-song-1/` directory.
