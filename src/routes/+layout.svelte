@@ -4,6 +4,7 @@
 	import { onMount } from "svelte";
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
+	import { browser } from '$app/environment'; // Import browser
 	import type { Unsubscriber } from 'svelte/store';
 	import TweakpaneManager from '$lib/utils/TweakpaneManager'; // Import TweakpaneManager
 
@@ -18,8 +19,10 @@
 			// Check page store within subscription to get current path
 			const currentPath = $page.url.pathname;
 			if (!currentUsername && currentPath !== '/') {
-				console.log('Redirecting to login (onMount check)...', currentUsername, currentPath);
-				goto('/', { replaceState: true }); // Use replaceState to avoid breaking back button
+				// Redirect logic might be better handled in the reactive block below now
+				// But keeping this for immediate client-side reaction if needed
+				console.log('Redirecting to login (onMount check)... Should be handled by reactive block?');
+				// if (browser) goto('/', { replaceState: true }); 
 			}
 		});
 
@@ -45,19 +48,18 @@
 		};
 	});
 
-	// Combined Redirect & Skip Login Logic
+	// Combined Redirect & Skip Login Logic (Client-side Guarded)
 	$: {
-		if ($page.url.pathname !== '/') { // Only apply logic outside login page
+		if (browser && $page.url.pathname !== '/') { // *** Added browser check ***
 			if (!$username) { // If no user is set
 				if (TweakpaneManager.getSkipLogin()) { // And skipLogin is enabled
 					console.log('Auto-logging in via Skip Login...');
 					const randomId = Math.random().toString(36).substring(2, 8).toUpperCase();
 					const guestUsername = `GUEST-${randomId}`;
 					username.set(guestUsername); // Set the store
-					// No explicit redirect needed here, reactive updates will handle UI
 				} else { // No user, skipLogin is disabled
-					console.log('Redirecting to login (user not set, skipLogin off)...', $page.url.pathname);
-					goto('/');
+					console.log('Redirecting to login (reactive, browser, user not set, skipLogin off)...', $page.url.pathname);
+					goto('/', { replaceState: true }); // Use replaceState for better history
 				}
 			}
 			// If $username IS set, do nothing, allow access
