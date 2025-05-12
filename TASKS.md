@@ -9,17 +9,17 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
     *   [x] Install Tweakpane: `bun install tweakpane`
 
 2.  **Basic Routing & Page Structure:**
-    *   [ ] Create placeholder Svelte files for main routes:
-        *   [ ] `src/routes/+page.svelte` (will be Login Screen)
-        *   [ ] `src/routes/home/+page.svelte` (Main Navigation)
-        *   [ ] `src/routes/solo/+page.svelte` (Song Selection)
-        *   [ ] `src/routes/solo/play/[songId]/+page.svelte` (Gameplay Screen)
-        *   [ ] `src/routes/multiplayer/+page.svelte` (Placeholder)
-        *   [ ] `src/routes/config/+page.svelte` (Placeholder)
-        *   [ ] `src/routes/about/+page.svelte` (Placeholder)
-    *   [ ] Create a global layout `src/routes/+layout.svelte`:
-        *   [ ] Include a header section.
-        *   [ ] Add a placeholder for the username display.
+    *   [x] Create placeholder Svelte files for main routes:
+        *   [x] `src/routes/+page.svelte` (will be Login Screen)
+        *   [x] `src/routes/home/+page.svelte` (Main Navigation)
+        *   [x] `src/routes/solo/+page.svelte` (Song Selection)
+        *   [x] `src/routes/solo/play/[songId]/+page.svelte` (Gameplay Screen)
+        *   [x] `src/routes/multiplayer/+page.svelte` (Placeholder)
+        *   [x] `src/routes/config/+page.svelte` (Placeholder)
+        *   [x] `src/routes/about/+page.svelte` (Placeholder)
+    *   [x] Create a global layout `src/routes/+layout.svelte`:
+        *   [x] Include a header section.
+        *   [x] Add a placeholder for the username display.
 
 3.  **Login System (Anonymous, UI Only):**
     *   [ ] Create `src/lib/stores/userStore.js` (or `.ts`):
