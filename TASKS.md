@@ -53,14 +53,14 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [ ] If "Skip Login" is true and no username is set, auto-set a guest username and navigate to `/home` on initial load.
 
 6.  **Initial Song Data & Structure:**
-    *   [ ] Create `static/songs/test-song-1/` directory.
-    *   [ ] Create `static/songs/test-song-1/song.json` with the defined MVP structure:
-        *   [ ] `metadata` (title, artist, audioFilename, bpm).
-        *   [ ] `charts` array with one chart object:
-            *   `difficultyName`, `lanes: 4`, `noteScrollSpeed`.
-            *   A few `hitObjects` (mix of "tap" and "hold").
-            *   `mockLeaderboard` array.
-    *   [ ] Add a placeholder `audio.mp3` to `static/songs/test-song-1/`. (Find a short, royalty-free loop for testing).
+    *   [x] Create `static/songs/test-song-1/` directory.
+    *   [x] Create `static/songs/test-song-1/song.json` with the defined MVP structure:
+        *   [x] `metadata` (title, artist, audioFilename, bpm).
+        *   [x] `charts` array with one chart object:
+            *   [x] `difficultyName`, `lanes: 4`, `noteScrollSpeed`.
+            *   [x] A few `hitObjects` (mix of "tap" and "hold").
+            *   [x] `mockLeaderboard` array.
+    *   [x] Add a placeholder `audio.mp3` to `static/songs/test-song-1/`. (Find a short, royalty-free loop for testing).
 
 ---
 
