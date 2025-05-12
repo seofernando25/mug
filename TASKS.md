@@ -36,11 +36,11 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [x] If `username` is not set, redirect to `/` (login) from `+layout.svelte`'s load function or an `onMount` check (except for `/` itself).
 
 4.  **Home Navigation Screen (`src/routes/home/+page.svelte`):**
-    *   [ ] Add large, styled buttons (using Tailwind CSS) for:
-        *   [ ] "SOLO" (links to `/solo`)
-        *   [ ] "MULTIPLAYER" (links to `/multiplayer`)
-        *   [ ] "CONFIG" (links to `/config`)
-        *   [ ] "ABOUT" (links to `/about`)
+    *   [x] Add large, styled buttons (using Tailwind CSS) for:
+        *   [x] "SOLO" (links to `/solo`)
+        *   [x] "MULTIPLAYER" (links to `/multiplayer`)
+        *   [x] "CONFIG" (links to `/config`)
+        *   [x] "ABOUT" (links to `/about`)
 
 5.  **Tweakpane Setup:**
     *   [ ] Create `src/lib/utils/TweakpaneManager.js` (or `.ts`):
