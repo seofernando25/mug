@@ -34,6 +34,8 @@
 	},
 	"dependencies": {
 		"better-sqlite3": "^11.8.0",
-		"drizzle-orm": "^0.40.0"
+		"drizzle-orm": "^0.40.0",
+		"pixi.js": "^8.9.2",
+		"tweakpane": "^4.0.5"
 	}
 }

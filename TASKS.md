@@ -5,8 +5,8 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
 ## Phase 0: Project Setup & Foundation (Est. ~2-3 hours)
 
 1.  **Initialize Project & Install Dependencies:**
-    *   [ ] Install PixiJS: `bun install pixi.js`.
-    *   [ ] Install Tweakpane: `bun install tweakpane`
+    *   [x] Install PixiJS: `bun install pixi.js`.
+    *   [x] Install Tweakpane: `bun install tweakpane`
 
 2.  **Basic Routing & Page Structure:**
     *   [ ] Create placeholder Svelte files for main routes:
