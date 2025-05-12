@@ -5,17 +5,8 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
 ## Phase 0: Project Setup & Foundation (Est. ~2-3 hours)
 
 1.  **Initialize Project & Install Dependencies:**
-    *   [x] Create a new SvelteKit project: `bun create svelte@latest my-rhythm-game` (select Skeleton project, TypeScript if preferred, ESLint, Prettier).
-    *   [ ] `cd my-rhythm-game`
-    *   [ ] Install PixiJS: `bun install pixi.js`
-    *   [ ] Install Tailwind CSS 4 (follow official SvelteKit integration guide - likely involves installing Tailwind, PostCSS, Autoprefixer, and configuring `tailwind.config.js` and `postcss.config.js`, and updating `app.html` and global CSS).
-        *   [x] `bun install -D tailwindcss@next postcss autoprefixer`
-        *   [x] `bunx tailwindcss init -p`
-        *   [x] Configure `tailwind.config.js` (content paths for Svelte files).
-        *   [x] Create `src/app.css` (or similar) and import Tailwind directives (`@tailwind base; @tailwind components; @tailwind utilities;`).
-        *   [x] Import `src/app.css` in `src/routes/+layout.svelte`.
+    *   [ ] Install PixiJS: `bun install pixi.js`.
     *   [ ] Install Tweakpane: `bun install tweakpane`
-    *   [ ] Initialize Git repository: `git init`, `git add .`, `git commit -m "Initial project setup"`
 
 2.  **Basic Routing & Page Structure:**
     *   [ ] Create placeholder Svelte files for main routes:
