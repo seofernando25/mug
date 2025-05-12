@@ -40,39 +40,35 @@
 				const laneWidth = highwayWidth / chart.lanes; // chart.lanes should be 4 for MVP
 				const highwayX = (stageWidth - highwayWidth) / 2;
 
-				// Draw Highway Background / Lane Separators
+				// Draw Highway Background (Using PixiJS v8 methods)
 				const highwayGraphics = new Graphics();
 				const laneColors = [0x2a2a2e, 0x3a3a3e]; // Use 2 colors, will alternate
-				const lineThickness = 4; // Increased thickness for debug
-				const lineColor = 0xffff00; // Bright yellow for debug
+				const lineThickness = 2; // Slightly thinner default line
+				const lineColor = 0x888888; // Lighter gray for lines
 
-				// Explicitly fill each lane rectangle
+				// Fill each lane rectangle
 				for (let i = 0; i < chart.lanes; i++) {
-					highwayGraphics.beginFill(laneColors[i % laneColors.length], 0.8); // Use beginFill
-					highwayGraphics.drawRect(highwayX + i * laneWidth, 0, laneWidth, stageHeight); // Use drawRect
-					highwayGraphics.endFill(); // Use endFill
+					highwayGraphics.rect(highwayX + i * laneWidth, 0, laneWidth, stageHeight) // Define rectangle
+								   .fill({ color: laneColors[i % laneColors.length], alpha: 0.8 }); // Fill it
 				}
 
-				// appInstance.stage.addChild(highwayGraphics); // Add filled rects to stage
+				appInstance.stage.addChild(highwayGraphics); // Add background rects to stage
 
-				// --- Create NEW Graphics object for lines --- 
+				// Draw Highway Lines (Using PixiJS v8 methods)
 				const lineGraphics = new Graphics();
-				lineGraphics.lineStyle(lineThickness, lineColor); // Use lineStyle (still thick yellow for debug)
-
-				// Draw lane separator lines
-				for (let i = 1; i < chart.lanes; i++) {
-					lineGraphics.moveTo(highwayX + i * laneWidth, 0);
-					lineGraphics.lineTo(highwayX + i * laneWidth, stageHeight);
+				// Draw lane separator lines as thin rectangles
+				for (let i = 0; i < chart.lanes + 1; i++) {
+					// Calculate position for the thin rectangle, centered on the line position
+					const lineX = highwayX + i * laneWidth;
+					lineGraphics.rect(lineX - lineThickness / 2, 0, lineThickness, stageHeight)
+								.fill({ color: lineColor }); // Fill the rectangle
 				}
-				// Outer highway lines
-				lineGraphics.moveTo(highwayX, 0);
-				lineGraphics.lineTo(highwayX, stageHeight);
-				lineGraphics.moveTo(highwayX + highwayWidth, 0);
-				lineGraphics.lineTo(highwayX + highwayWidth, stageHeight);
+				
+				
 				
 				appInstance.stage.addChild(lineGraphics); // Add lines graphics to stage
 
-				// Draw Hit Zone (Judgment Line)
+				// Draw Hit Zone (Judgment Line) - Already using v8 style stroke
 				const hitZoneYRatio = 0.85; // Position hit zone 85% down the screen
 				const hitZoneY = stageHeight * hitZoneYRatio;
 				const hitZoneGraphics = new Graphics();
