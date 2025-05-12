@@ -4,9 +4,9 @@
 
 	let { data } = $props<{ data: PageData }>(); 
 
-	let pixiApp: Application | null = null;
+	let pixiApp = $state<Application | null>(null); // Use $state
 	let canvasContainer: HTMLDivElement;
-	let audioElement: HTMLAudioElement | null = null;
+	let audioElement = $state<HTMLAudioElement | null>(null); // Use $state
 
 	// Extract data for easier access
 	const { songId, metadata, chart } = data;

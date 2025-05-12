@@ -1,40 +1,20 @@
 import { error } from '@sveltejs/kit';
 import type { Load } from '@sveltejs/kit';
-
-// Define types for the song data structure (optional but recommended)
-interface HitObject {
-	time: number;
-	lane: number;
-	type: 'tap' | 'hold';
-	duration?: number; // Only for hold notes
-}
-
-interface Chart {
-	difficultyName: string;
-	lanes: number;
-	noteScrollSpeed: number;
-	lyrics?: { time: number; text: string }[];
-	hitObjects: HitObject[];
-	mockLeaderboard?: { name: string; score: number }[];
-}
-
-interface SongMetadata {
-	title: string;
-	artist: string;
-	audioFilename: string;
-	bpm: number;
-	previewStartTime?: number;
-}
-
-interface SongData {
-	metadata: SongMetadata;
-	charts: Chart[];
-}
+// Import types from the new central location
+import type { SongData, SongMetadata, Chart } from '$lib/types/song';
 
 // Disable SSR for this page
 export const ssr = false;
 
-export const load: Load = async ({ params, fetch }) => {
+// Define the expected shape of the data returned by load
+export interface PageSongData {
+	songId: string;
+	metadata: SongMetadata;
+	chart: Chart;
+}
+
+// Explicitly type the return value of the async function instead of Load generic
+export const load = (async ({ params, fetch }): Promise<PageSongData> => {
 	const songId = params.songId;
 	if (!songId) {
 		throw error(404, 'Song ID not provided');
@@ -59,13 +39,13 @@ export const load: Load = async ({ params, fetch }) => {
 		return {
 			songId,
 			metadata: songData.metadata,
-			chart: songData.charts[0] // Assuming we always use the first chart for MVP
+			chart: songData.charts[0] 
 		};
 	} catch (e: any) {
 		console.error(`Error loading song ${songId}:`, e);
-		if (e.status) { // Re-throw SvelteKit errors
+		if (e.status) {
 			throw e;
 		}
 		throw error(500, `Could not load song data for ${songId}`);
 	}
-}; 
+}); 
