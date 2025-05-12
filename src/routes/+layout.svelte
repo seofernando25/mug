@@ -63,7 +63,7 @@
 				{#if $username}
 					<span class="text-gray-300">Welcome, <span class="font-semibold text-purple-300">{$username}</span>!</span>
 					<button 
-						on:click={logout} 
+						onclick={logout}
 						class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"
 					>
 						Logout

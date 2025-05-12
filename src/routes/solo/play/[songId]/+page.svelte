@@ -1,6 +1,4 @@
 <script lang="ts">
-	export const ssr = false;
-
 	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	import { Application } from 'pixi.js';
