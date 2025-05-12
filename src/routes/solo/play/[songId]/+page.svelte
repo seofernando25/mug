@@ -35,6 +35,81 @@
 		let audioInstance: HTMLAudioElement | null = null;
 		let gameLoop: ((ticker: any) => void) | null = null; // Store ticker callback for removal
 
+		// Graphics objects that need updating on resize
+		let highwayGraphics: Graphics | null = null;
+		let lineGraphics: Graphics | null = null;
+		let hitZoneGraphics: Graphics | null = null;
+
+		// Function to calculate layout and redraw static elements
+		const updateLayout = () => {
+			if (!pixiApp || !highwayGraphics || !lineGraphics || !hitZoneGraphics) return;
+
+			const app = pixiApp;
+			const stageWidth = app.screen.width;
+			const stageHeight = app.screen.height;
+
+			// Recalculate dimensions
+			const highwayWidthRatio = 0.6;
+			const highwayWidth = stageWidth * highwayWidthRatio;
+			const laneWidth = highwayWidth / chart.lanes; 
+			const highwayX = (stageWidth - highwayWidth) / 2;
+			const hitZoneYRatio = 0.85;
+			const hitZoneY = stageHeight * hitZoneYRatio;
+			const hitZoneHeight = 4;
+			const lineThickness = 2;
+			const lineColor = 0x888888; 
+			const laneColors = [0x2a2a2e, 0x3a3a3e];
+			const hitZoneColor = 0xffffff;
+			const hitZoneAlpha = 0.9;
+			const noteWidthRatio = 0.9; // Keep consistent with note spawning
+			const beatLineHeight = 2;
+			const beatLineColor = 0x555555;
+			const beatLineAlpha = 0.7;
+
+			// --- Redraw Highway Background ---
+			highwayGraphics.clear();
+			for (let i = 0; i < chart.lanes; i++) {
+				highwayGraphics.rect(highwayX + i * laneWidth, 0, laneWidth, stageHeight)
+							   .fill({ color: laneColors[i % laneColors.length], alpha: 0.8 });
+			}
+
+			// --- Redraw Highway Lines ---
+			lineGraphics.clear();
+			for (let i = 0; i < chart.lanes + 1; i++) {
+				const lineX = highwayX + i * laneWidth;
+				lineGraphics.rect(lineX - lineThickness / 2, 0, lineThickness, stageHeight)
+							.fill({ color: lineColor });
+			}
+
+			// --- Redraw Hit Zone ---
+			hitZoneGraphics.clear();
+			hitZoneGraphics.rect(highwayX, hitZoneY - hitZoneHeight / 2, highwayWidth, hitZoneHeight)
+						   .fill({ color: hitZoneColor, alpha: hitZoneAlpha });
+
+			// --- Update existing beat line X positions and width ---
+			beatLines.forEach(line => {
+				line.clear(); // Clear old drawing
+				line.rect(highwayX, -beatLineHeight / 2, highwayWidth, beatLineHeight)
+					.fill({ color: beatLineColor, alpha: beatLineAlpha });
+				// Y position is handled by game loop, only need to ensure width/x are correct
+			});
+
+			// --- Update existing note X positions and width ---
+			activeNotes.forEach(note => {
+				const noteVisualWidth = laneWidth * noteWidthRatio;
+				const noteX = highwayX + (note.lane * laneWidth) + (laneWidth - noteVisualWidth) / 2;
+				note.headGraphics.x = noteX;
+				// If width needs to change (it does based on laneWidth)
+				// We might need to redraw or scale. Redrawing is simpler for rects.
+				// TODO: Re-evaluate if redrawing notes is too costly. Scaling might be better.
+				
+				if (note.bodyGraphics) {
+					note.bodyGraphics.x = noteX;
+					// Similarly, update body width if necessary
+				}
+			});
+		};
+
 		const initGameplay = async () => {
 			if (!canvasContainer) return; 
 
@@ -59,45 +134,39 @@
 				const highwayX = (stageWidth - highwayWidth) / 2;
 
 				// Draw Highway Background (Using PixiJS v8 methods)
-				const highwayGraphics = new Graphics();
+				highwayGraphics = new Graphics(); // Assign to variable
 				const laneColors = [0x2a2a2e, 0x3a3a3e]; // Use 2 colors, will alternate
 				const lineThickness = 2; // Slightly thinner default line
 				const lineColor = 0x888888; // Lighter gray for lines
 
-				// Fill each lane rectangle
-				for (let i = 0; i < chart.lanes; i++) {
-					highwayGraphics.rect(highwayX + i * laneWidth, 0, laneWidth, stageHeight) // Define rectangle
-								   .fill({ color: laneColors[i % laneColors.length], alpha: 0.8 }); // Fill it
-				}
+				// Fill each lane rectangle - MOVED TO updateLayout
+				/* for (let i = 0; i < chart.lanes; i++) { ... } */
 
 				appInstance.stage.addChild(highwayGraphics); // Add background rects to stage
 
 				// Draw Highway Lines (Using PixiJS v8 methods)
-				const lineGraphics = new Graphics();
-				// Draw lane separator lines as thin rectangles
-				for (let i = 0; i < chart.lanes + 1; i++) {
-					// Calculate position for the thin rectangle, centered on the line position
-					const lineX = highwayX + i * laneWidth;
-					lineGraphics.rect(lineX - lineThickness / 2, 0, lineThickness, stageHeight)
-								.fill({ color: lineColor }); // Fill the rectangle
-				}
+				lineGraphics = new Graphics(); // Assign to variable
+				// Draw lane separator lines as thin rectangles - MOVED TO updateLayout
+				/* for (let i = 0; i < chart.lanes + 1; i++) { ... } */
 				
 				
 				appInstance.stage.addChild(lineGraphics); // Add lines graphics to stage
 
 				// Draw Hit Zone (Judgment Line) - Now using a rectangle
-				const hitZoneYRatio = 0.85; // Position hit zone 85% down the screen
-				const hitZoneY = stageHeight * hitZoneYRatio;
+				/* const hitZoneYRatio = 0.85; ... */ // Dimensions calculated in updateLayout
 				const hitZoneHeight = 4; // Height of the hit zone rectangle (was line width)
 				const hitZoneColor = 0xffffff;
 				const hitZoneAlpha = 0.9;
 
-				const hitZoneGraphics = new Graphics();
-				hitZoneGraphics.rect(highwayX, hitZoneY - hitZoneHeight / 2, highwayWidth, hitZoneHeight) // Define the rectangle, centering it vertically
-							   .fill({ color: hitZoneColor, alpha: hitZoneAlpha }); // Fill it
+				hitZoneGraphics = new Graphics(); // Assign to variable
+				// Drawing moved to updateLayout
+				/* hitZoneGraphics.rect(...) */
 				appInstance.stage.addChild(hitZoneGraphics);
 
 				console.log('Chart Data:', chart);
+
+				// --- Initial Layout Draw ---
+				updateLayout(); 
 
 				// --- Beat Line Setup ---
 				const bpm = metadata.bpm > 0 ? metadata.bpm : 120; // Default to 120 if bpm is invalid
@@ -166,23 +235,36 @@
 
 					// --- Note Spawning, Movement, Despawning ---
 					// 1. Spawn new notes
+
+					// Get current dimensions needed for spawning calculations
+					const currentStageWidth = pixiApp?.screen.width ?? 0;
+					const currentStageHeight = pixiApp?.screen.height ?? 0;
+					const currentHighwayWidthRatio = 0.6;
+					const currentHighwayWidth = currentStageWidth * currentHighwayWidthRatio;
+					const currentLaneWidth = currentHighwayWidth / chart.lanes;
+					const currentHighwayX = (currentStageWidth - currentHighwayWidth) / 2;
+					const currentHitZoneYRatio = 0.85;
+					const currentHitZoneY = currentStageHeight * currentHitZoneYRatio;
+					const currentNoteWidthRatio = 0.9;
+					const currentNoteHeight = 20;
+
 					while (currentNoteIndex < sortedHitObjects.length && 
 						   sortedHitObjects[currentNoteIndex].time <= songTime + (lookaheadSeconds * 1000))
 					{
 						const noteData = sortedHitObjects[currentNoteIndex];
-						const noteVisualWidth = laneWidth * noteWidthRatio;
-						const noteX = highwayX + (noteData.lane * laneWidth) + (laneWidth - noteVisualWidth) / 2;
+						const noteVisualWidth = currentLaneWidth * currentNoteWidthRatio;
+						const noteX = currentHighwayX + (noteData.lane * currentLaneWidth) + (currentLaneWidth - noteVisualWidth) / 2;
 
 						// Initial Y position relative to hit zone, notes appear at top and scroll down
 						// noteData.time and songTime are in ms. scrollSpeed is in px/sec.
-						const initialY = hitZoneY - ((noteData.time - songTime) / 1000 * scrollSpeed);
+						const initialY = currentHitZoneY - ((noteData.time - songTime) / 1000 * scrollSpeed);
 						
 						const headGraphics = new Graphics();
-						headGraphics.rect(0, 0, noteVisualWidth, noteHeight)
+						headGraphics.rect(0, 0, noteVisualWidth, currentNoteHeight)
 								   .fill({ color: noteData.type === 'hold' ? noteColorHoldHead : noteColorTap });
 						headGraphics.x = noteX;
 						headGraphics.y = initialY;
-						appInstance.stage.addChild(headGraphics);
+						appInstance?.stage.addChild(headGraphics);
 
 						let bodyGraphics: Graphics | undefined = undefined;
 						if (noteData.type === 'hold' && noteData.duration && noteData.duration > 0) {
@@ -192,8 +274,8 @@
 							bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
 										 .fill({ color: noteColorHoldBody });
 							bodyGraphics.x = noteX;
-							bodyGraphics.y = initialY + noteHeight; // Position body below the head
-							appInstance.stage.addChild(bodyGraphics);
+							bodyGraphics.y = initialY + currentNoteHeight; // Position body below the head
+							appInstance?.stage.addChild(bodyGraphics);
 						}
 
 						activeNotes = [...activeNotes, {
@@ -238,6 +320,7 @@
 				};
 
 				appInstance.ticker.add(gameLoop);
+				appInstance.renderer.on('resize', updateLayout); // Add resize listener
 				
 			} catch (error) {
 				console.error("Failed to initialize PixiJS:", error);
@@ -271,6 +354,10 @@
 			if (currentApp && gameLoop) {
 				currentApp.ticker.remove(gameLoop);
 				gameLoop = null; // Clear reference
+			}
+			// Cleanup Resize Listener
+			if (currentApp) {
+				currentApp.renderer.off('resize', updateLayout);
 			}
 
 			// Cleanup Beat Lines Graphics

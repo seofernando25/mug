@@ -87,11 +87,15 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [x] Draw a horizontal "Hit Zone" or "Judgment Line" near the bottom of the highway.
     *   [x] **Beat Lines (Basic):**
         *   [x] Create a system to draw horizontal lines representing beats, moving down the highway. (Initially, these might just be decorative or tied to a simple interval).
-    *   [ ] **Notes:**
-        *   [ ] Create a `Note` class or factory function for PixiJS graphics.
-        *   [ ] It should be able to render "tap" notes (e.g., simple `PIXI.Graphics` rectangles).
-        *   [ ] It should be able to render "hold" notes (e.g., a rectangle for the head, and another for the tail/duration).
-        *   [ ] Store note metadata (time, lane, type, duration, PixiJS object) for active notes.
+    *   [x] **Notes:**
+        *   [x] Create a `Note` class or factory function for PixiJS graphics.
+        *   [x] It should be able to render "tap" notes (e.g., simple `PIXI.Graphics` rectangles).
+        *   [x] It should be able to render "hold" notes (e.g., a rectangle for the head, and another for the tail/duration).
+        *   [x] Store note metadata (time, lane, type, duration, PixiJS object) for active notes.
+
+TODO:
+- Fix issues notes note spawning before the top (they are popping in after)
+
 
 4.  **Note Spawning & Movement Logic:**
     *   [ ] Get `bpm` and `noteScrollSpeed` from song data.
