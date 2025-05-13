@@ -1,15 +1,17 @@
 <script lang="ts">
+	import { Colors, GameplaySizing } from '$lib/gameplayConstants';
+	import { drawHighway, drawHighwayLines, drawHitZone, redrawBeatLineGraphicsOnResize, redrawNoteGraphicsOnResize, updateBeatLines, updateNotes } from '$lib/rendering';
+	import { isPaused, masterVolume, musicVolume } from '$lib/stores/settingsStore';
+	import type { BeatLineEntry, ChartHitObject } from '$lib/types';
 	import { Application, Graphics } from 'pixi.js';
-	import type { PageData } from './$types'; // PageData now includes metadata and chart
-	import { masterVolume, isPaused, musicVolume } from '$lib/stores/settingsStore'; // Added musicVolume
-	import { Colors, AlphaValues, GameplaySizing, Timing } from '$lib/gameplayConstants';
+	import type { PageData } from './$types';
 
 	let { data } = $props<{ data: PageData }>(); 
 
 	let pixiApp = $state<Application | null>(null); // Use $state
 	let canvasContainer: HTMLDivElement;
 	let audioElement = $state<HTMLAudioElement | null>(null); // Single source of truth for the audio element
-	let beatLines = $state<Array<{ graphics: Graphics, beatTime: number }>>([]); // Store active beat line Graphics objects with their beat times
+	let beatLines = $state<BeatLineEntry[]>([]); // Store active beat line Graphics objects with their beat times
 	let timeSinceLastBeat = $state(0); // Time accumulator for beat spawning
 	let songTime = $state(0); // Elapsed time in ms
 
@@ -25,15 +27,6 @@
 
 	const scrollSpeed = $state(300); // Pixels per second notes/lines travel down
 
-	// --- Appearance Constants (now mostly imported) ---
-	// const noteColorTap = 0x00ff00; 
-	// const noteColorHoldHead = 0x00aaff;
-	// const noteColorHoldBody = 0x0077cc;
-	// const beatLineHeight = 2; // -> GameplaySizing.BEAT_LINE_HEIGHT
-	// const beatLineColor = 0x555555; // -> Colors.BEAT_LINE
-	// const beatLineAlpha = 0.7; // -> AlphaValues.BEAT_LINE
-	// const noteRenderGracePeriodMs = 500; // -> Timing.NOTE_RENDER_GRACE_PERIOD_MS
-	// const lookaheadSeconds = 8.0; // -> Timing.LOOKAHEAD_SECONDS
 
 	// Extract data for easier access
 	const { songId, metadata, chart } = data;
@@ -55,72 +48,20 @@
 			if (!pixiApp || !highwayGraphics || !lineGraphics || !hitZoneGraphics) return;
 
 			const app = pixiApp;
-			const stageWidth = app.screen.width;
-			const stageHeight = app.screen.height;
+			const stageDimensions = { width: app.screen.width, height: app.screen.height };
 
-			// Recalculate dimensions
-			const highwayWidth = stageWidth * GameplaySizing.HIGHWAY_WIDTH_RATIO;
-			const laneWidth = highwayWidth / chart.lanes; 
-			const highwayX = (stageWidth - highwayWidth) / 2;
-			const hitZoneY = stageHeight * GameplaySizing.HIT_ZONE_Y_RATIO;
-			// const hitZoneHeight = 4; // -> GameplaySizing.HIT_ZONE_HEIGHT
-			// const lineThickness = 2; // -> GameplaySizing.HIGHWAY_LINE_THICKNESS
-			// const lineColor = 0x888888; // -> Colors.HIGHWAY_LINE
-			// const laneColors = [0x2a2a2e, 0x3a3a3e]; // -> Colors.LANE_BACKGROUNDS
-			// const hitZoneColor = 0xffffff; // -> Colors.HIT_ZONE
-			// const hitZoneAlpha = 0.9; // -> AlphaValues.HIT_ZONE
-			// const noteWidthRatio = 0.9; // -> GameplaySizing.NOTE_WIDTH_RATIO
-
-			// --- Redraw Highway Background ---
-			highwayGraphics.clear();
-			for (let i = 0; i < chart.lanes; i++) {
-				highwayGraphics.rect(highwayX + i * laneWidth, 0, laneWidth, stageHeight)
-							   .fill({ color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length], alpha: AlphaValues.LANE_BACKGROUND });
-			}
-
-			// --- Redraw Highway Lines ---
-			lineGraphics.clear();
-			for (let i = 0; i < chart.lanes + 1; i++) {
-				const lineX = highwayX + i * laneWidth;
-				lineGraphics.rect(lineX - GameplaySizing.HIGHWAY_LINE_THICKNESS / 2, 0, GameplaySizing.HIGHWAY_LINE_THICKNESS, stageHeight)
-							.fill({ color: Colors.HIGHWAY_LINE });
-			}
-
-			// --- Redraw Hit Zone ---
-			hitZoneGraphics.clear();
-			hitZoneGraphics.rect(highwayX, hitZoneY - GameplaySizing.HIT_ZONE_HEIGHT / 2, highwayWidth, GameplaySizing.HIT_ZONE_HEIGHT)
-						   .fill({ color: Colors.HIT_ZONE, alpha: AlphaValues.HIT_ZONE });
+			// --- Redraw Highway, Lines, and HitZone using imported functions ---
+			const { highwayX, highwayWidth, laneWidth } = drawHighway(highwayGraphics, stageDimensions, chart.lanes);
+			drawHighwayLines(lineGraphics, stageDimensions, chart.lanes, highwayX, laneWidth);
+			const { hitZoneY } = drawHitZone(hitZoneGraphics, stageDimensions, highwayX, highwayWidth);
+			// note: hitZoneY is returned by drawHitZone but not immediately used here. 
+			// It will be crucial for note and beat line positioning logic later.
 
 			// --- Update existing beat line X positions and width ---
-			beatLines.forEach(lineData => {
-				lineData.graphics.clear(); // Clear old drawing
-				lineData.graphics.rect(highwayX, -GameplaySizing.BEAT_LINE_HEIGHT / 2, highwayWidth, GameplaySizing.BEAT_LINE_HEIGHT)
-					.fill({ color: Colors.BEAT_LINE, alpha: AlphaValues.BEAT_LINE });
-				// Y position is handled by game loop, only need to ensure width/x are correct
-			});
+			redrawBeatLineGraphicsOnResize(beatLines, highwayX, highwayWidth);
 
 			// --- Update existing note X positions and width ---
-			noteGraphicsMap.forEach(graphicsEntry => {
-				const noteVisualWidth = laneWidth * GameplaySizing.NOTE_WIDTH_RATIO;
-				const noteX = highwayX + (graphicsEntry.lane * laneWidth) + (laneWidth - noteVisualWidth) / 2;
-				graphicsEntry.headGraphics.x = noteX;
-				// If width needs to change (it does based on laneWidth)
-				// We might need to redraw or scale. Redrawing is simpler for rects.
-				// Redraw the head note with the new width
-				// const headNoteHeight = 20; // -> GameplaySizing.NOTE_HEIGHT
-				graphicsEntry.headGraphics.clear();
-				graphicsEntry.headGraphics.rect(0, 0, noteVisualWidth, GameplaySizing.NOTE_HEIGHT)
-					.fill({ color: graphicsEntry.type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP });
-
-				if (graphicsEntry.bodyGraphics) {
-					graphicsEntry.bodyGraphics.x = noteX;
-					// Similarly, update body width if necessary - Redraw
-					const bodyHeight = graphicsEntry.duration ? (graphicsEntry.duration / 1000) * scrollSpeed : 0;
-					graphicsEntry.bodyGraphics.clear();
-					graphicsEntry.bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
-						.fill({ color: Colors.NOTE_HOLD_BODY });
-				}
-			});
+			redrawNoteGraphicsOnResize(noteGraphicsMap, highwayX, laneWidth, scrollSpeed);
 		};
 
 		const initGameplay = async () => {
@@ -148,22 +89,13 @@
 
 				// Draw Highway Lines (Using PixiJS v8 methods)
 				lineGraphics = new Graphics(); // Assign to variable
-				// Draw lane separator lines as thin rectangles - MOVED TO updateLayout
-				/* for (let i = 0; i < chart.lanes + 1; i++) { ... } */
 				
 				
 				appInstance.stage.addChild(lineGraphics); // Add lines graphics to stage
 
-				// Draw Hit Zone (Judgment Line) - Now using a rectangle
-				// Dimensions calculated in updateLayout
-				/* const hitZoneYRatio = 0.85; ... */ 
-				// const hitZoneHeight = 4; // -> GameplaySizing.HIT_ZONE_HEIGHT
-				// const hitZoneColor = 0xffffff; // -> Colors.HIT_ZONE
-				// const hitZoneAlpha = 0.9; // -> AlphaValues.HIT_ZONE
-
+			
 				hitZoneGraphics = new Graphics(); // Assign to variable
-				// Drawing moved to updateLayout
-				/* hitZoneGraphics.rect(...) */
+				
 				appInstance.stage.addChild(hitZoneGraphics);
 
 				console.log('Chart Data:', chart);
@@ -172,258 +104,89 @@
 				updateLayout(); 
 
 				// --- Beat Line Setup ---
-				const bpm = metadata.bpm > 0 ? metadata.bpm : 120; // Default to 120 if bpm is invalid
-				const beatIntervalMs = (60 / bpm) * 1000;
-				timeSinceLastBeat = 0; // Reset on init
+				// const bpm = metadata.bpm > 0 ? metadata.bpm : 120; // bpm is used in gameLoop, not directly here anymore
+				// timeSinceLastBeat = 0; // Removed as unused
 				beatLines = []; // Reset on init
 
 				// --- Note Setup ---
-				// Note appearance constants moved to script scope
+				// Note appearance constants are now primarily in gameplayConstants.ts
 				
 				// Ensure notes (hitObjects) are sorted by time (now in ms)
 				// Assign a unique ID (index) to each note for the map key
-				const sortedHitObjects = [...(chart.hitObjects || [])]
+				const sortedHitObjects: Array<ChartHitObject & { id: number }> = [...(chart.hitObjects || [])]
 					.sort((a, b) => a.time - b.time)
 					.map((note, index) => ({ ...note, id: index })); // Add id
 
-				noteGraphicsMap = new Map(); // Clear the map on init
+				noteGraphicsMap = new Map<number, NoteGraphicsEntry>(); // Specify type for clarity
 
 				gameLoop = (ticker) => {
 					if (!appInstance || !pixiApp) return;
 					const deltaMs = ticker.deltaMS;
-					const deltaSeconds = deltaMs / 1000;
-					songTime = audioElement ? audioElement.currentTime * 1000 : songTime + deltaMs;
+					let deltaSeconds = deltaMs / 1000;
 
-					// Update songTime based on actual audio playback time for synchronization
-					songTime = audioElement ? audioElement.currentTime * 1000 : songTime + deltaMs;
+					// Cap deltaSeconds to prevent extreme jumps during stutters
+					const MAX_DELTA_SECONDS = 1 / 30; // E.g., cap at a 30 FPS equivalent
+					const cappedDeltaSeconds = Math.min(deltaSeconds, MAX_DELTA_SECONDS);
 
-					// --- Beat Line Spawning & Movement (Corrected for Song Sync) ---
-					// IMPORTANT: The `beatLines` array declaration elsewhere needs to be updated to:
-					// let beatLines: Array<{ graphics: Graphics, beatTime: number }> = [];
-
-					// CRITICAL ASSUMPTION:
-					// `currentSongTimeSeconds` MUST be the accurate current playback time of the song in seconds.
-					// Replace the placeholder below with your actual implementation for getting song time.
-					// For example, if you have an audio element like <audio bind:this={audioEl}>:
-					// const currentSongTimeSeconds = audioEl ? audioEl.currentTime : 0;
-					// Or if it's from a Svelte store: const currentSongTimeSeconds = $songTimeStore;
-					const currentSongTimeSeconds = songTime / 1000; // Use existing songTime (ms to s)
+					// songTime should still update with the potentially large, real deltaMs from the ticker
+					// if audioElement is not available as a fallback, or even alongside it to keep it moving if audio desyncs.
+					// However, primary source of truth is audioEl.currentTime.
+					if (audioElement) {
+						songTime = audioElement.currentTime * 1000;
+					} else {
+						songTime += deltaMs; // Fallback if audio element isn't ready (e.g. initial load)
+					}
+				
+					const currentSongTimeSeconds = songTime / 1000;
 
 					const bpm = metadata.bpm > 0 ? metadata.bpm : 120;
-					const beatIntervalSeconds = (60 / bpm);
 					
 					const stageWidth = pixiApp.screen.width;
 					const stageHeight = pixiApp.screen.height;
+					const stageDimensions = { width: stageWidth, height: stageHeight };
 					
 					const highwayX = (stageWidth * (1 - GameplaySizing.HIGHWAY_WIDTH_RATIO)) / 2;
 					const highwayWidth = stageWidth * GameplaySizing.HIGHWAY_WIDTH_RATIO;
-					// const beatLineHeight = 2; // -> GameplaySizing.BEAT_LINE_HEIGHT
-					// const beatLineColor = 0x555555; // -> Colors.BEAT_LINE
-					// const beatLineAlpha = 0.7; // -> AlphaValues.BEAT_LINE
-
-					// Define playheadY: the Y-coordinate where beats align with currentSongTimeSeconds.
-					// This should match where notes are judged. Example: 80% down the screen.
 					const playheadY = stageHeight * GameplaySizing.HIT_ZONE_Y_RATIO; // Align with hit zone for consistency
 
-					// `scrollSpeed` is assumed to be pixels per second from the original code context.
-
-					// --- Update positions and despawn existing beat lines ---
-					const nextBeatLines: Array<{ graphics: Graphics, beatTime: number }> = [];
-					for (const lineData of beatLines) {
-						const timeDifferenceFromPlayhead = lineData.beatTime - currentSongTimeSeconds;
-						// y = playheadY - (time_to_reach_playhead_seconds * scrollSpeed_pixels_per_second)
-						lineData.graphics.y = playheadY - (timeDifferenceFromPlayhead * scrollSpeed);
-
-						const isOffScreenBottom = lineData.graphics.y > stageHeight + GameplaySizing.BEAT_LINE_HEIGHT * 5; // Buffer past screen bottom
-						const isTooFarInPast = currentSongTimeSeconds - lineData.beatTime > 5.0; // e.g., 5 seconds in the past
-
-						if (isOffScreenBottom || isTooFarInPast) {
-							appInstance?.stage.removeChild(lineData.graphics);
-							lineData.graphics.destroy();
-						} else {
-							nextBeatLines.push(lineData);
-						}
+					// --- Update Beat Lines (using imported function) ---
+					const newBeatLinesState = updateBeatLines(
+						currentSongTimeSeconds,
+						bpm,
+						scrollSpeed,
+						cappedDeltaSeconds,
+						stageDimensions,
+						highwayX,
+						highwayWidth,
+						playheadY,
+						beatLines, 
+						appInstance.stage 
+					);
+					if (newBeatLinesState.length !== beatLines.length || newBeatLinesState.some((val, i) => val !== beatLines[i])) {
+						beatLines = newBeatLinesState; 
 					}
-					// Svelte reactivity: assign new array instance if changed
-					if (nextBeatLines.length !== beatLines.length || beatLines.some((val, i) => val !== nextBeatLines[i])) {
-						beatLines = nextBeatLines;
+					// Note: Old beat line logic that was here is now in rendering.ts
+
+					// --- Note Rendering Cycle (using imported function) ---
+					const noteCtx = {
+						songTimeMs: songTime,
+						scrollSpeed,
+						stage: stageDimensions,
+						lanes: chart.lanes,
+						highwayX,
+						highwayWidth,
+						laneWidth: highwayWidth / chart.lanes, // Calculate laneWidth here
+						hitZoneY: playheadY, // playheadY is effectively the hitZoneY for notes
+						pixiStage: appInstance.stage,
+						deltaSeconds: cappedDeltaSeconds // Assign cappedDeltaSeconds to the deltaSeconds property
+					};
+
+					const newNoteMapState = updateNotes(noteCtx, sortedHitObjects, noteGraphicsMap);
+					// Check if map instance or size has changed to trigger Svelte reactivity
+					if (newNoteMapState !== noteGraphicsMap || newNoteMapState.size !== noteGraphicsMap.size) {
+					    noteGraphicsMap = newNoteMapState;
 					}
-
-					// --- Spawn new beat lines ---
-					// Time for a line to travel from y=0 (top of screen) to playheadY:
-					const timeTopToPlayhead = playheadY / scrollSpeed;
-					// Furthest beat in the future we need to have spawned (add one beatInterval as buffer):
-					const furthestBeatTimeToSpawn = currentSongTimeSeconds + timeTopToPlayhead + beatIntervalSeconds;
-
-					// Determine the beat time from which to start considering spawning new lines.
-					let lastKnownBeatTime = -beatIntervalSeconds; // Default if no lines exist, to start effectively before beat 0.
-					
-					if (beatLines.length > 0) {
-						// Find the maximum beatTime in the current beatLines array.
-						lastKnownBeatTime = -Infinity;
-						for(let i = 0; i < beatLines.length; i++) {
-							if (beatLines[i].beatTime > lastKnownBeatTime) {
-								lastKnownBeatTime = beatLines[i].beatTime;
-							}
-						}
-						if (lastKnownBeatTime === -Infinity) { // Should not happen if beatLines.length > 0
-							lastKnownBeatTime = -beatIntervalSeconds; 
-						}
-					} else {
-						// If no lines exist, calculate earliest beat that should be on screen (or just before).
-						// Beat time for a line at the very bottom of the screen (stageHeight):
-						const earliestOnScreenBeatTime = currentSongTimeSeconds + ((playheadY - stageHeight) / scrollSpeed);
-						// Start checking from one beat interval before this.
-						lastKnownBeatTime = Math.floor(earliestOnScreenBeatTime / beatIntervalSeconds) * beatIntervalSeconds - beatIntervalSeconds;
-					}
-					
-					const tempNewLinesToAdd: Array<{ graphics: Graphics, beatTime: number }> = [];
-					let nextBeatCandidateTime = (Math.floor(lastKnownBeatTime / beatIntervalSeconds) + 1) * beatIntervalSeconds;
-
-					while (nextBeatCandidateTime <= furthestBeatTimeToSpawn) {
-						// Ensure we are not trying to spawn for significantly negative times (beat 0 is okay).
-						if (nextBeatCandidateTime >= -0.001) { 
-							const newBeatLine = new Graphics();
-							newBeatLine.rect(highwayX, -GameplaySizing.BEAT_LINE_HEIGHT / 2, highwayWidth, GameplaySizing.BEAT_LINE_HEIGHT)
-								.fill({ color: Colors.BEAT_LINE, alpha: AlphaValues.BEAT_LINE });
-							
-							// Set initial position (will be refined/confirmed next frame, but good for smooth first appearance)
-							const timeDiffInitial = nextBeatCandidateTime - currentSongTimeSeconds;
-							newBeatLine.y = playheadY - (timeDiffInitial * scrollSpeed);
-
-							appInstance?.stage.addChild(newBeatLine);
-							tempNewLinesToAdd.push({ graphics: newBeatLine, beatTime: nextBeatCandidateTime });
-						}
-						nextBeatCandidateTime += beatIntervalSeconds;
-					}
-
-					if (tempNewLinesToAdd.length > 0) {
-						beatLines = [...beatLines, ...tempNewLinesToAdd];
-						// Optional: sort if order matters for other logic, though spawning should maintain rough order.
-						// beatLines.sort((a, b) => a.beatTime - b.beatTime);
-					}
-					// --- End Beat Line Logic ---
-
-					// --- Note Rendering Cycle (New Architecture) ---
-					
-					// 1. Get current dimensions for positioning
-					const currentStageWidth = pixiApp.screen.width;
-					const currentStageHeight = pixiApp.screen.height;
-					const currentHighwayWidth = currentStageWidth * GameplaySizing.HIGHWAY_WIDTH_RATIO;
-					const currentLaneWidth = currentHighwayWidth / chart.lanes;
-					const currentHighwayX = (currentStageWidth - currentHighwayWidth) / 2;
-					const currentHitZoneY = currentStageHeight * GameplaySizing.HIT_ZONE_Y_RATIO;
-					// const currentNoteWidthRatio = 0.9; // -> GameplaySizing.NOTE_WIDTH_RATIO
-					// const currentNoteHeight = 20; // -> GameplaySizing.NOTE_HEIGHT
-					
-					// 2. Define visible time window
-					const lookaheadMs = Timing.LOOKAHEAD_SECONDS * 1000;
-					const minVisibleTime = songTime - Timing.NOTE_RENDER_GRACE_PERIOD_MS;
-					const maxVisibleTime = songTime + lookaheadMs;
-					
-					const visibleNoteIdsThisFrame = new Set<number>();
-					const newNoteGraphicsMap = new Map(noteGraphicsMap); // Work with a copy for state changes
-
-					// 3. Iterate all notes, update/create visible ones
-					sortedHitObjects.forEach(noteData => {
-						const noteTime = noteData.time;
-						const noteId = noteData.id; // Use the ID we added
-						
-						if (noteTime >= minVisibleTime && noteTime <= maxVisibleTime) {
-							visibleNoteIdsThisFrame.add(noteId);
-							let graphicsEntry = newNoteGraphicsMap.get(noteId);
-							
-							// Calculate current position
-							const currentY = currentHitZoneY - ((noteTime - songTime) / 1000 * scrollSpeed);
-							const noteVisualWidth = currentLaneWidth * GameplaySizing.NOTE_WIDTH_RATIO;
-							const noteX = currentHighwayX + (noteData.lane * currentLaneWidth) + (currentLaneWidth - noteVisualWidth) / 2;
-							
-							if (!graphicsEntry) {
-								// --- Create Graphics --- 
-								// Calculate initial Y based on song time
-								const initialY = currentHitZoneY - ((noteTime - songTime) / 1000 * scrollSpeed);
-
-								const headGraphics = new Graphics();
-								headGraphics.rect(0, 0, noteVisualWidth, GameplaySizing.NOTE_HEIGHT)
-										   .fill({ color: noteData.type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP });
-								headGraphics.x = noteX;
-								headGraphics.y = initialY; 
-								appInstance?.stage.addChild(headGraphics);
-								
-								let bodyGraphics: Graphics | undefined = undefined;
-								if (noteData.type === 'hold' && noteData.duration && noteData.duration > 0) {
-									const bodyHeight = (noteData.duration / 1000) * scrollSpeed;
-									bodyGraphics = new Graphics();
-									bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
-												 .fill({ color: Colors.NOTE_HOLD_BODY });
-									bodyGraphics.x = noteX;
-									bodyGraphics.y = initialY + GameplaySizing.NOTE_HEIGHT;
-									appInstance?.stage.addChild(bodyGraphics);
-								}
-								
-								graphicsEntry = {
-									headGraphics,
-									bodyGraphics,
-									lane: noteData.lane,
-									time: noteData.time,
-									duration: noteData.duration,
-									type: noteData.type as 'tap' | 'hold'
-								};
-								newNoteGraphicsMap.set(noteId, graphicsEntry);
-							} else {
-								// --- Update Position (Hybrid Approach) --- 
-								const idealY = currentHitZoneY - ((noteTime - songTime) / 1000 * scrollSpeed);
-								const incrementalY = graphicsEntry.headGraphics.y + scrollSpeed * deltaSeconds;
-								const driftThreshold = 100.0; // Allowable pixel drift before snapping
-								const drift = Math.abs(idealY - incrementalY);
-								
-								let newY = incrementalY;
-								if (drift > driftThreshold) {
-									newY = idealY; // Snap back if drifted too much
-								}
-								
-								graphicsEntry.headGraphics.x = noteX; // Update X for resize
-								graphicsEntry.headGraphics.y = newY; 
-
-								if (graphicsEntry.bodyGraphics) {
-									// Body follows head, apply same logic
-									const idealBodyY = idealY + GameplaySizing.NOTE_HEIGHT;
-									const incrementalBodyY = graphicsEntry.bodyGraphics.y + scrollSpeed * deltaSeconds;
-									const bodyDrift = Math.abs(idealBodyY - incrementalBodyY);
-									
-									let newBodyY = incrementalBodyY;
-									if (bodyDrift > driftThreshold) {
-										newBodyY = idealBodyY; // Snap back
-									}
-
-									graphicsEntry.bodyGraphics.x = noteX; // Update X for resize
-									graphicsEntry.bodyGraphics.y = newBodyY;
-									// TODO: Implement hold note tail shrinking if desired
-								}
-							}
-						}
-					});
-
-					// 4. Cull notes no longer visible
-					let mapChanged = false;
-					for (const [noteId, graphicsEntry] of newNoteGraphicsMap) {
-						if (!visibleNoteIdsThisFrame.has(noteId)) {
-							appInstance?.stage.removeChild(graphicsEntry.headGraphics);
-							graphicsEntry.headGraphics.destroy();
-							if (graphicsEntry.bodyGraphics) {
-								appInstance?.stage.removeChild(graphicsEntry.bodyGraphics);
-								graphicsEntry.bodyGraphics.destroy();
-							}
-							newNoteGraphicsMap.delete(noteId);
-							mapChanged = true;
-						}
-					}
-
-					// 5. Update state if the map changed
-					if (mapChanged || newNoteGraphicsMap.size !== noteGraphicsMap.size) {
-						noteGraphicsMap = new Map(newNoteGraphicsMap); // Trigger reactivity by creating a new map instance
-					}
-					// --- End Note Rendering Cycle ---
+					// Note: Old note rendering cycle logic that was here is now in rendering.ts
 				};
 
 				appInstance.ticker.add(gameLoop);
@@ -563,7 +326,7 @@
 				console.log('[EFFECT Cleanup] No audioElement to cleanup.');
 			}
 			audioElement = null; 
-			timeSinceLastBeat = 0;
+			// timeSinceLastBeat = 0; // Already removed as unused previously
 			
 			console.log('[EFFECT Cleanup] Main cleanup finished.');
 		};
