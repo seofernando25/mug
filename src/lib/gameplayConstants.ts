@@ -8,6 +8,7 @@ export const Colors = {
 	HIT_ZONE_CENTER: 0xffffff, // Existing HIT_ZONE color for the center
 	HIT_ZONE_EDGES: 0xaaaaaa,  // A slightly dimmer color for the edges
 	BACKGROUND: 0x18181b, // From PixiJS background init
+	BACKGROUND_PULSE: 0x1d1d1f, // Color for background pulse effect
 };
 
 export const AlphaValues = {
