@@ -112,15 +112,15 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
     *   [x] Add basic visual feedback for key presses (e.g., lane highlight or temporary effect at hit line).
 
 6.  **Hit Detection & Basic Judgment:**
-    *   [ ] When a key is pressed for a lane:
-        *   [ ] Check if there's an active note in that lane near the Hit Zone.
-        *   [ ] Calculate the time difference between the note's target hit time and the player's input time.
-        *   [ ] **MVP Judgment:** If within a generous timing window, consider it a "HIT". Otherwise, "MISS".
-        *   [ ] If "HIT", remove/hide the note, potentially play a small visual effect (e.g., flash).
-        *   [ ] If a note passes the hit zone without being hit, mark it as a "MISS".
-    *   [ ] **Hold Notes (Basic):**
-        *   [ ] Detect initial press on a hold note's head.
-        *   [ ] For MVP, a successful initial press might be enough to count the whole hold note.
+    *   [x] When a key is pressed for a lane:
+        *   [x] Check if there's an active note in that lane near the Hit Zone.
+        *   [x] Calculate the time difference between the note's target hit time and the player's input time.
+        *   [x] **MVP Judgment:** If within a generous timing window, consider it a "HIT". Otherwise, "MISS". (Miss on press is not implemented, miss is by passing hit zone)
+        *   [x] If "HIT", remove/hide the note, potentially play a small visual effect (e.g., flash). (Floating text implemented)
+        *   [x] If a note passes the hit zone without being hit, mark it as a "MISS". (Floating text implemented)
+    *   [x] **Hold Notes (Basic):**
+        *   [x] Detect initial press on a hold note's head. (Covered by tap note logic for heads)
+        *   [x] For MVP, a successful initial press might be enough to count the whole hold note. (Covered, as hold notes are not more complex yet)
 
 7.  **Audio Synchronization & Playback Control:**
     *   [ ] Start audio playback when gameplay begins (e.g., after a short countdown or immediately).

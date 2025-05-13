@@ -1,5 +1,5 @@
 export const Colors = {
-	NOTE_TAP: 0x00ff00,
+	NOTE_TAP: 0x00cc00,
 	NOTE_HOLD_HEAD: 0x00aaff,
 	NOTE_HOLD_BODY: 0x0077cc,
 	BEAT_LINE: 0x555555,
@@ -9,6 +9,8 @@ export const Colors = {
 	HIT_ZONE_EDGES: 0xaaaaaa,  // A slightly dimmer color for the edges
 	BACKGROUND: 0x18181b, // From PixiJS background init
 	BACKGROUND_PULSE: 0x1d1d1f, // Color for background pulse effect
+	JUDGMENT_HIT: 0x33ff33,   // Bright Green for HIT text
+	JUDGMENT_MISS: 0xff3333,  // Bright Red for MISS text
 };
 
 export const AlphaValues = {

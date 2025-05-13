@@ -182,71 +182,100 @@ interface NoteContext {
 export function updateNotes(
     ctx: NoteContext,
     sortedHitObjects: Array<ChartHitObject & { id: number }>, 
-    currentNoteGraphicsMap: Map<number, NoteGraphicsEntry>
+    currentNoteGraphicsMap: Map<number, NoteGraphicsEntry>,
+    judgedNoteIds: ReadonlySet<number> // Added new parameter
 ): Map<number, NoteGraphicsEntry> {
     const newNoteGraphicsMap = new Map(currentNoteGraphicsMap);
-    const visibleNoteIdsThisFrame = new Set<number>();
+    // const visibleNoteIdsThisFrame = new Set<number>(); // Potentially remove if culling is fully handled in loop
 
     const lookaheadMs = Timing.LOOKAHEAD_SECONDS * 1000;
-    const minVisibleTime = ctx.songTimeMs - Timing.NOTE_RENDER_GRACE_PERIOD_MS;
-    const maxVisibleTime = ctx.songTimeMs + lookaheadMs;
+    const minVisibleTime = ctx.songTimeMs - Timing.NOTE_RENDER_GRACE_PERIOD_MS; // Grace period for notes past hit line
+    const maxVisibleTime = ctx.songTimeMs + lookaheadMs; // How far ahead to spawn notes
 
     sortedHitObjects.forEach(noteData => {
         const noteId = noteData.id;
-        const noteStartTime = noteData.time;
-        const noteEndTime = noteData.time + (noteData.duration || 0); // Calculate end time, considering duration
+        let graphicsEntry = newNoteGraphicsMap.get(noteId);
 
-        // Revised condition: Note is active if its head is within lookahead AND its tail is not past grace period.
+        // 1. Handle notes that have been JUDGED (either HIT or MISSED)
+        // This check now uses judgedNoteIds as the primary source of truth.
+        if (judgedNoteIds.has(noteId)) {
+            if (graphicsEntry) { // Ensure it was in the map to begin with
+                ctx.pixiStage.removeChild(graphicsEntry.headGraphics);
+                graphicsEntry.headGraphics.destroy();
+                if (graphicsEntry.bodyGraphics) {
+                    ctx.pixiStage.removeChild(graphicsEntry.bodyGraphics);
+                    graphicsEntry.bodyGraphics.destroy();
+                }
+                newNoteGraphicsMap.delete(noteId);
+            }
+            return; // Done with this judged note, skip to next in sortedHitObjects
+        }
+
+        // 2. Handle note visibility and rendering for UNJUDGED notes
+        const noteStartTime = noteData.time;
+        const noteEndTime = noteData.time + (noteData.duration || 0);
+
         if (noteStartTime <= maxVisibleTime && noteEndTime >= minVisibleTime) {
-            visibleNoteIdsThisFrame.add(noteId);
-            let graphicsEntry = newNoteGraphicsMap.get(noteId);
+            // Note is within the active rendering window (and not hit)
+            // visibleNoteIdsThisFrame.add(noteId); // If using separate culling step
 
             if (!graphicsEntry) {
+                // Note is not in the map, create it (it's new to the screen)
                 const { headGraphics, bodyGraphics } = createSingleNoteGraphics(noteData, ctx);
                 graphicsEntry = {
+                    id: noteData.id,
                     headGraphics,
                     bodyGraphics,
                     lane: noteData.lane,
                     time: noteData.time,
                     duration: noteData.duration,
-                    type: noteData.type as NoteType // Assuming noteData.type is compatible
+                    type: noteData.type as NoteType,
+                    isHit: false // New notes are not hit
                 };
                 newNoteGraphicsMap.set(noteId, graphicsEntry);
             } else {
-                // For existing notes, just update their Y position.
-                // X position and width are handled by redrawNoteGraphicsOnResize for major layout changes.
-                // If X needs to be updated every frame for some reason (e.g. dynamic lane width changes independent of resize event),
-                // that logic could be added to repositionNoteGraphics or here.
+                // Note exists in map (and is not hit), update its position
                 repositionNoteGraphics(graphicsEntry, noteData, ctx);
-                
-                // Ensure X position is correctly centered if it needs to be set every frame.
-                // Circles are drawn from their center, so headGraphics.x should be the lane center.
                 const laneCenterX = ctx.highwayX + (noteData.lane * ctx.laneWidth) + (ctx.laneWidth / 2);
                 graphicsEntry.headGraphics.x = laneCenterX;
                 if (graphicsEntry.bodyGraphics) {
                     graphicsEntry.bodyGraphics.x = laneCenterX;
                 }
             }
+        } else {
+            // Note is outside the active rendering window (and not hit)
+            // If it still exists in the map, it means it moved out of view and should be culled.
+            if (graphicsEntry) {
+                ctx.pixiStage.removeChild(graphicsEntry.headGraphics);
+                graphicsEntry.headGraphics.destroy();
+                if (graphicsEntry.bodyGraphics) {
+                    ctx.pixiStage.removeChild(graphicsEntry.bodyGraphics);
+                    graphicsEntry.bodyGraphics.destroy();
+                }
+                newNoteGraphicsMap.delete(noteId);
+            }
         }
     });
 
-    // --- Cull notes no longer visible ---
+    // Old culling logic based on visibleNoteIdsThisFrame is removed as culling is now handled above.
+    /*
     let mapChangedDueToCulling = false;
     for (const [noteId, graphicsEntry] of newNoteGraphicsMap) {
-        if (!visibleNoteIdsThisFrame.has(noteId)) {
-            ctx.pixiStage.removeChild(graphicsEntry.headGraphics);
-            graphicsEntry.headGraphics.destroy();
-            if (graphicsEntry.bodyGraphics) {
-                ctx.pixiStage.removeChild(graphicsEntry.bodyGraphics);
-                graphicsEntry.bodyGraphics.destroy();
+        if (!visibleNoteIdsThisFrame.has(noteId)) { // And also ensure it wasn't a hit note already removed
+            if (!graphicsEntry.isHit) { // Double check it wasn't hit in the same frame by input before this culling
+                ctx.pixiStage.removeChild(graphicsEntry.headGraphics);
+                graphicsEntry.headGraphics.destroy();
+                if (graphicsEntry.bodyGraphics) {
+                    ctx.pixiStage.removeChild(graphicsEntry.bodyGraphics);
+                    graphicsEntry.bodyGraphics.destroy();
+                }
+                newNoteGraphicsMap.delete(noteId);
+                mapChangedDueToCulling = true;
             }
-            newNoteGraphicsMap.delete(noteId);
-            mapChangedDueToCulling = true;
         }
     }
-    // Return a new map instance if it was modified by culling to ensure reactivity, 
-    // or if new notes were added (which already creates a new map via the spread operator earlier).
-    // The check `newNoteGraphicsMap.size !== currentNoteGraphicsMap.size` handles additions/deletions.
+    */
+
     return newNoteGraphicsMap;
 }
 

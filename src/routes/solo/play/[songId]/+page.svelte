@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Colors, GameplaySizing } from '$lib/gameplayConstants';
+	import { Colors, GameplaySizing, Timing } from '$lib/gameplayConstants';
 	import { drawHighway, drawHighwayLines, drawHitZone, redrawBeatLineGraphicsOnResize, redrawNoteGraphicsOnResize, updateBeatLines, updateNotes, updateKeyPressVisuals } from '$lib/rendering';
 	import { isPaused, masterVolume, musicVolume } from '$lib/stores/settingsStore';
-	import type { BeatLineEntry, ChartHitObject, NoteType } from '$lib/types';
-	import { Application, Graphics, Color } from 'pixi.js';
+	import type { BeatLineEntry, ChartHitObject, NoteType, NoteGraphicsEntry } from '$lib/types';
+	import { Application, Graphics, Color, Text, TextStyle, Container } from 'pixi.js';
 	import type { PageData } from './$types';
 	import LevitatingTextOverlay from '$lib/LevitatingTextOverlay.svelte';
 	import { setupAudioReactiveBackground } from '$lib/useAudioReactiveBackground';
@@ -16,14 +16,6 @@
 	let beatLines = $state<BeatLineEntry[]>([]);
 	let songTime = $state(0);
 
-	type NoteGraphicsEntry = {
-		headGraphics: Graphics;
-		bodyGraphics?: Graphics;
-		lane: number;
-		time: number;
-		duration?: number;
-		type: NoteType;
-	};
 	let noteGraphicsMap = $state(new Map<number, NoteGraphicsEntry>());
 
 	const BASE_SCROLL_SPEED = 300; // Base pixels per second for scroll speed
@@ -52,6 +44,62 @@
 	// --- End Input Handling State ---
 
 	let keyPressEffectGraphics: Graphics | null = null; // Graphics layer for key press effects
+
+	// --- Judgment Text State ---
+	type JudgmentTextInfo = {
+		instanceId: number; // Unique ID for the text graphics instance
+		pixiText: Text;
+		text: string;
+		color: number;
+		x: number;
+		y: number;
+		alpha: number;
+		velocityY: number;
+		remainingLifetimeMs: number;
+	};
+	let judgmentTextMap = $state(new Map<number, JudgmentTextInfo>());
+	let nextJudgmentTextInstanceId = 0;
+	let judgmentTextContainer: Container | null = null; // PixiJS container for judgment texts
+	const JUDGMENT_TEXT_DURATION_MS = 600;
+	const JUDGMENT_TEXT_INITIAL_VELOCITY_Y = -80; // pixels per second
+	const JUDGMENT_TEXT_FADE_RATE = 1.5; // Alpha per second (1 / (DURATION_MS/1000))
+	// --- End Judgment Text State ---
+
+	let judgedNoteIds = $state(new Set<number>()); // Set to track IDs of notes already judged (hit or miss)
+
+	function spawnJudgmentText(type: "HIT" | "MISS", laneNumber: number, hitZoneY: number, laneWidth: number, highwayX: number) {
+		if (!judgmentTextContainer || !pixiApp) return;
+
+		const textStyle = new TextStyle({
+			fontFamily: 'Arial',
+			fontSize: 24,
+			fontWeight: 'bold',
+			fill: type === "HIT" ? Colors.JUDGMENT_HIT : Colors.JUDGMENT_MISS, // Assuming these are in Colors
+			stroke: { color: '#000000', width: 2 }
+		});
+
+		const pixiText = new Text({text: type, style: textStyle});
+		pixiText.anchor.set(0.5);
+		pixiText.x = highwayX + (laneNumber * laneWidth) + (laneWidth / 2);
+		pixiText.y = hitZoneY - 30; // Spawn slightly above the hit zone
+		pixiText.alpha = 1.0;
+
+		judgmentTextContainer.addChild(pixiText);
+
+		const instanceId = nextJudgmentTextInstanceId++;
+		const newTextInfo: JudgmentTextInfo = {
+			instanceId,
+			pixiText,
+			text: type,
+			color: type === "HIT" ? Colors.JUDGMENT_HIT : Colors.JUDGMENT_MISS,
+			x: pixiText.x,
+			y: pixiText.y,
+			alpha: 1.0,
+			velocityY: JUDGMENT_TEXT_INITIAL_VELOCITY_Y,
+			remainingLifetimeMs: JUDGMENT_TEXT_DURATION_MS
+		};
+		judgmentTextMap.set(instanceId, newTextInfo);
+	}
 
 	$effect(() => {
 		// Update keymap based on actual chart lanes
@@ -86,19 +134,46 @@
 
 		// --- Keyboard Event Listeners for Input Handling ---
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.repeat || Object.keys(currentKeyMap).length === 0) return;
-			const lane = currentKeyMap[event.code];
+			if (event.repeat || Object.keys(currentKeyMap).length === 0 || !pixiApp || !appInstance) return;
+			const targetLane = currentKeyMap[event.code];
 
-			if (lane !== undefined && lane < chart.lanes) {
-				if (!lanePressedState[lane]) { 
-					const newLanePressedState = lanePressedState.with(lane, true);
+			if (targetLane !== undefined && targetLane < chart.lanes) {
+				// Visual press effect
+				if (!lanePressedState[targetLane]) { 
+					const newLanePressedState = lanePressedState.with(targetLane, true);
 					lanePressedState = newLanePressedState;
-
-					const newVisuals = laneActivationVisuals.with(lane, { activationTime: songTime, currentAlpha: 1.0 });
+					const newVisuals = laneActivationVisuals.with(targetLane, { activationTime: songTime, currentAlpha: 1.0 });
 					laneActivationVisuals = newVisuals;
+				}
 
-					const pressData = { lane, timeMs: songTime, type: 'down' as const, key: event.code };
-					keyPressLog = [...keyPressLog, pressData];
+				const hitWindowMs = Timing.HIT_WINDOW_MS;
+				let bestCandidate: { id: number, entry: NoteGraphicsEntry, timeDiff: number } | null = null;
+
+				for (const [noteId, noteEntry] of noteGraphicsMap) {
+					// Check !judgedNoteIds.has(noteId) AND !noteEntry.isHit to be super safe, though judgedNoteIds should be primary
+					if (!judgedNoteIds.has(noteId) && noteEntry.lane === targetLane && !noteEntry.isHit) {
+						const timeDifference = noteEntry.time - songTime;
+						if (Math.abs(timeDifference) <= hitWindowMs) {
+							if (!bestCandidate || Math.abs(timeDifference) < Math.abs(bestCandidate.timeDiff)) {
+								bestCandidate = { id: noteId, entry: noteEntry, timeDiff: timeDifference };
+							}
+						}
+					}
+				}
+
+				if (bestCandidate) {
+					const { id: hitNoteId, entry: hitNoteEntry } = bestCandidate;
+					
+					if (!judgedNoteIds.has(hitNoteId)) { // Double check here before modifying state
+						judgedNoteIds.add(hitNoteId);
+						judgedNoteIds = new Set(judgedNoteIds); // Ensure reactivity for the Set itself
+
+						hitNoteEntry.isHit = true; 
+						noteGraphicsMap = new Map(noteGraphicsMap);
+
+						spawnJudgmentText("HIT", targetLane, pixiApp.screen.height * GameplaySizing.HIT_ZONE_Y_RATIO, (pixiApp.screen.width * GameplaySizing.HIGHWAY_WIDTH_RATIO) / chart.lanes, (pixiApp.screen.width * (1 - GameplaySizing.HIGHWAY_WIDTH_RATIO)) / 2);
+						// TODO: Add score, combo, etc.
+					}
 				}
 			}
 		};
@@ -148,13 +223,19 @@
 				highwayGraphics = new Graphics(); appInstance.stage.addChild(highwayGraphics);
 				lineGraphics = new Graphics(); appInstance.stage.addChild(lineGraphics);
 				hitZoneGraphics = new Graphics(); appInstance.stage.addChild(hitZoneGraphics);
-				keyPressEffectGraphics = new Graphics(); appInstance.stage.addChild(keyPressEffectGraphics); // Initialize and add to stage
+				keyPressEffectGraphics = new Graphics(); appInstance.stage.addChild(keyPressEffectGraphics);
+				judgmentTextContainer = new Container(); appInstance.stage.addChild(judgmentTextContainer); // Create and add container
 
 				beatLines = []; 
 				const sortedHitObjects: Array<ChartHitObject & { id: number }> = [...(chart.hitObjects || [])]
 					.sort((a, b) => a.time - b.time)
 					.map((note, index) => ({ ...note, id: index }));
 				noteGraphicsMap = new Map<number, NoteGraphicsEntry>();
+				judgedNoteIds.clear(); // Clear for new game
+				// Ensure $judgedNoteIds = new Set(); if needed for reactivity if clear() isn't enough.
+				// For Svelte 5, judgedNoteIds.clear() should be fine if judgedNoteIds itself is $state.
+				// To be absolutely safe for reactivity of consumers of the set itself, use: judgedNoteIds = new Set();
+				judgedNoteIds = new Set(); // Safer for ensuring reactivity on reset
 
 				console.log('[EFFECT] PixiJS core initialized.');
 
@@ -220,10 +301,32 @@
 						highwayX, highwayWidth, laneWidth: highwayWidth / chart.lanes,
 						hitZoneY: playheadY, pixiStage: appInstance.stage, deltaSeconds: cappedDeltaSeconds
 					};
-					const newNoteMapState = updateNotes(noteCtx, sortedHitObjects, noteGraphicsMap);
+					// Pass judgedNoteIds to updateNotes
+					const newNoteMapState = updateNotes(noteCtx, sortedHitObjects, noteGraphicsMap, judgedNoteIds);
 					if (newNoteMapState !== noteGraphicsMap || newNoteMapState.size !== noteGraphicsMap.size) {
 					    noteGraphicsMap = newNoteMapState;
 					}
+
+					// --- Miss Detection (after updateNotes) ---
+					const hitWindowMsForMiss = Timing.HIT_WINDOW_MS;
+					let mutatedInMissDetection = false;
+					noteGraphicsMap.forEach((noteEntry, noteId) => {
+						// Check !judgedNoteIds.has(noteId) first
+						if (!judgedNoteIds.has(noteId) && !noteEntry.isHit && (songTime - noteEntry.time) > hitWindowMsForMiss) {
+							judgedNoteIds.add(noteId);
+							// judgedNoteIds = new Set(judgedNoteIds); // Will be done after loop if mutated
+
+							noteEntry.isHit = true; 
+							spawnJudgmentText("MISS", noteEntry.lane, playheadY, noteCtx.laneWidth, noteCtx.highwayX);
+							mutatedInMissDetection = true;
+						}
+					});
+					if (mutatedInMissDetection) {
+						// If any note had its isHit mutated, or if judgedNoteIds was added to, update maps/sets
+						noteGraphicsMap = new Map(noteGraphicsMap); 
+						judgedNoteIds = new Set(judgedNoteIds); // Update judgedNoteIds set reference too
+					}
+					// --- End Miss Detection ---
 
 					// Update Key Press Visuals
 					if (keyPressEffectGraphics && chart.lanes > 0) {
@@ -239,6 +342,28 @@
 							Colors.NOTE_TAP // Color for the effect
 						);
 					}
+
+					// --- Update Judgment Texts ---
+					if (judgmentTextContainer && judgmentTextMap.size > 0) {
+						const deadTexts: number[] = [];
+						judgmentTextMap.forEach((jt, id) => {
+							jt.pixiText.y += jt.velocityY * cappedDeltaSeconds;
+							jt.pixiText.alpha -= JUDGMENT_TEXT_FADE_RATE * cappedDeltaSeconds;
+							jt.remainingLifetimeMs -= deltaMs;
+
+							if (jt.remainingLifetimeMs <= 0 || jt.pixiText.alpha <= 0) {
+								deadTexts.push(id);
+								judgmentTextContainer!.removeChild(jt.pixiText);
+								jt.pixiText.destroy();
+							}
+						});
+						if (deadTexts.length > 0) {
+							const newMap = new Map(judgmentTextMap);
+							deadTexts.forEach(id => newMap.delete(id));
+							judgmentTextMap = newMap;
+						}
+					}
+					// --- End Update Judgment Texts ---
 				};
 
 				appInstance.ticker.add(gameLoop);
@@ -307,7 +432,14 @@
 				if(entry.bodyGraphics){currentApp?.stage?.removeChild(entry.bodyGraphics); entry.bodyGraphics.destroy();}
 			});
 			noteGraphicsMap.clear();
-			if (keyPressEffectGraphics) { currentApp?.stage?.removeChild(keyPressEffectGraphics); keyPressEffectGraphics.destroy(); keyPressEffectGraphics = null; } // Cleanup effect graphics
+			if (keyPressEffectGraphics) { currentApp?.stage?.removeChild(keyPressEffectGraphics); keyPressEffectGraphics.destroy(); keyPressEffectGraphics = null; }
+			if (judgmentTextContainer) { // Cleanup judgment texts and container
+				judgmentTextMap.forEach(jt => judgmentTextContainer?.removeChild(jt.pixiText));
+				judgmentTextMap.clear();
+				currentApp?.stage?.removeChild(judgmentTextContainer); 
+				judgmentTextContainer.destroy(); 
+				judgmentTextContainer = null;
+			}
 			
 			if (audioReactive) { audioReactive.cleanup(); audioReactive = null; }
 			if (currentApp) { currentApp.destroy(true, { children: true }); pixiApp = null; }
