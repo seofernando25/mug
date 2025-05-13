@@ -53,7 +53,7 @@
 			// --- Redraw Highway, Lines, and HitZone using imported functions ---
 			const { highwayX, highwayWidth, laneWidth } = drawHighway(highwayGraphics, stageDimensions, chart.lanes);
 			drawHighwayLines(lineGraphics, stageDimensions, chart.lanes, highwayX, laneWidth);
-			const { hitZoneY } = drawHitZone(hitZoneGraphics, stageDimensions, highwayX, highwayWidth);
+			const { hitZoneY } = drawHitZone(hitZoneGraphics, stageDimensions, highwayX, chart.lanes, laneWidth);
 			// note: hitZoneY is returned by drawHitZone but not immediately used here. 
 			// It will be crucial for note and beat line positioning logic later.
 
@@ -61,7 +61,7 @@
 			redrawBeatLineGraphicsOnResize(beatLines, highwayX, highwayWidth);
 
 			// --- Update existing note X positions and width ---
-			redrawNoteGraphicsOnResize(noteGraphicsMap, highwayX, laneWidth, scrollSpeed);
+			redrawNoteGraphicsOnResize(noteGraphicsMap, highwayX, laneWidth, hitZoneY, scrollSpeed);
 		};
 
 		const initGameplay = async () => {

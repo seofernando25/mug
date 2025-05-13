@@ -1,5 +1,5 @@
 import { Graphics, Container } from 'pixi.js';
-import { Colors, AlphaValues, GameplaySizing, Timing } from './gameplayConstants';
+import { Colors, AlphaValues, GameplaySizing, Timing, DebugColors } from './gameplayConstants';
 import type { BeatLineEntry, NoteGraphicsEntry, NoteType, ChartHitObject } from './types';
 
 interface StageDimensions {
@@ -42,15 +42,25 @@ export function drawHighwayLines(
 export function drawHitZone(
     hitZoneGraphics: Graphics,
     stage: StageDimensions,
-    highwayX: number,    // Pass from drawHighway
-    highwayWidth: number // Pass from drawHighway
+    highwayX: number,    
+    lanes: number,
+    laneWidth: number
 ) {
     hitZoneGraphics.clear();
-    const hitZoneY = stage.height * GameplaySizing.HIT_ZONE_Y_RATIO;
-
-    hitZoneGraphics.rect(highwayX, hitZoneY - GameplaySizing.HIT_ZONE_HEIGHT / 2, highwayWidth, GameplaySizing.HIT_ZONE_HEIGHT)
-                   .fill({ color: Colors.HIT_ZONE, alpha: AlphaValues.HIT_ZONE });
-    return { hitZoneY }; // Return calculated value for reuse
+    const hitZoneYCenter = stage.height * GameplaySizing.HIT_ZONE_Y_RATIO;
+    
+    // Calculate radius for hit zone circles, consistent with new scaled note size
+    const hitCircleVisualWidth = laneWidth * (GameplaySizing.NOTE_WIDTH_RATIO * 0.5); 
+    const hitCircleRadius = hitCircleVisualWidth / 2;
+    for (let i = 0; i < lanes; i++) {
+        const laneCenterX = highwayX + (i * laneWidth) + (laneWidth / 2);
+        hitZoneGraphics.circle(laneCenterX, hitZoneYCenter, hitCircleRadius)
+                       .fill({ color: Colors.HIT_ZONE_CENTER, alpha: AlphaValues.HIT_ZONE_CENTER });
+        // Consider adding a stroke for better visibility if needed:
+        // .stroke({ width: 1, color: Colors.HIT_ZONE_EDGES, alpha: AlphaValues.HIT_ZONE_EDGES })
+    }
+    
+    return { hitZoneY: hitZoneYCenter }; // Return the center Y for note/beat alignment
 }
 
 export function redrawBeatLineGraphicsOnResize(
@@ -182,10 +192,12 @@ export function updateNotes(
     const maxVisibleTime = ctx.songTimeMs + lookaheadMs;
 
     sortedHitObjects.forEach(noteData => {
-        const noteTime = noteData.time;
         const noteId = noteData.id;
+        const noteStartTime = noteData.time;
+        const noteEndTime = noteData.time + (noteData.duration || 0); // Calculate end time, considering duration
 
-        if (noteTime >= minVisibleTime && noteTime <= maxVisibleTime) {
+        // Revised condition: Note is active if its head is within lookahead AND its tail is not past grace period.
+        if (noteStartTime <= maxVisibleTime && noteEndTime >= minVisibleTime) {
             visibleNoteIdsThisFrame.add(noteId);
             let graphicsEntry = newNoteGraphicsMap.get(noteId);
 
@@ -207,12 +219,12 @@ export function updateNotes(
                 // that logic could be added to repositionNoteGraphics or here.
                 repositionNoteGraphics(graphicsEntry, noteData, ctx);
                 
-                // If X needs to be set every frame (e.g., if it wasn't set correctly on creation or if lanes can shift):
-                const noteVisualWidth = ctx.laneWidth * GameplaySizing.NOTE_WIDTH_RATIO;
-                const noteX = ctx.highwayX + (noteData.lane * ctx.laneWidth) + (ctx.laneWidth - noteVisualWidth) / 2;
-                graphicsEntry.headGraphics.x = noteX;
+                // Ensure X position is correctly centered if it needs to be set every frame.
+                // Circles are drawn from their center, so headGraphics.x should be the lane center.
+                const laneCenterX = ctx.highwayX + (noteData.lane * ctx.laneWidth) + (ctx.laneWidth / 2);
+                graphicsEntry.headGraphics.x = laneCenterX;
                 if (graphicsEntry.bodyGraphics) {
-                    graphicsEntry.bodyGraphics.x = noteX;
+                    graphicsEntry.bodyGraphics.x = laneCenterX;
                 }
             }
         }
@@ -240,29 +252,46 @@ export function updateNotes(
 
 // Helper function to create graphics for a single note
 function createSingleNoteGraphics(
-    noteData: ChartHitObject & { id: number }, // Use the more specific type
+    noteData: ChartHitObject & { id: number }, 
     ctx: NoteContext
 ): { headGraphics: Graphics, bodyGraphics?: Graphics } {
-    const noteVisualWidth = ctx.laneWidth * GameplaySizing.NOTE_WIDTH_RATIO;
-    const noteX = ctx.highwayX + (noteData.lane * ctx.laneWidth) + (ctx.laneWidth - noteVisualWidth) / 2;
-    const initialY = ctx.hitZoneY - ((noteData.time - ctx.songTimeMs) / 1000 * ctx.scrollSpeed);
-
     const headGraphics = new Graphics();
-    headGraphics.rect(0, 0, noteVisualWidth, GameplaySizing.NOTE_HEIGHT)
-               .fill({ color: noteData.type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP });
-    headGraphics.x = noteX;
-    headGraphics.y = initialY;
-    ctx.pixiStage.addChild(headGraphics);
+    // Make notes smaller: apply a scaling factor to NOTE_WIDTH_RATIO
+    const noteVisualWidth = ctx.laneWidth * (GameplaySizing.NOTE_WIDTH_RATIO * 0.5); 
+    const noteRadius = noteVisualWidth / 2;
 
-    let bodyGraphics: Graphics | undefined = undefined;
+    // Initial Y position: bottom of the note aligns with hitZoneY when time matches
+    const timeDifferenceFromHitZone = (noteData.time - ctx.songTimeMs) / 1000; // in seconds
+    // Y position will now be the center of the circle
+    const initialY = ctx.hitZoneY - (timeDifferenceFromHitZone * ctx.scrollSpeed);
+
+    const noteColor = noteData.type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
+    headGraphics.circle(0, 0, noteRadius) // Draw circle at its local 0,0
+                .fill({ color: noteColor });
+
+    headGraphics.x = ctx.highwayX + (noteData.lane * ctx.laneWidth) + (ctx.laneWidth / 2); // Center in lane
+    headGraphics.y = initialY;
+
+
+
+    let bodyGraphics: Graphics | undefined;
     if (noteData.type === 'hold' && noteData.duration && noteData.duration > 0) {
-        const bodyHeight = (noteData.duration / 1000) * ctx.scrollSpeed;
         bodyGraphics = new Graphics();
-        bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
-                     .fill({ color: Colors.NOTE_HOLD_BODY });
-        bodyGraphics.x = noteX;
-        bodyGraphics.y = initialY + GameplaySizing.NOTE_HEIGHT;
-        ctx.pixiStage.addChild(bodyGraphics);
+        // Hold body width should also scale with noteVisualWidth
+        const bodyWidth = noteVisualWidth * 0.5; 
+        const bodyDurationSeconds = noteData.duration / 1000;
+        const bodyHeight = bodyDurationSeconds * ctx.scrollSpeed;
+
+        bodyGraphics.rect(-bodyWidth / 2, -bodyHeight, bodyWidth, bodyHeight) // Draws upwards from y=0
+                    .fill({ color: Colors.NOTE_HOLD_BODY, alpha: 0.7 }); // Using 0.7 alpha as no specific const
+        
+        bodyGraphics.x = headGraphics.x; // Align with head's center x
+        bodyGraphics.y = headGraphics.y; // Body's bottom aligns with head's center y
+
+        ctx.pixiStage.addChild(bodyGraphics); 
+        ctx.pixiStage.addChild(headGraphics); 
+    } else {
+        ctx.pixiStage.addChild(headGraphics);
     }
 
     return { headGraphics, bodyGraphics };
@@ -271,29 +300,37 @@ function createSingleNoteGraphics(
 // Helper function to update Y positions of existing note graphics
 function repositionNoteGraphics(
     graphicsEntry: NoteGraphicsEntry,
-    noteData: ChartHitObject, // Contains noteData.time for idealY calculation
-    ctx: NoteContext // Contains songTimeMs (true time) and deltaSeconds (capped for incremental move)
+    noteData: ChartHitObject, 
+    ctx: NoteContext 
 ) {
-    const interpolationFactor = 0.2; // Adjust for smoothness/speed of correction (0.1 to 0.3 is common)
+    const { headGraphics, bodyGraphics, time, duration, type } = graphicsEntry; // Added type here
 
-    // 1. Smooth incremental movement for head based on capped deltaSeconds
-    graphicsEntry.headGraphics.y += ctx.scrollSpeed * ctx.deltaSeconds;
+    // 1. Incremental movement
+    headGraphics.y += ctx.scrollSpeed * ctx.deltaSeconds;
+    if (bodyGraphics) {
+        bodyGraphics.y = headGraphics.y; // Body moves with the head's Y center
+    }
 
-    // 2. Calculate ideal head position based on actual song time
-    const idealHeadY = ctx.hitZoneY - ((noteData.time - ctx.songTimeMs) / 1000 * ctx.scrollSpeed);
+    // 2. Calculate ideal Y position for the head's center
+    const timeDifferenceFromHitZone = (time - ctx.songTimeMs) / 1000;
+    const idealHeadY = ctx.hitZoneY - (timeDifferenceFromHitZone * ctx.scrollSpeed);
 
-    // 3. Gently interpolate head towards its ideal position
-    graphicsEntry.headGraphics.y += (idealHeadY - graphicsEntry.headGraphics.y) * interpolationFactor;
+    // 3. Interpolate head towards ideal Y
+    const interpolationFactor = 0.2; 
+    headGraphics.y += (idealHeadY - headGraphics.y) * interpolationFactor;
 
-    if (graphicsEntry.bodyGraphics) {
-        // 1. Smooth incremental movement for body
-        graphicsEntry.bodyGraphics.y += ctx.scrollSpeed * ctx.deltaSeconds;
+    if (bodyGraphics && type === 'hold' && duration && duration > 0) { // Added type check
+        bodyGraphics.y = headGraphics.y; // Keep body aligned with head's center
 
-        // 2. Calculate ideal body position (relative to ideal head position)
-        const idealBodyY = idealHeadY + GameplaySizing.NOTE_HEIGHT;
-
-        // 3. Gently interpolate body towards its ideal position
-        graphicsEntry.bodyGraphics.y += (idealBodyY - graphicsEntry.bodyGraphics.y) * interpolationFactor;
+        const bodyDurationSeconds = duration / 1000;
+        const newBodyHeight = bodyDurationSeconds * ctx.scrollSpeed;
+        
+        bodyGraphics.clear();
+        // Recalculate visual width using the scaling factor for consistency
+        const noteVisualWidth = ctx.laneWidth * (GameplaySizing.NOTE_WIDTH_RATIO * 0.5); 
+        const bodyWidth = noteVisualWidth * 0.5; 
+        bodyGraphics.rect(-bodyWidth / 2, -newBodyHeight, bodyWidth, newBodyHeight) 
+                    .fill({ color: Colors.NOTE_HOLD_BODY, alpha: 0.7 }); // Using 0.7 alpha
     }
 }
 
@@ -301,27 +338,39 @@ export function redrawNoteGraphicsOnResize(
     noteGraphicsMap: Map<number, NoteGraphicsEntry>,
     highwayX: number,
     laneWidth: number,
-    scrollSpeed: number // Needed for bodyHeight if recalculating
+    hitZoneY: number, 
+    scrollSpeed: number 
 ) {
-    noteGraphicsMap.forEach(graphicsEntry => {
-        const noteVisualWidth = laneWidth * GameplaySizing.NOTE_WIDTH_RATIO;
-        const noteX = highwayX + (graphicsEntry.lane * laneWidth) + (laneWidth - noteVisualWidth) / 2;
+    noteGraphicsMap.forEach((entry, noteId) => {
+        const { headGraphics, bodyGraphics, lane, type, duration, time } = entry;
 
-        // Update head graphics
-        graphicsEntry.headGraphics.x = noteX;
-        graphicsEntry.headGraphics.clear();
-        graphicsEntry.headGraphics.rect(0, 0, noteVisualWidth, GameplaySizing.NOTE_HEIGHT)
-            .fill({ color: graphicsEntry.type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP });
+        headGraphics.clear();
+        // Apply scaling factor for smaller notes on resize
+        const noteVisualWidth = laneWidth * (GameplaySizing.NOTE_WIDTH_RATIO * 0.5);
+        const noteRadius = noteVisualWidth / 2;
+        
+        const noteColor = type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
+        headGraphics.circle(0, 0, noteRadius)
+                    .fill({ color: noteColor });
 
-        // Update body graphics if it exists
-        if (graphicsEntry.bodyGraphics) {
-            graphicsEntry.bodyGraphics.x = noteX;
-            // Recalculate bodyHeight based on its original duration and current scrollSpeed
-            const bodyHeight = graphicsEntry.duration ? (graphicsEntry.duration / 1000) * scrollSpeed : 0;
-            graphicsEntry.bodyGraphics.clear();
-            graphicsEntry.bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
-                .fill({ color: Colors.NOTE_HOLD_BODY });
+        headGraphics.x = highwayX + (lane * laneWidth) + (laneWidth / 2); 
+
+        const debugLineThickness = 1;
+        headGraphics.rect(-noteRadius, -debugLineThickness / 2, noteVisualWidth, debugLineThickness)
+                    .fill({ color: DebugColors.NOTE_CENTER_LINE });
+
+
+        if (bodyGraphics && type === 'hold' && duration && duration > 0) {
+            bodyGraphics.clear();
+            // Apply scaling factor for hold body width on resize
+            const bodyWidth = noteVisualWidth * 0.5;
+            const bodyDurationSeconds = duration / 1000;
+            const bodyHeight = bodyDurationSeconds * scrollSpeed;
+
+            bodyGraphics.rect(-bodyWidth / 2, -bodyHeight, bodyWidth, bodyHeight)
+                        .fill({ color: Colors.NOTE_HOLD_BODY, alpha: 0.7 }); // Using 0.7 alpha
+            
+            bodyGraphics.x = headGraphics.x; 
         }
-        // Y positions of notes are managed by the game loop based on songTime
     });
 } 
