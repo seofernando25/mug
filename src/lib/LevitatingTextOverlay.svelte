@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { v8_0_0 } from 'pixi.js';
 	import type { Action } from 'svelte/action';
 
-	// Props for the component - Svelte 5 $props without generic argument
 	let { 
+		songTimeMs = 0 as number,
+		bpm = 120 as number,
 		title = '' as string,
 		artist = '' as string,
 		difficultyName = '' as string
@@ -28,13 +30,18 @@
 			}
 		};
 	};
+
+
+	let beatDurationMs = $derived(60000 / bpm / 0.5);
+	let beatProgress = $derived((songTimeMs % beatDurationMs) / beatDurationMs);
+	let titleScale = $derived(1 + 0.02 * Math.sin(beatProgress * Math.PI));
 </script>
 
 
 <!-- HTML Overlay for Title and Difficulty with Levitate Effect -->
-<div class="fixed top-4 left-4 z-10 p-3 rounded-md bg-black bg-opacity-30 text-overlay-container">
+<div class="fixed top-4 left-4 z-10 p-3 rounded-md bg-black  bg-opacity-30 text-overlay-container">
 	{#if title || artist}
-		<h1 use:levitateText class="title-text text-2xl font-bold mb-1">
+		<h1 use:levitateText class="title-text text-2xl   font-bold mb-1"  style="transform: scale({titleScale});">
 			{title}{artist ? ` - ${artist}` : ''}
 		</h1>
 	{/if}

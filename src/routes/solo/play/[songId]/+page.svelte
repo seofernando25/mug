@@ -234,6 +234,8 @@
 		title={metadata.title} 
 		artist={metadata.artist} 
 		difficultyName={chart.difficultyName} 
+		songTimeMs={songTime}
+		bpm={metadata.bpm > 0 ? metadata.bpm : 120}
 	/>
 </div>
 
