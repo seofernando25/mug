@@ -4,7 +4,9 @@
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
 	import { browser } from '$app/environment';
-	import TweakpaneManager from '$lib/utils/TweakpaneManager'; 
+	import TweakpaneManager from '$lib/utils/TweakpaneManager';
+	import { isOptionsMenuOpen } from '$lib/stores/settingsStore';
+	import OptionsMenu from '$lib/components/OptionsMenu.svelte';
 
 	let { children } = $props(); // Svelte 5: Get children prop
 
@@ -16,11 +18,13 @@
 		// Initialize Tweakpane on component mount (client-side)
 		TweakpaneManager.init();
 
-		// Key listener for Tweakpane toggle
+		// Key listener for Tweakpane toggle and Options Menu
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.code === 'Backquote') { 
-				console.log('Backquote key pressed, toggling Tweakpane...'); 
+			if (event.code === 'Backquote') {
+				console.log('Backquote key pressed, toggling Tweakpane...');
 				TweakpaneManager.toggleVisibility();
+			} else if (event.key === 'Escape') {
+				isOptionsMenuOpen.update(open => !open);
 			}
 		};
 		window.addEventListener('keydown', handleKeyDown);
@@ -54,6 +58,8 @@
 
 </script>
 
+<OptionsMenu />
+
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
 	{#if !isGameplayPage}
 	<header class="bg-gray-800 p-4 shadow-md !fixed !top-0 !left-0 !right-0 !z-10">
@@ -62,7 +68,13 @@
 			<div class="flex items-center space-x-4">
 				{#if $username}
 					<span class="text-gray-300">Welcome, <span class="font-semibold text-purple-300">{$username}</span>!</span>
-					<button 
+					<button
+						onclick={() => isOptionsMenuOpen.set(true)}
+						class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"
+					>
+						Options
+					</button>
+					<button
 						onclick={logout}
 						class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"
 					>

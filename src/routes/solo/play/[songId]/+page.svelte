@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { Application, Graphics } from 'pixi.js';
 	import type { PageData } from './$types'; // PageData now includes metadata and chart
+	import { masterVolume, isPaused, musicVolume } from '$lib/stores/settingsStore'; // Added musicVolume
 
 	let { data } = $props<{ data: PageData }>(); 
 
 	let pixiApp = $state<Application | null>(null); // Use $state
 	let canvasContainer: HTMLDivElement;
-	let audioElement = $state<HTMLAudioElement | null>(null); // Use $state
+	let audioElement = $state<HTMLAudioElement | null>(null); // Single source of truth for the audio element
 	let beatLines = $state<Graphics[]>([]); // Store active beat line Graphics objects
 	let timeSinceLastBeat = $state(0); // Time accumulator for beat spawning
 	let songTime = $state(0); // Elapsed time in ms
@@ -39,9 +40,9 @@
 
 	// Svelte 5: $effect for setup and teardown
 	$effect(() => {
-		let appInstance: Application | null = null; 
-		let audioInstance: HTMLAudioElement | null = null;
-		let gameLoop: ((ticker: any) => void) | null = null; // Store ticker callback for removal
+		let appInstance: Application | null = null; // For PixiJS
+		let gameLoop: ((ticker: any) => void) | null = null;
+		let unsubscribePaused: (() => void) | null = null; // Moved declaration here
 
 		// Graphics objects that need updating on resize
 		let highwayGraphics: Graphics | null = null;
@@ -124,18 +125,16 @@
 		};
 
 		const initGameplay = async () => {
-			if (!canvasContainer) return; 
+			if (!canvasContainer) return;
 
 			// --- PixiJS Setup ---
 			try {
 				appInstance = new Application();
 				await appInstance.init({ background: '#18181b', resizeTo: canvasContainer });
-				
 				canvasContainer.innerHTML = ''; 
 				canvasContainer.appendChild(appInstance.canvas);
-				
-				pixiApp = appInstance; 
-				console.log('PixiJS Initialized');
+				pixiApp = appInstance;
+				console.log('[EFFECT] PixiJS Initialized');
 
 				// --- Stage Setup ---
 				// Initial dimensions are calculated and applied in updateLayout
@@ -191,9 +190,10 @@
 				noteGraphicsMap = new Map(); // Clear the map on init
 
 				gameLoop = (ticker) => {
-					if (!appInstance || !pixiApp) return; // Guard against race conditions during cleanup
+					if (!appInstance || !pixiApp) return;
 					const deltaMs = ticker.deltaMS;
 					const deltaSeconds = deltaMs / 1000;
+					songTime = audioElement ? audioElement.currentTime * 1000 : songTime + deltaMs;
 
 					// Update songTime based on actual audio playback time for synchronization
 					songTime = audioElement ? audioElement.currentTime * 1000 : songTime + deltaMs;
@@ -361,85 +361,147 @@
 				};
 
 				appInstance.ticker.add(gameLoop);
-				appInstance.renderer.on('resize', updateLayout); // Add resize listener
-				
-			} catch (error) {
-				console.error("Failed to initialize PixiJS:", error);
-				// Optionally stop here if Pixi fails
-			}
+				appInstance.renderer.on('resize', updateLayout);
+				console.log('[EFFECT] PixiJS game loop and resize handler added.');
 
-			// --- Audio Setup ---
+			} catch (error) {
+				console.error("[EFFECT] Failed to initialize PixiJS:", error);
+				return; // Stop if Pixi fails
+			}
+			
+			// --- Audio Setup (after PixiJS init) ---
 			try {
-				audioInstance = new Audio(audioSrc);
-				audioInstance.preload = 'auto'; // Suggest preloading
-				audioElement = audioInstance; // Assign to component variable
-				console.log('Audio Element Created:', audioSrc);
-				
-				// Autoplay the song
-				audioInstance.play().catch(e => console.error("Error playing audio:", e));
+				console.log('[EFFECT] Initializing Audio...');
+				const localAudioInstance = new Audio(audioSrc);
+				localAudioInstance.preload = 'auto';
+				audioElement = localAudioInstance; // Assign to reactive $state variable
+				console.log('[EFFECT] audioElement created and assigned:', audioElement?.src);
 
-				// TODO: Add event listeners (onloadeddata, onended, etc.) if needed
+				if (!$isPaused && audioElement) {
+					console.log('[EFFECT] Attempting initial audio play...');
+					audioElement.play().then(() => {
+						console.log('[EFFECT] Initial audio playback started successfully.');
+					}).catch(e => console.error("[EFFECT] Error during initial audio play:", e));
+				} else {
+					console.log('[EFFECT] Initial audio play skipped (paused or no audioElement).');
+				}
 			} catch (error) {
-				console.error("Failed to create Audio element:", error);
-			}
-		};
-
-		initGameplay();
-
-		// Cleanup function
-		return () => {
-			console.log('Cleaning up Gameplay (PixiJS, Audio & Beat Lines)...');
-			const currentApp = pixiApp || appInstance; // Use the instance that was actually created
-
-			// Cleanup Ticker (before destroying app)
-			if (currentApp && gameLoop) {
-				currentApp.ticker.remove(gameLoop);
-				gameLoop = null; // Clear reference
-			}
-			// Cleanup Resize Listener
-			if (currentApp) {
-				currentApp.renderer.off('resize', updateLayout);
+				console.error("[EFFECT] Failed to create Audio element:", error);
+				// Even if audio fails, Pixi might be up, so don't return yet, let effects manage.
 			}
 
-			// Cleanup Beat Lines Graphics
-			beatLines.forEach(line => {
-				// Remove from stage first if app/stage still exist
-				currentApp?.stage?.removeChild(line); // Optional chaining for safety
-				line.destroy(); // Destroy the graphics object
-			});
-			beatLines = []; // Clear the state array
-
-			// Cleanup Active Notes Graphics
-			noteGraphicsMap.forEach((graphicsEntry, index) => {
-				currentApp?.stage?.removeChild(graphicsEntry.headGraphics);
-				graphicsEntry.headGraphics.destroy();
-				if (graphicsEntry.bodyGraphics) {
-					currentApp?.stage?.removeChild(graphicsEntry.bodyGraphics);
-					graphicsEntry.bodyGraphics.destroy();
+			// --- Setup isPaused Subscription (AFTER appInstance and audioElement are potentially ready) ---
+			console.log('[EFFECT] Setting up isPaused subscription...');
+			unsubscribePaused = isPaused.subscribe(paused => {
+				console.log(`[PauseEffect] isPaused changed to: ${paused}`);
+				// PixiJS Ticker Control
+				if (appInstance && appInstance.ticker) { // Extra check for appInstance.ticker
+					if (paused) {
+						if (appInstance.ticker.started) {
+							appInstance.ticker.stop();
+							console.log('[PauseEffect] PixiJS Ticker Paused');
+						}
+					} else {
+						if (!appInstance.ticker.started) {
+							appInstance.ticker.start();
+							console.log('[PauseEffect] PixiJS Ticker Resumed');
+						}
+					}
+				} else {
+					console.log('[PauseEffect] appInstance or appInstance.ticker not ready for PixiJS control.');
+				}
+				// Audio Control
+				const currentAudio = audioElement;
+				if (currentAudio) {
+					if (paused) {
+						if (!currentAudio.paused) {
+							currentAudio.pause();
+							console.log('[PauseEffect] Audio Paused via audioElement');
+						}
+					} else {
+						if (currentAudio.paused) {
+							console.log('[PauseEffect] Attempting audio resume...');
+							currentAudio.play().then(() => {
+								console.log('[PauseEffect] Audio Resumed successfully via audioElement');
+							}).catch(e => console.error("[PauseEffect] Error resuming audio:", e));
+						}
+					}
+				} else {
+					console.log('[PauseEffect] No audioElement to pause/resume.');
 				}
 			});
-			noteGraphicsMap.clear();
+			console.log('[EFFECT] isPaused subscription setup complete.');
 
-			// Cleanup PixiJS App
-			if (currentApp) {
-				currentApp.destroy(true, { children: true }); // Destroy app and its children 
-			}
-			pixiApp = null; 
-			if(canvasContainer) canvasContainer.innerHTML = ''; // Clear canvas container
-
-			// Cleanup Audio
-			const audioToClean = audioElement || audioInstance;
-			if (audioToClean) {
-				audioToClean.pause(); // Stop playback
-				audioToClean.removeAttribute('src'); // Release resource
-				audioToClean.load(); // Abort loading
-			}
-			audioElement = null;
-			timeSinceLastBeat = 0; // Reset time accumulator
-			
-			console.log('Cleanup Complete');
 		};
-	}); // End of $effect
+
+		initGameplay().then(() => {
+			console.log('[EFFECT] initGameplay promise resolved.');
+		}).catch(err => {
+			console.error('[EFFECT] initGameplay promise rejected:', err);
+		});
+
+		// Svelte 5: Reactive effect for combined volume control (remains outside initGameplay)
+		$effect.pre(() => {
+			const currentAudio = audioElement; 
+			if (currentAudio && typeof $masterVolume === 'number' && typeof $musicVolume === 'number') {
+				const newVolume = Math.max(0, Math.min(1, $masterVolume * $musicVolume));
+				currentAudio.volume = newVolume;
+				console.log(`[VolumeEffect] Volume updated: master=${$masterVolume}, music=${$musicVolume}, final=${newVolume}, target=${currentAudio.src}`);
+			} else {
+				// console.log(`[VolumeEffect] Conditions not met: audioElement=${!!currentAudio}, masterVol=${$masterVolume}, musicVol=${$musicVolume}`);
+			}
+		});
+
+		const handleResize = () => updateLayout();
+		window.addEventListener('resize', handleResize);
+
+		// Cleanup function for the main $effect (remains largely the same, ensures unsubscribePaused is called)
+		return () => {
+			console.log('[EFFECT Cleanup] Starting main cleanup...');
+
+			if (unsubscribePaused) { // This will now be called
+				unsubscribePaused();
+				console.log('[EFFECT Cleanup] Unsubscribed from isPaused');
+			}
+
+			window.removeEventListener('resize', handleResize);
+			console.log('[EFFECT Cleanup] Removed resize listener');
+
+			const currentApp = pixiApp || appInstance;
+
+			if (currentApp && gameLoop) {
+				currentApp.ticker.remove(gameLoop);
+				gameLoop = null;
+				console.log('[EFFECT Cleanup] Removed game loop from ticker');
+			}
+			if (currentApp) {
+				currentApp.renderer.off('resize', updateLayout);
+				console.log('[EFFECT Cleanup] Removed PixiJS resize listener');
+			}
+
+			beatLines.forEach(line => { currentApp?.stage?.removeChild(line); line.destroy(); });
+			beatLines = [];
+			noteGraphicsMap.forEach((entry) => { currentApp?.stage?.removeChild(entry.headGraphics); entry.headGraphics.destroy(); if(entry.bodyGraphics){currentApp?.stage?.removeChild(entry.bodyGraphics); entry.bodyGraphics.destroy();}});
+			noteGraphicsMap.clear();
+			if (currentApp) { currentApp.destroy(true, { children: true }); pixiApp = null; console.log('[EFFECT Cleanup] PixiJS app destroyed'); }
+			if(canvasContainer) canvasContainer.innerHTML = '';
+
+			const audioToClean = audioElement; 
+			if (audioToClean) {
+				console.log(`[EFFECT Cleanup] Cleaning up audioElement: ${audioToClean.src}`);
+				audioToClean.pause();
+				audioToClean.removeAttribute('src');
+				audioToClean.load(); 
+				console.log('[EFFECT Cleanup] audioElement paused, src removed, loaded.');
+			} else {
+				console.log('[EFFECT Cleanup] No audioElement to cleanup.');
+			}
+			audioElement = null; 
+			timeSinceLastBeat = 0;
+			
+			console.log('[EFFECT Cleanup] Main cleanup finished.');
+		};
+	}); // End of main $effect
 
 </script>
 
