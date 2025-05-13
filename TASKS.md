@@ -101,14 +101,15 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [x] Get current audio playback time (`audioElement.currentTime`).
         *   [x] Iterate through `hitObjects` from `song.json`.
         *   [x] Spawn a new Note visual when `hitObject.time` is within the lookahead window relative to `audioElement.currentTime`.
-        *   [ ] Notes should move downwards each frame. Their speed should be consistent and tied to `noteScrollSpeed` from song data (currently uses a hardcoded `scrollSpeed`).
+        *   [x] Notes should move downwards each frame. Their speed should be consistent and tied to `noteScrollSpeed` from song data (currently uses a hardcoded `scrollSpeed`).
         *   [x] Despawn/hide notes that have moved past the hit zone and weren't hit.
 
 5.  **Input Handling:**
-    *   [ ] Add global keyboard event listeners (or scoped to the gameplay screen).
-    *   [ ] Map specific keys (e.g., D, F, J, K) to lanes 0, 1, 2, 3.
-    *   [ ] On key press, record the lane and current time.
-    *   [ ] On key release (for hold notes later).
+    *   [x] Add global keyboard event listeners (or scoped to the gameplay screen).
+    *   [x] Map specific keys (e.g., D, F, J, K) to lanes 0, 1, 2, 3.
+    *   [x] On key press, record the lane and current time.
+    *   [x] On key release (for hold notes later).
+    *   [x] Add basic visual feedback for key presses (e.g., lane highlight or temporary effect at hit line).
 
 6.  **Hit Detection & Basic Judgment:**
     *   [ ] When a key is pressed for a lane:

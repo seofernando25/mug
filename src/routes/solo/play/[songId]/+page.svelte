@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Colors, GameplaySizing } from '$lib/gameplayConstants';
-	import { drawHighway, drawHighwayLines, drawHitZone, redrawBeatLineGraphicsOnResize, redrawNoteGraphicsOnResize, updateBeatLines, updateNotes } from '$lib/rendering';
+	import { drawHighway, drawHighwayLines, drawHitZone, redrawBeatLineGraphicsOnResize, redrawNoteGraphicsOnResize, updateBeatLines, updateNotes, updateKeyPressVisuals } from '$lib/rendering';
 	import { isPaused, masterVolume, musicVolume } from '$lib/stores/settingsStore';
-	import type { BeatLineEntry, ChartHitObject } from '$lib/types';
+	import type { BeatLineEntry, ChartHitObject, NoteType } from '$lib/types';
 	import { Application, Graphics, Color } from 'pixi.js';
 	import type { PageData } from './$types';
 	import LevitatingTextOverlay from '$lib/LevitatingTextOverlay.svelte';
@@ -22,7 +22,7 @@
 		lane: number;
 		time: number;
 		duration?: number;
-		type: 'tap' | 'hold';
+		type: NoteType;
 	};
 	let noteGraphicsMap = $state(new Map<number, NoteGraphicsEntry>());
 
@@ -34,6 +34,46 @@
 	const { songId, metadata, chart } = data;
 	const audioSrc = `/songs/${songId}/${metadata.audioFilename}`;
 
+	// --- Input Handling State ---
+	const KEY_MAPS: Array<Record<string, number>> = [
+		{ 'KeyD': 0, 'KeyF': 1, 'KeyJ': 2, 'KeyK': 3 }, // 4-lane default
+		{ 'KeyS':0, 'KeyD': 1, 'KeyF':2, 'KeyJ':3, 'KeyK':4, 'KeyL':5}, // 6-lane example
+	];
+	// Initialize with a default, will be refined by chart.lanes in $effect
+	let currentKeyMap = $state<Record<string, number>>(KEY_MAPS[0] || {});
+
+	// Dynamically initialize based on chart.lanes from `data` prop
+	let lanePressedState = $state(Array(data.chart.lanes).fill(false));
+	let laneActivationVisuals = $state(
+		Array(data.chart.lanes).fill(null).map(() => ({ activationTime: 0, currentAlpha: 0 }))
+	);
+	// Optional: For logging or more complex input logic later
+	let keyPressLog = $state<Array<{ lane: number; timeMs: number; type: 'down' | 'up', key: string }>>([]);
+	// --- End Input Handling State ---
+
+	let keyPressEffectGraphics: Graphics | null = null; // Graphics layer for key press effects
+
+	$effect(() => {
+		// Update keymap based on actual chart lanes
+		if (data.chart.lanes === 4 && KEY_MAPS[0]) {
+			currentKeyMap = KEY_MAPS[0];
+		} else if (data.chart.lanes === 6 && KEY_MAPS[1]) {
+			currentKeyMap = KEY_MAPS[1];
+		} else {
+			console.warn(`No specific keymap for ${data.chart.lanes} lanes. Using 4-lane default if available, or empty if not.`);
+			currentKeyMap = KEY_MAPS[0] || {}; // Fallback to 4-lane default or an empty map
+		}
+		
+		// Ensure state arrays are correctly sized if chart data implies different lane count
+		// This check is mostly for robustness, as props for this page typically don't change post-initialization.
+		if (lanePressedState.length !== data.chart.lanes) {
+			lanePressedState = Array(data.chart.lanes).fill(false);
+		}
+		if (laneActivationVisuals.length !== data.chart.lanes) {
+			laneActivationVisuals = Array(data.chart.lanes).fill(null).map(() => ({ activationTime: 0, currentAlpha: 0 }));
+		}
+	});
+
 	$effect(() => {
 		let appInstance: Application | null = null;
 		let gameLoop: ((ticker: any) => void) | null = null;
@@ -42,6 +82,45 @@
 		let highwayGraphics: Graphics | null = null;
 		let lineGraphics: Graphics | null = null;
 		let hitZoneGraphics: Graphics | null = null;
+		// keyPressEffectGraphics is part of component state now, accessed directly
+
+		// --- Keyboard Event Listeners for Input Handling ---
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.repeat || Object.keys(currentKeyMap).length === 0) return;
+			const lane = currentKeyMap[event.code];
+
+			if (lane !== undefined && lane < chart.lanes) {
+				if (!lanePressedState[lane]) { 
+					const newLanePressedState = lanePressedState.with(lane, true);
+					lanePressedState = newLanePressedState;
+
+					const newVisuals = laneActivationVisuals.with(lane, { activationTime: songTime, currentAlpha: 1.0 });
+					laneActivationVisuals = newVisuals;
+
+					const pressData = { lane, timeMs: songTime, type: 'down' as const, key: event.code };
+					keyPressLog = [...keyPressLog, pressData];
+				}
+			}
+		};
+
+		const handleKeyUp = (event: KeyboardEvent) => {
+			if (Object.keys(currentKeyMap).length === 0) return;
+			const lane = currentKeyMap[event.code];
+
+			if (lane !== undefined && lane < chart.lanes) {
+				if (lanePressedState[lane]) { 
+					const newLanePressedState = lanePressedState.with(lane, false);
+					lanePressedState = newLanePressedState;
+
+					const releaseData = { lane, timeMs: songTime, type: 'up' as const, key: event.code };
+					keyPressLog = [...keyPressLog, releaseData];
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		window.addEventListener('keyup', handleKeyUp);
+		// --- End Keyboard Event Listeners ---
 
 		const updateLayout = () => {
 			if (!pixiApp || !highwayGraphics || !lineGraphics || !hitZoneGraphics) return;
@@ -69,6 +148,8 @@
 				highwayGraphics = new Graphics(); appInstance.stage.addChild(highwayGraphics);
 				lineGraphics = new Graphics(); appInstance.stage.addChild(lineGraphics);
 				hitZoneGraphics = new Graphics(); appInstance.stage.addChild(hitZoneGraphics);
+				keyPressEffectGraphics = new Graphics(); appInstance.stage.addChild(keyPressEffectGraphics); // Initialize and add to stage
+
 				beatLines = []; 
 				const sortedHitObjects: Array<ChartHitObject & { id: number }> = [...(chart.hitObjects || [])]
 					.sort((a, b) => a.time - b.time)
@@ -123,6 +204,7 @@
 					const highwayWidth = stageWidth * GameplaySizing.HIGHWAY_WIDTH_RATIO;
 					const playheadY = stageHeight * GameplaySizing.HIT_ZONE_Y_RATIO;
 
+					// Update Beat Lines
 					const newBeatLinesState = updateBeatLines(
 						currentSongTimeSeconds, bpm, scrollSpeed, cappedDeltaSeconds,
 						stageDimensions, highwayX, highwayWidth, playheadY,
@@ -132,6 +214,7 @@
 						beatLines = newBeatLinesState; 
 					}
 
+					// Update Notes
 					const noteCtx = {
 						songTimeMs: songTime, scrollSpeed, stage: stageDimensions, lanes: chart.lanes,
 						highwayX, highwayWidth, laneWidth: highwayWidth / chart.lanes,
@@ -140,6 +223,21 @@
 					const newNoteMapState = updateNotes(noteCtx, sortedHitObjects, noteGraphicsMap);
 					if (newNoteMapState !== noteGraphicsMap || newNoteMapState.size !== noteGraphicsMap.size) {
 					    noteGraphicsMap = newNoteMapState;
+					}
+
+					// Update Key Press Visuals
+					if (keyPressEffectGraphics && chart.lanes > 0) {
+						updateKeyPressVisuals(
+							keyPressEffectGraphics,
+							laneActivationVisuals,
+							lanePressedState,
+							chart.lanes,
+							highwayWidth / chart.lanes, // laneWidth
+							highwayX,
+							playheadY, // hitZoneY
+							cappedDeltaSeconds,
+							Colors.NOTE_TAP // Color for the effect
+						);
 					}
 				};
 
@@ -195,6 +293,8 @@
 			console.log('[EFFECT Cleanup] Starting main cleanup...');
 			if (unsubscribePaused) unsubscribePaused();
 			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('keydown', handleKeyDown); // Cleanup keydown listener
+			window.removeEventListener('keyup', handleKeyUp);   // Cleanup keyup listener
 
 			const currentApp = pixiApp || appInstance;
 			if (currentApp && gameLoop) currentApp.ticker.remove(gameLoop);
@@ -207,6 +307,7 @@
 				if(entry.bodyGraphics){currentApp?.stage?.removeChild(entry.bodyGraphics); entry.bodyGraphics.destroy();}
 			});
 			noteGraphicsMap.clear();
+			if (keyPressEffectGraphics) { currentApp?.stage?.removeChild(keyPressEffectGraphics); keyPressEffectGraphics.destroy(); keyPressEffectGraphics = null; } // Cleanup effect graphics
 			
 			if (audioReactive) { audioReactive.cleanup(); audioReactive = null; }
 			if (currentApp) { currentApp.destroy(true, { children: true }); pixiApp = null; }

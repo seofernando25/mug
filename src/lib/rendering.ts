@@ -373,4 +373,47 @@ export function redrawNoteGraphicsOnResize(
             bodyGraphics.x = headGraphics.x; 
         }
     });
+}
+
+export function updateKeyPressVisuals(
+    graphics: Graphics,
+    laneActivationVisuals: Array<{ activationTime: number, currentAlpha: number }>,
+    lanePressedState: boolean[],
+    chartLanes: number,
+    laneWidth: number,
+    highwayX: number,
+    hitZoneY: number,
+    deltaSeconds: number,
+    noteColor: number, // Added to allow dynamic color
+    baseRadiusRatio: number = 0.7, // e.g. 0.7 of note size
+    pulseRatio: number = 0.2 // e.g. pulsates by 20% of base
+) {
+    graphics.clear();
+    const FADE_OUT_SPEED = 3.5; // Alpha per second for fade out
+
+    for (let i = 0; i < chartLanes; i++) {
+        const visual = laneActivationVisuals[i];
+        if (!visual) continue;
+
+        if (lanePressedState[i]) {
+            // If key is held, keep alpha high or make it pulse. For now, set to 1.
+            visual.currentAlpha = 1.0;
+        } else if (visual.currentAlpha > 0) {
+            // If key released, fade out
+            visual.currentAlpha -= FADE_OUT_SPEED * deltaSeconds;
+            if (visual.currentAlpha < 0) visual.currentAlpha = 0;
+        }
+
+        if (visual.currentAlpha > 0) {
+            const laneCenterX = highwayX + i * laneWidth + laneWidth / 2;
+            
+            // Base radius for the press effect, relative to lane width and configured ratio
+            const effectBaseRadius = (laneWidth * GameplaySizing.NOTE_WIDTH_RATIO * 0.5) * baseRadiusRatio;
+            // Animated radius: pulses based on currentAlpha and pulseRatio
+            const animatedRadius = effectBaseRadius * (1 + visual.currentAlpha * pulseRatio);
+
+            graphics.circle(laneCenterX, hitZoneY, animatedRadius)
+                    .fill({ color: noteColor, alpha: visual.currentAlpha * 0.6 }); // Adjust overall alpha for effect
+        }
+    }
 } 
