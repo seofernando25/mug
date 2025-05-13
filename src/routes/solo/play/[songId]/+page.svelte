@@ -26,7 +26,8 @@
 	};
 	let noteGraphicsMap = $state(new Map<number, NoteGraphicsEntry>());
 
-	const scrollSpeed = $state(300);
+	const BASE_SCROLL_SPEED = 300; // Base pixels per second for scroll speed
+	const scrollSpeed = $derived(BASE_SCROLL_SPEED * data.chart.noteScrollSpeed);
 
 	let audioReactive: ReturnType<typeof setupAudioReactiveBackground> | null = null;
 

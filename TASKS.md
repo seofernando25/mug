@@ -93,19 +93,16 @@ This document outlines the ordered tasks to achieve the MVP for our rhythm game.
         *   [x] It should be able to render "hold" notes (e.g., a rectangle for the head, and another for the tail/duration).
         *   [x] Store note metadata (time, lane, type, duration, PixiJS object) for active notes.
 
-TODO:
-- Fix issues notes note spawning before the top (they are popping in after)
-
-
 4.  **Note Spawning & Movement Logic:**
-    *   [ ] Get `bpm` and `noteScrollSpeed` from song data.
-    *   [ ] Determine the "lookahead time" (how far in advance notes should spawn before they reach the hit line).
-    *   [ ] In PixiJS's game loop (`app.ticker`):
-        *   [ ] Get current audio playback time (`audioElement.currentTime`).
-        *   [ ] Iterate through `hitObjects` from `song.json`.
-        *   [ ] Spawn a new Note visual when `hitObject.time` is within the lookahead window relative to `audioElement.currentTime`.
-        *   [ ] Notes should move downwards each frame. Their speed should be consistent and tied to `noteScrollSpeed` and potentially visual sync rather than exact ms (to ensure smooth scroll).
-        *   [ ] Despawn/hide notes that have moved past the hit zone and weren't hit.
+    *   [x] Get `bpm` from song data.
+    *   [x] Get `noteScrollSpeed` from song data (currently uses a hardcoded `scrollSpeed`).
+    *   [x] Determine the "lookahead time" (how far in advance notes should spawn before they reach the hit line).
+    *   [x] In PixiJS's game loop (`app.ticker`):
+        *   [x] Get current audio playback time (`audioElement.currentTime`).
+        *   [x] Iterate through `hitObjects` from `song.json`.
+        *   [x] Spawn a new Note visual when `hitObject.time` is within the lookahead window relative to `audioElement.currentTime`.
+        *   [ ] Notes should move downwards each frame. Their speed should be consistent and tied to `noteScrollSpeed` from song data (currently uses a hardcoded `scrollSpeed`).
+        *   [x] Despawn/hide notes that have moved past the hit zone and weren't hit.
 
 5.  **Input Handling:**
     *   [ ] Add global keyboard event listeners (or scoped to the gameplay screen).

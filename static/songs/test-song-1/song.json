@@ -10,7 +10,7 @@
       {
         "difficultyName": "BASIC",
         "lanes": 4,
-        "noteScrollSpeed": 1.0,
+        "noteScrollSpeed": 3.0,
         "lyrics": [],
         "hitObjects": [
           { "time": 179, "lane": 3, "type": "tap" },
