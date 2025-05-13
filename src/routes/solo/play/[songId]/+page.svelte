@@ -9,21 +9,29 @@
 	let audioElement = $state<HTMLAudioElement | null>(null); // Use $state
 	let beatLines = $state<Graphics[]>([]); // Store active beat line Graphics objects
 	let timeSinceLastBeat = $state(0); // Time accumulator for beat spawning
-
-	type ActiveNote = {
-		id: number; // Index from original chart.notes
-		lane: number;
-		time: number;
-		type: 'tap' | 'hold';
-		duration?: number;
-		headGraphics: Graphics;
-		bodyGraphics?: Graphics; // For hold notes
-	}; 
-	let activeNotes = $state<ActiveNote[]>([]); // Store notes currently on screen
-	let currentNoteIndex = $state(0); // Track next note to spawn from chart
 	let songTime = $state(0); // Elapsed time in ms
 
+	type NoteGraphicsEntry = {
+		headGraphics: Graphics;
+		bodyGraphics?: Graphics;
+		lane: number; // Store lane for resize updates
+		time: number; // Store time for easier access during resize/updates
+		duration?: number; // Store duration for hold notes
+		type: 'tap' | 'hold'; // Store type
+	};
+	let noteGraphicsMap = $state(new Map<number, NoteGraphicsEntry>()); // Key: index from sortedHitObjects
+
 	const scrollSpeed = $state(300); // Pixels per second notes/lines travel down
+
+	// --- Appearance Constants ---
+	const noteColorTap = 0x00ff00; 
+	const noteColorHoldHead = 0x00aaff;
+	const noteColorHoldBody = 0x0077cc;
+	const beatLineHeight = 2;
+	const beatLineColor = 0x555555;
+	const beatLineAlpha = 0.7;
+	const noteRenderGracePeriodMs = 500; // How long notes stay visible after passing hit zone time
+	const lookaheadSeconds = 8.0; // How many seconds in advance notes appear
 
 	// Extract data for easier access
 	const { songId, metadata, chart } = data;
@@ -62,9 +70,6 @@
 			const hitZoneColor = 0xffffff;
 			const hitZoneAlpha = 0.9;
 			const noteWidthRatio = 0.9; // Keep consistent with note spawning
-			const beatLineHeight = 2;
-			const beatLineColor = 0x555555;
-			const beatLineAlpha = 0.7;
 
 			// --- Redraw Highway Background ---
 			highwayGraphics.clear();
@@ -95,17 +100,25 @@
 			});
 
 			// --- Update existing note X positions and width ---
-			activeNotes.forEach(note => {
+			noteGraphicsMap.forEach(graphicsEntry => {
 				const noteVisualWidth = laneWidth * noteWidthRatio;
-				const noteX = highwayX + (note.lane * laneWidth) + (laneWidth - noteVisualWidth) / 2;
-				note.headGraphics.x = noteX;
+				const noteX = highwayX + (graphicsEntry.lane * laneWidth) + (laneWidth - noteVisualWidth) / 2;
+				graphicsEntry.headGraphics.x = noteX;
 				// If width needs to change (it does based on laneWidth)
 				// We might need to redraw or scale. Redrawing is simpler for rects.
-				// TODO: Re-evaluate if redrawing notes is too costly. Scaling might be better.
-				
-				if (note.bodyGraphics) {
-					note.bodyGraphics.x = noteX;
-					// Similarly, update body width if necessary
+				// Redraw the head note with the new width
+				const headNoteHeight = 20; // This should ideally be a constant elsewhere
+				graphicsEntry.headGraphics.clear();
+				graphicsEntry.headGraphics.rect(0, 0, noteVisualWidth, headNoteHeight)
+					.fill({ color: graphicsEntry.type === 'hold' ? noteColorHoldHead : noteColorTap });
+
+				if (graphicsEntry.bodyGraphics) {
+					graphicsEntry.bodyGraphics.x = noteX;
+					// Similarly, update body width if necessary - Redraw
+					const bodyHeight = graphicsEntry.duration ? (graphicsEntry.duration / 1000) * scrollSpeed : 0;
+					graphicsEntry.bodyGraphics.clear();
+					graphicsEntry.bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
+						.fill({ color: noteColorHoldBody });
 				}
 			});
 		};
@@ -125,19 +138,10 @@
 				console.log('PixiJS Initialized');
 
 				// --- Stage Setup ---
-				const stageWidth = appInstance.screen.width;
-				const stageHeight = appInstance.screen.height;
-
-				const highwayWidthRatio = 0.6; // Use 60% of stage width for highway
-				const highwayWidth = stageWidth * highwayWidthRatio;
-				const laneWidth = highwayWidth / chart.lanes; // chart.lanes should be 4 for MVP
-				const highwayX = (stageWidth - highwayWidth) / 2;
+				// Initial dimensions are calculated and applied in updateLayout
 
 				// Draw Highway Background (Using PixiJS v8 methods)
 				highwayGraphics = new Graphics(); // Assign to variable
-				const laneColors = [0x2a2a2e, 0x3a3a3e]; // Use 2 colors, will alternate
-				const lineThickness = 2; // Slightly thinner default line
-				const lineColor = 0x888888; // Lighter gray for lines
 
 				// Fill each lane rectangle - MOVED TO updateLayout
 				/* for (let i = 0; i < chart.lanes; i++) { ... } */
@@ -153,7 +157,8 @@
 				appInstance.stage.addChild(lineGraphics); // Add lines graphics to stage
 
 				// Draw Hit Zone (Judgment Line) - Now using a rectangle
-				/* const hitZoneYRatio = 0.85; ... */ // Dimensions calculated in updateLayout
+				// Dimensions calculated in updateLayout
+				/* const hitZoneYRatio = 0.85; ... */ 
 				const hitZoneHeight = 4; // Height of the hit zone rectangle (was line width)
 				const hitZoneColor = 0xffffff;
 				const hitZoneAlpha = 0.9;
@@ -171,74 +176,71 @@
 				// --- Beat Line Setup ---
 				const bpm = metadata.bpm > 0 ? metadata.bpm : 120; // Default to 120 if bpm is invalid
 				const beatIntervalMs = (60 / bpm) * 1000;
-				const beatLineHeight = 2;
-				const beatLineColor = 0x555555;
-				const beatLineAlpha = 0.7;
 				timeSinceLastBeat = 0; // Reset on init
 				beatLines = []; // Reset on init
 
 				// --- Note Setup ---
-				const lookaheadSeconds = 2.0; // How many seconds in advance notes appear
-				const noteHeight = 20;
-				const noteColorTap = 0x00ff00; // Green for tap
-				const noteColorHoldHead = 0x00aaff; // Light blue for hold head
-				const noteColorHoldBody = 0x0077cc; // Darker blue for hold body
-				const noteWidthRatio = 0.9; // % of laneWidth
-
+				// Note appearance constants moved to script scope
+				
 				// Ensure notes (hitObjects) are sorted by time (now in ms)
-				const sortedHitObjects = [...(chart.hitObjects || [])].sort((a, b) => a.time - b.time);
+				// Assign a unique ID (index) to each note for the map key
+				const sortedHitObjects = [...(chart.hitObjects || [])]
+					.sort((a, b) => a.time - b.time)
+					.map((note, index) => ({ ...note, id: index })); // Add id
 
-				activeNotes = [];
-				currentNoteIndex = 0;
-				songTime = 0;
+				noteGraphicsMap = new Map(); // Clear the map on init
 
 				gameLoop = (ticker) => {
-					if (!appInstance) return; // Guard against race conditions during cleanup
+					if (!appInstance || !pixiApp) return; // Guard against race conditions during cleanup
 					const deltaMs = ticker.deltaMS;
 					const deltaSeconds = deltaMs / 1000;
 
-					songTime += deltaMs; // Update song time
+					// Update songTime based on actual audio playback time for synchronization
+					songTime = audioElement ? audioElement.currentTime * 1000 : songTime + deltaMs;
 
-					// --- Move existing beat lines ---
-					beatLines.forEach(line => {
-						line.y += scrollSpeed * deltaSeconds;
-					});
-
-					// --- Despawn lines below screen ---
+					// --- Beat Line Spawning & Movement (Keep as is) ---
+					// (Existing beat line logic ...)
+					// ... Move existing beat lines ...
+					beatLines.forEach(line => { line.y += scrollSpeed * deltaSeconds; });
+					// ... Despawn lines below screen ...
+					const stageHeight = pixiApp.screen.height; // Get current height for despawn check
+					const beatLineHeight = 2; // Constant from init
 					const remainingLines: Graphics[] = [];
 					beatLines.forEach(line => {
-						// Check if the top edge of the line is below the stage
-						if (line.y - beatLineHeight / 2 > stageHeight) { 
-							appInstance?.stage.removeChild(line); // Use optional chaining
+						if (line.y - beatLineHeight / 2 > stageHeight) {
+							appInstance?.stage.removeChild(line);
 							line.destroy();
 						} else {
 							remainingLines.push(line);
 						}
 					});
-					// Only update state if it actually changed to avoid infinite loops with $effect
 					if (remainingLines.length !== beatLines.length) {
-						beatLines = remainingLines; 
+						beatLines = remainingLines;
 					}
-					
-					// --- Spawn new beat lines ---
+					// ... Spawn new beat lines ...
+					const bpm = metadata.bpm > 0 ? metadata.bpm : 120;
+					const beatIntervalMs = (60 / bpm) * 1000;
+					const highwayX = (pixiApp.screen.width * (1 - 0.6)) / 2; // Recalculate highwayX
+					const highwayWidth = pixiApp.screen.width * 0.6;
+					const beatLineColor = 0x555555;
+					const beatLineAlpha = 0.7;
 					timeSinceLastBeat += deltaMs;
 					while (timeSinceLastBeat >= beatIntervalMs) {
-						 const newBeatLine = new Graphics();
-						 newBeatLine.rect(highwayX, -beatLineHeight / 2, highwayWidth, beatLineHeight)
-									.fill({ color: beatLineColor, alpha: beatLineAlpha });
-						 newBeatLine.y = 0; // Start at the top of the stage
-						 appInstance?.stage.addChild(newBeatLine); // Use optional chaining
-						 // Update state by creating a new array
-						 beatLines = [...beatLines, newBeatLine]; 
-						 timeSinceLastBeat -= beatIntervalMs;
+						const newBeatLine = new Graphics();
+						newBeatLine.rect(highwayX, -beatLineHeight / 2, highwayWidth, beatLineHeight)
+							.fill({ color: beatLineColor, alpha: beatLineAlpha });
+						newBeatLine.y = 0; 
+						appInstance?.stage.addChild(newBeatLine);
+						beatLines = [...beatLines, newBeatLine];
+						timeSinceLastBeat -= beatIntervalMs;
 					}
+					// --- End Beat Line Logic ---
 
-					// --- Note Spawning, Movement, Despawning ---
-					// 1. Spawn new notes
-
-					// Get current dimensions needed for spawning calculations
-					const currentStageWidth = pixiApp?.screen.width ?? 0;
-					const currentStageHeight = pixiApp?.screen.height ?? 0;
+					// --- Note Rendering Cycle (New Architecture) ---
+					
+					// 1. Get current dimensions for positioning
+					const currentStageWidth = pixiApp.screen.width;
+					const currentStageHeight = pixiApp.screen.height;
 					const currentHighwayWidthRatio = 0.6;
 					const currentHighwayWidth = currentStageWidth * currentHighwayWidthRatio;
 					const currentLaneWidth = currentHighwayWidth / chart.lanes;
@@ -247,76 +249,115 @@
 					const currentHitZoneY = currentStageHeight * currentHitZoneYRatio;
 					const currentNoteWidthRatio = 0.9;
 					const currentNoteHeight = 20;
+					
+					// 2. Define visible time window
+					const lookaheadMs = lookaheadSeconds * 1000;
+					const minVisibleTime = songTime - noteRenderGracePeriodMs;
+					const maxVisibleTime = songTime + lookaheadMs;
+					
+					const visibleNoteIdsThisFrame = new Set<number>();
+					const newNoteGraphicsMap = new Map(noteGraphicsMap); // Work with a copy for state changes
 
-					while (currentNoteIndex < sortedHitObjects.length && 
-						   sortedHitObjects[currentNoteIndex].time <= songTime + (lookaheadSeconds * 1000))
-					{
-						const noteData = sortedHitObjects[currentNoteIndex];
-						const noteVisualWidth = currentLaneWidth * currentNoteWidthRatio;
-						const noteX = currentHighwayX + (noteData.lane * currentLaneWidth) + (currentLaneWidth - noteVisualWidth) / 2;
-
-						// Initial Y position relative to hit zone, notes appear at top and scroll down
-						// noteData.time and songTime are in ms. scrollSpeed is in px/sec.
-						const initialY = currentHitZoneY - ((noteData.time - songTime) / 1000 * scrollSpeed);
+					// 3. Iterate all notes, update/create visible ones
+					sortedHitObjects.forEach(noteData => {
+						const noteTime = noteData.time;
+						const noteId = noteData.id; // Use the ID we added
 						
-						const headGraphics = new Graphics();
-						headGraphics.rect(0, 0, noteVisualWidth, currentNoteHeight)
-								   .fill({ color: noteData.type === 'hold' ? noteColorHoldHead : noteColorTap });
-						headGraphics.x = noteX;
-						headGraphics.y = initialY;
-						appInstance?.stage.addChild(headGraphics);
+						if (noteTime >= minVisibleTime && noteTime <= maxVisibleTime) {
+							visibleNoteIdsThisFrame.add(noteId);
+							let graphicsEntry = newNoteGraphicsMap.get(noteId);
+							
+							// Calculate current position
+							const currentY = currentHitZoneY - ((noteTime - songTime) / 1000 * scrollSpeed);
+							const noteVisualWidth = currentLaneWidth * currentNoteWidthRatio;
+							const noteX = currentHighwayX + (noteData.lane * currentLaneWidth) + (currentLaneWidth - noteVisualWidth) / 2;
+							
+							if (!graphicsEntry) {
+								// --- Create Graphics --- 
+								// Calculate initial Y based on song time
+								const initialY = currentHitZoneY - ((noteTime - songTime) / 1000 * scrollSpeed);
 
-						let bodyGraphics: Graphics | undefined = undefined;
-						if (noteData.type === 'hold' && noteData.duration && noteData.duration > 0) {
-							// duration is in ms, scrollSpeed in px/sec
-							const bodyHeight = (noteData.duration / 1000) * scrollSpeed; 
-							bodyGraphics = new Graphics();
-							bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
-										 .fill({ color: noteColorHoldBody });
-							bodyGraphics.x = noteX;
-							bodyGraphics.y = initialY + currentNoteHeight; // Position body below the head
-							appInstance?.stage.addChild(bodyGraphics);
-						}
+								const headGraphics = new Graphics();
+								headGraphics.rect(0, 0, noteVisualWidth, currentNoteHeight)
+										   .fill({ color: noteData.type === 'hold' ? noteColorHoldHead : noteColorTap });
+								headGraphics.x = noteX;
+								headGraphics.y = initialY; 
+								appInstance?.stage.addChild(headGraphics);
+								
+								let bodyGraphics: Graphics | undefined = undefined;
+								if (noteData.type === 'hold' && noteData.duration && noteData.duration > 0) {
+									const bodyHeight = (noteData.duration / 1000) * scrollSpeed;
+									bodyGraphics = new Graphics();
+									bodyGraphics.rect(0, 0, noteVisualWidth, bodyHeight)
+												 .fill({ color: noteColorHoldBody });
+									bodyGraphics.x = noteX;
+									bodyGraphics.y = initialY + currentNoteHeight;
+									appInstance?.stage.addChild(bodyGraphics);
+								}
+								
+								graphicsEntry = {
+									headGraphics,
+									bodyGraphics,
+									lane: noteData.lane,
+									time: noteData.time,
+									duration: noteData.duration,
+									type: noteData.type as 'tap' | 'hold'
+								};
+								newNoteGraphicsMap.set(noteId, graphicsEntry);
+							} else {
+								// --- Update Position (Hybrid Approach) --- 
+								const idealY = currentHitZoneY - ((noteTime - songTime) / 1000 * scrollSpeed);
+								const incrementalY = graphicsEntry.headGraphics.y + scrollSpeed * deltaSeconds;
+								const driftThreshold = 100.0; // Allowable pixel drift before snapping
+								const drift = Math.abs(idealY - incrementalY);
+								
+								let newY = incrementalY;
+								if (drift > driftThreshold) {
+									newY = idealY; // Snap back if drifted too much
+								}
+								
+								graphicsEntry.headGraphics.x = noteX; // Update X for resize
+								graphicsEntry.headGraphics.y = newY; 
 
-						activeNotes = [...activeNotes, {
-							id: currentNoteIndex,
-							lane: noteData.lane,
-							time: noteData.time, // Already in ms
-							type: noteData.type as 'tap' | 'hold',
-							duration: noteData.duration, // Already in ms
-							headGraphics,
-							bodyGraphics
-						}];
-						currentNoteIndex++;
-					}
+								if (graphicsEntry.bodyGraphics) {
+									// Body follows head, apply same logic
+									const idealBodyY = idealY + currentNoteHeight;
+									const incrementalBodyY = graphicsEntry.bodyGraphics.y + scrollSpeed * deltaSeconds;
+									const bodyDrift = Math.abs(idealBodyY - incrementalBodyY);
+									
+									let newBodyY = incrementalBodyY;
+									if (bodyDrift > driftThreshold) {
+										newBodyY = idealBodyY; // Snap back
+									}
 
-					// 2. Move and update existing notes
-					const notesToKeep: ActiveNote[] = [];
-					activeNotes.forEach(note => {
-						note.headGraphics.y += scrollSpeed * deltaSeconds;
-						if (note.bodyGraphics) {
-							note.bodyGraphics.y += scrollSpeed * deltaSeconds;
-							// For hold notes, the tail should effectively shrink from the bottom as it passes the hit zone
-							// This can be complex; for now, it just moves with the head.
-							// A more accurate approach would involve masking or recalculating the body's height/y based on songTime.
-						}
-
-						// 3. Despawn notes that are way off-screen (e.g., hitZoneY + some buffer)
-						const despawnBuffer = 200; // Pixels below hit zone to despawn
-						if (note.headGraphics.y > stageHeight + despawnBuffer) { 
-							appInstance?.stage.removeChild(note.headGraphics);
-							note.headGraphics.destroy();
-							if (note.bodyGraphics) {
-								appInstance?.stage.removeChild(note.bodyGraphics);
-								note.bodyGraphics.destroy();
+									graphicsEntry.bodyGraphics.x = noteX; // Update X for resize
+									graphicsEntry.bodyGraphics.y = newBodyY;
+									// TODO: Implement hold note tail shrinking if desired
+								}
 							}
-						} else {
-							notesToKeep.push(note);
 						}
 					});
-					if (notesToKeep.length !== activeNotes.length) {
-						activeNotes = notesToKeep;
+
+					// 4. Cull notes no longer visible
+					let mapChanged = false;
+					for (const [noteId, graphicsEntry] of newNoteGraphicsMap) {
+						if (!visibleNoteIdsThisFrame.has(noteId)) {
+							appInstance?.stage.removeChild(graphicsEntry.headGraphics);
+							graphicsEntry.headGraphics.destroy();
+							if (graphicsEntry.bodyGraphics) {
+								appInstance?.stage.removeChild(graphicsEntry.bodyGraphics);
+								graphicsEntry.bodyGraphics.destroy();
+							}
+							newNoteGraphicsMap.delete(noteId);
+							mapChanged = true;
+						}
 					}
+
+					// 5. Update state if the map changed
+					if (mapChanged || newNoteGraphicsMap.size !== noteGraphicsMap.size) {
+						noteGraphicsMap = new Map(newNoteGraphicsMap); // Trigger reactivity by creating a new map instance
+					}
+					// --- End Note Rendering Cycle ---
 				};
 
 				appInstance.ticker.add(gameLoop);
@@ -369,17 +410,15 @@
 			beatLines = []; // Clear the state array
 
 			// Cleanup Active Notes Graphics
-			activeNotes.forEach(note => {
-				currentApp?.stage?.removeChild(note.headGraphics);
-				note.headGraphics.destroy();
-				if (note.bodyGraphics) {
-					currentApp?.stage?.removeChild(note.bodyGraphics);
-					note.bodyGraphics.destroy();
+			noteGraphicsMap.forEach((graphicsEntry, index) => {
+				currentApp?.stage?.removeChild(graphicsEntry.headGraphics);
+				graphicsEntry.headGraphics.destroy();
+				if (graphicsEntry.bodyGraphics) {
+					currentApp?.stage?.removeChild(graphicsEntry.bodyGraphics);
+					graphicsEntry.bodyGraphics.destroy();
 				}
 			});
-			activeNotes = [];
-			currentNoteIndex = 0;
-			songTime = 0;
+			noteGraphicsMap.clear();
 
 			// Cleanup PixiJS App
 			if (currentApp) {
