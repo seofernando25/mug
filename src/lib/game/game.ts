@@ -470,8 +470,8 @@ export function createGame(
     function _processNoteHit(key: string, laneIndex: number) {
         if (!state.pixiApp) return;
         const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 30;
-        const EXCELLENT_WINDOW_MS = Preferences.prefs.gameplay.excellentWindowMs ?? 75;
-        const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 120;
+        const EXCELLENT_WINDOW_MS = Preferences.prefs.gameplay.excellentWindowMs ?? 60;
+        const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 90;
         const MEH_WINDOW_MS = Preferences.prefs.gameplay.mehWindowMs ?? 150; // Changed from okWindowMs
 
         for (let i = state.notes.length - 1; i >= state.upcomingNoteIndex; i--) {
@@ -650,10 +650,8 @@ export function createGame(
 
             if (state.pixiApp) {
                 state.pixiApp.ticker.stop();
-                state.pixiApp.ticker.remove(updateGameLoop);
-                state.pixiApp.ticker.destroy();
-                state.mainContainer?.destroy({ children: true, texture: true }); // Removed baseTexture
-                state.pixiApp.destroy(true, { children: true, texture: true }); // Removed baseTexture
+                state.mainContainer?.destroy({ children: true, texture: true });
+                state.pixiApp.destroy(true, { children: true, texture: true });
                 state.pixiApp = null;
             }
         },

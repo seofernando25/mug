@@ -168,7 +168,13 @@
 				isPausedStore = false;
 				gameInstance?.beginGameplaySequence();
 			}}
-			onExit={() => goto('/solo')}
+			onExit={() => {
+				if (gameInstance) {
+					gameInstance.cleanup();
+					gameInstance = null; // Explicitly nullify to prevent further use
+				}
+				goto('/solo');
+			}}
 		/>
 	{/if}
 	{#if showPauseScreen}
@@ -185,7 +191,13 @@
 				isPausedStore = false;
 				gameInstance?.beginGameplaySequence();
 			}}
-			onExit={() => goto('/solo')}
+			onExit={() => {
+				if (gameInstance) {
+					gameInstance.cleanup();
+					gameInstance = null; // Explicitly nullify to prevent further use
+				}
+				goto('/solo');
+			}}
 		/>
 	{/if}
 

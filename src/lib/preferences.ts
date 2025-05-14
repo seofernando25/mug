@@ -38,10 +38,10 @@ const defaultPreferences: UserPreferences = {
     gameplay: {
         speedMultiplier: 1.0,
         keybindings: ['d', 'f', 'j', 'k'], // Default 4-key layout
-        perfectWindowMs: 30,   // New Perfect window
-        excellentWindowMs: 75, // New Excellent window
-        goodWindowMs: 120,     // New Good window
-        mehWindowMs: 150       // New Meh window (renamed from okWindowMs)
+        perfectWindowMs: 20,   // New Perfect window
+        excellentWindowMs: 40, // New Excellent window
+        goodWindowMs: 80,     // New Good window
+        mehWindowMs: 250       // New Meh window (renamed from okWindowMs)
     },
     visuals: {
         noteSkin: 'default',
