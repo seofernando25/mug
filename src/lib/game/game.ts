@@ -299,14 +299,27 @@ export function createGame(
 
     function _spawnVisualJudgment(note: Note, judgment: string) {
         if (!state.pixiApp || !state.mainContainer) return;
-        const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes);
+
+        // Get current canvas dimensions
+        const canvasWidth = state.pixiApp.screen.width;
+        const canvasHeight = state.pixiApp.screen.height;
+
+        // Calculate highway metrics with actual canvas dimensions
+        const currentHighwayMetrics = GameplaySizing.getHighwayMetrics(
+            state.chartData.numLanes,
+            canvasWidth,
+            canvasHeight
+        );
+
         const newJudgment = drawJudgmentText(
             state.pixiApp,
             state.mainContainer,
             judgment,
             note.lane,
-            state.chartData.numLanes,
-            highwayMetrics.judgmentLineYPosition
+            // Pass specific metrics instead of numLanes for recalculation
+            currentHighwayMetrics.x, // highwayStartX
+            currentHighwayMetrics.laneWidth,
+            currentHighwayMetrics.judgmentLineYPosition // yPosition remains the same
         );
         state.judgmentTexts.push(newJudgment);
     }

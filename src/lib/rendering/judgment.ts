@@ -7,8 +7,9 @@ export function drawJudgmentText(
     app: Application,
     parentContainer: Container,
     text: string,
-    lane: number, // lane is currently unused for positioning
-    numLanes: number, // numLanes is currently unused for positioning
+    lane: number, 
+    highwayStartX: number, // New: X position of the highway's start
+    laneWidth: number,     // New: Width of a single lane
     yPosition: number
 ): JudgmentText {
     const style = new TextStyle({
@@ -22,9 +23,11 @@ export function drawJudgmentText(
     const judgmentText = new Text({ text, style }) as JudgmentText;
     judgmentText.anchor.set(0.5, 0.5);
 
-    // Use GameplaySizing to get center x if available, otherwise use app screen width
-    const gameplayWidth = GameplaySizingClass.getGameplaySizing()?.width || app.screen.width;
-    judgmentText.x = gameplayWidth / 2;
+    // Calculate X position based on the lane, highwayStartX, and laneWidth
+    const laneCenterX = highwayStartX + (lane * laneWidth) + (laneWidth / 2);
+    judgmentText.x = laneCenterX;
+    // Fallback removed as we now require highwayStartX and laneWidth
+
     judgmentText.y = yPosition;
     judgmentText.alpha = 1;
     judgmentText.creationTime = app.ticker.lastTime; // Using app.ticker.lastTime for creationTime
