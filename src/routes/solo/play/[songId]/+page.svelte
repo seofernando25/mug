@@ -9,6 +9,7 @@
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
 
 	import { createGame, type GameInstance } from '$lib/game';
+	import LevitatingTextOverlay from '$lib/components/LevitatingTextOverlay.svelte';
 
 	// Data from +page.ts load function, already transformed
 	const { data } = $props<{ data: { songId: string; songData: SongData; chartData: ChartData } }>();
@@ -24,6 +25,7 @@
 	let currentComboStore = $state<number>(0);
 	let maxComboSoFarStore = $state<number>(0);
 	let isPausedStore = $state<boolean>(false);
+	let currentSongTimeMsStore = $state<number>(0); // New store for current song time
 
 	let canvasElement: HTMLCanvasElement;
 	let canvasElementContainer: HTMLDivElement;
@@ -37,86 +39,104 @@
 	let showPauseScreen = $derived(
 		isPausedStore && gamePhaseStore !== 'summary' && gamePhaseStore !== 'finished'
 	);
-
-	// --- Audio Element ---
-	let audioElement: HTMLAudioElement;
+	let showLevitatingTextOverlay = $derived(gamePhaseStore === 'playing'); // Condition for LevitatingTextOverlay
 
 	// --- Svelte Lifecycle ---
-	onMount(async () => {
-		if (!canvasElement || !canvasElementContainer) {
-			alert('Canvas element or container not found on mount.');
-			console.error('Canvas element or container not found on mount.');
-			return undefined;
-		}
-
-		audioElement = new Audio();
-
-		gameInstance = createGame(songData, chartData, {
-			onPhaseChange: (phase: GamePhase) => {
-				gamePhaseStore = phase;
-				if (phase === 'playing' || phase === 'countdown') {
-				} else {
-					isPausedStore = false;
-				}
-			},
-			onCountdownUpdate: (value: number) => (countdownValueStore = value),
-			onSongEnd: () => {},
-			onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
-				currentScoreStore = score;
-				currentComboStore = combo;
-				maxComboSoFarStore = maxCombo;
-			},
-			onNoteHit: (note: Note, judgment: string) => {},
-			onNoteMiss: (note: Note) => {},
-			getGamePhase: () => gamePhaseStore,
-			getIsPaused: () => isPausedStore,
-			getCountdownValue: () => countdownValueStore
-		});
-
-		await gameInstance.initialize(canvasElement, audioElement);
-		gameInstance.beginGameplaySequence();
+	onMount(() => {
+		let cleanupCalled = false;
+		let localGameInstance: GameInstance | null = null;
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
 				if (isPausedStore) {
-					gameInstance?.resumeGame();
+					localGameInstance?.resumeGame();
 					isPausedStore = false;
 				} else if (gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') {
-					gameInstance?.pauseGame();
+					localGameInstance?.pauseGame();
 					isPausedStore = true;
 				}
 				event.preventDefault();
 				return;
 			}
-			if (!gameInstance || isPausedStore || gamePhaseStore !== 'playing') return;
-			gameInstance.handleKeyPress(event.key.toLowerCase(), event);
+			if (!localGameInstance || isPausedStore || gamePhaseStore !== 'playing') return;
+			localGameInstance.handleKeyPress(event.key.toLowerCase(), event);
 		};
 
 		const handleKeyUp = (event: KeyboardEvent) => {
-			if (!gameInstance) return;
+			if (!localGameInstance) return;
 			if (gamePhaseStore === 'summary' || gamePhaseStore === 'finished') return;
-			gameInstance.handleKeyRelease(event.key.toLowerCase(), event);
+			localGameInstance.handleKeyRelease(event.key.toLowerCase(), event);
 		};
 
 		const handleResize = () => {
-			gameInstance?.handleResize();
+			localGameInstance?.handleResize();
 		};
 
-		window.addEventListener('keydown', handleKeyDown);
-		window.addEventListener('keyup', handleKeyUp);
-		window.addEventListener('resize', handleResize);
+		const initializeGame = async () => {
+			if (!canvasElement || !canvasElementContainer) {
+				alert('Canvas element or container not found on mount.');
+				console.error('Canvas element or container not found on mount.');
+				return;
+			}
+
+			localGameInstance = createGame(songData, chartData, {
+				onPhaseChange: (phase: GamePhase) => {
+					gamePhaseStore = phase;
+					if (!(phase === 'playing' || phase === 'countdown')) {
+						isPausedStore = false;
+					}
+				},
+				onCountdownUpdate: (value: number) => (countdownValueStore = value),
+				onSongEnd: () => {},
+				onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
+					currentScoreStore = score;
+					currentComboStore = combo;
+					maxComboSoFarStore = maxCombo;
+				},
+				onNoteHit: (note: Note, judgment: string) => {},
+				onNoteMiss: (note: Note) => {},
+				getGamePhase: () => gamePhaseStore,
+				getIsPaused: () => isPausedStore,
+				getCountdownValue: () => countdownValueStore,
+				onTimeUpdate: (timeMs: number) => {
+					currentSongTimeMsStore = timeMs;
+					// console.log('currentSongTimeMsStore', currentSongTimeMsStore); // User can re-enable if needed
+				}
+			});
+			gameInstance = localGameInstance;
+
+			try {
+				await localGameInstance.initialize(canvasElement);
+				localGameInstance.beginGameplaySequence();
+
+				window.addEventListener('keydown', handleKeyDown);
+				window.addEventListener('keyup', handleKeyUp);
+				window.addEventListener('resize', handleResize);
+			} catch (err) {
+				console.error('Error during game initialization or event listener setup:', err);
+				alert('Failed to initialize the game. Please check the console for errors.');
+				if (localGameInstance) {
+					localGameInstance.cleanup();
+					localGameInstance = null;
+					gameInstance = null;
+				}
+			}
+		};
+
+		initializeGame().catch((err) => {
+			console.error('Unhandled error from initializeGame promise:', err);
+		});
 
 		return () => {
+			if (cleanupCalled) return;
+			cleanupCalled = true;
 			console.log('Destroying Gameplay Svelte component, calling gameInstance.cleanup()');
 			window.removeEventListener('keydown', handleKeyDown);
 			window.removeEventListener('keyup', handleKeyUp);
 			window.removeEventListener('resize', handleResize);
-			gameInstance?.cleanup();
-			if (audioElement) {
-				audioElement.pause();
-				audioElement.src = '';
-				audioElement.load();
-			}
+
+			localGameInstance?.cleanup();
+			gameInstance = null;
 		};
 	});
 </script>
@@ -168,10 +188,27 @@
 			onExit={() => goto('/solo')}
 		/>
 	{/if}
+
+	{#if showLevitatingTextOverlay}
+		<LevitatingTextOverlay
+			title={metadataDisplay.title}
+			artist={metadataDisplay.artist}
+			difficultyName={chartData.difficultyName}
+			songTimeMs={currentSongTimeMsStore}
+			bpm={songData.bpm > 0 ? songData.bpm : 120}
+		/>
+	{/if}
 </div>
 
 <!-- Placeholder for canvas and overlay elements -->
 <style>
+	:global(html, body) {
+		overflow: hidden !important;
+		height: 100% !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		background-color: #000;
+	}
 	.gameplay-container {
 		width: 100vw;
 		height: 100vh;

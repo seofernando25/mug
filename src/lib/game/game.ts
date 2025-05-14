@@ -1,5 +1,6 @@
 import { Application, Container } from 'pixi.js';
 import type { Ticker } from 'pixi.js';
+import { Sound, type IMediaInstance } from '@pixi/sound'; // Using type-only import for IMediaInstance
 import { GameplaySizing, Colors } from './index'; // Assuming GameplaySizing and Colors are exported
 import {
     drawBeatLines,
@@ -31,12 +32,13 @@ export interface GameCallbacks {
     getGamePhase: () => GamePhase;
     getIsPaused: () => boolean;
     getCountdownValue: () => number;
+    onTimeUpdate?: (currentTimeMs: number) => void; // Added for live time updates
 }
 
 export interface GameInstance {
     // --- Control Functions ---
     // startSong: () => void; // This will be part of initial setup or a resetGame method
-    initialize: (canvasElement: HTMLCanvasElement, initialAudioElement: HTMLAudioElement) => Promise<void>;
+    initialize: (canvasElement: HTMLCanvasElement) => Promise<void>;
     pauseGame: () => void;
     resumeGame: () => void;
     handleKeyPress: (key: string, event: KeyboardEvent) => void;
@@ -55,9 +57,8 @@ export interface GameInstance {
 interface GameState {
     phase: GamePhase;
     isPaused: boolean;
-    audioElement: HTMLAudioElement | null;
-    audioContext: AudioContext | null;
-    audioSrcNode: MediaElementAudioSourceNode | null;
+    sound: Sound | null; // Using imported Sound type
+    soundInstance: IMediaInstance | null; // Using imported IMediaInstance type
     songData: SongData;
     chartData: ChartData;
     // pixiApp: Application; // Will be initialized and managed within GameState
@@ -104,9 +105,8 @@ export function createGame(
     const state: GameState = {
         phase: 'loading',
         isPaused: false,
-        audioElement: null, // Initialized in `initialize`
-        audioContext: null,
-        audioSrcNode: null,
+        sound: null,
+        soundInstance: null,
         songData,
         chartData,
         // pixiApp: pixiApp, // Initialized in `initialize`
@@ -310,57 +310,49 @@ export function createGame(
     }
 
     function loadAudio() {
-        if (!state.audioElement) {
-            // This should have been set by `initialize` method
-            console.error("Audio element not provided for loadAudio");
-            setPhase('loading'); // Stay in loading or move to an error phase
-            return;
+        if (state.soundInstance) {
+            state.soundInstance.destroy();
+            state.soundInstance = null;
         }
-        state.audioElement.src = state.songData.audioUrl;
-        state.audioElement.preload = 'auto';
+        if (state.sound) {
+            state.sound.destroy();
+            state.sound = null;
+        }
 
-        state.audioElement.oncanplaythrough = () => {
-            console.log('Audio can play through');
-            if (state.phase === 'loading') {
-                if (!state.audioContext && state.audioElement) {
-                    try {
-                        state.audioContext = new AudioContext();
-                        state.audioSrcNode = state.audioContext.createMediaElementSource(state.audioElement);
-                        state.audioSrcNode.connect(state.audioContext.destination);
-                    } catch (e) {
-                        console.error("Error setting up AudioContext:", e);
-                        // Fallback or error handling if AudioContext fails (e.g. autoplay restrictions)
+        console.log('Loading audio with @pixi/sound:', state.songData.audioUrl);
+        try {
+            // Use the imported Sound class directly
+            state.sound = Sound.from({
+                url: state.songData.audioUrl,
+                preload: true,
+                loaded: (err: Error | null, loadedSound?: Sound) => { // Use imported Sound type
+                    if (err) {
+                        console.error('@pixi/sound error loading sound:', err);
+                        setPhase('loading');
+                        return;
+                    }
+                    if (!loadedSound) {
+                        console.error('@pixi/sound loaded callback: sound resource is null or undefined');
+                        setPhase('loading');
+                        return;
+                    }
+                    state.sound = loadedSound;
+                    console.log('@pixi/sound: Audio loaded. Duration:', state.sound.duration, 's');
+                    if (state.phase === 'loading') {
+                        setPhase('countdown');
+                        startCountdown();
                     }
                 }
-                setPhase('countdown');
-                startCountdown();
-            }
-        };
-
-        state.audioElement.onended = () => {
-            console.log('Audio ended');
-            setPhase('finished');
-            // Trigger finish sequence
-            state.callbacks.onSongEnd(); // Notify Svelte component
-            // After a delay, transition to summary
-            if (state.finishAnimationTimerId) clearTimeout(state.finishAnimationTimerId);
-            state.finishAnimationTimerId = setTimeout(() => {
-                setPhase('summary');
-            }, 2000); // 2s for "FINISH" animation
-        };
-
-        state.audioElement.onerror = (e) => {
-            console.error('Audio error:', e);
-            // Handle audio errors, perhaps set a specific error phase or notify UI
-        };
-
-        console.log('Loading audio src:', state.audioElement.src);
-        state.audioElement.load(); // Start loading the audio
+            });
+        } catch (e) {
+            console.error("Error initiating @pixi/sound Sound.from:", e);
+            setPhase('loading');
+        }
     }
 
     function startCountdown() {
         setPhase('countdown');
-        state.countdownValue = 3; // Or a configurable value
+        state.countdownValue = 3;
         state.callbacks.onCountdownUpdate(state.countdownValue);
 
         if (state.countdownIntervalId) clearInterval(state.countdownIntervalId);
@@ -370,139 +362,166 @@ export function createGame(
             if (state.countdownValue <= 0) {
                 clearInterval(state.countdownIntervalId);
                 state.countdownIntervalId = null;
-                if (state.audioElement && state.phase === 'countdown') {
-                    state.audioElement.play().catch(e => console.error("Error playing audio:", e));
-                    state.gameTimeStartMs = performance.now();
-                    state.currentSongTimeMs = 0;
-                    setPhase('playing');
+                if (state.sound && state.sound.isLoaded && state.phase === 'countdown') {
+                    try {
+                        // play() might return an instance or a Promise for an instance
+                        const instanceOrPromise = state.sound.play();
+                        Promise.resolve(instanceOrPromise).then((instance: IMediaInstance) => { // Use imported IMediaInstance
+                            if (!instance) {
+                                console.error("@pixi/sound.play did not yield a valid instance.");
+                                setPhase('loading');
+                                return;
+                            }
+                            state.soundInstance = instance;
+                            state.soundInstance.on('end', () => {
+                                console.log('@pixi/sound: Audio instance ended');
+                                if (state.phase === 'playing') {
+                                    setPhase('finished');
+                                    state.callbacks.onSongEnd();
+                                    if (state.finishAnimationTimerId) clearTimeout(state.finishAnimationTimerId);
+                                    state.finishAnimationTimerId = setTimeout(() => {
+                                        setPhase('summary');
+                                    }, 2000);
+                                }
+                            });
+                            // state.soundInstance.on('progress', (progress: number) => {});
+
+                            state.gameTimeStartMs = performance.now();
+                            state.currentSongTimeMs = 0;
+                            setPhase('playing');
+
+                        }).catch(err => {
+                            console.error("Error resolving sound instance from play():", err);
+                            setPhase('loading');
+                        });
+                    } catch (e) {
+                        console.error("Error playing sound with @pixi/sound:", e);
+                        setPhase('loading');
+                    }
+                } else if (state.phase === 'countdown') {
+                    console.warn('In countdown, but sound not ready or not in correct phase to play.');
                 }
             }
         }, 1000);
     }
 
     function processNotes() {
-        // Basic processing: assume notes are sorted by time
-        // Add more complex parsing if needed (e.g. from .sm or .ssc files)
         state.notes = chartData.notes.map((note: any) => ({ ...note })).sort((a: any, b: any) => a.time - b.time);
         state.upcomingNoteIndex = 0;
+        state.notes.forEach(note => {
+            note.isHit = false;
+            note.isMissed = false;
+        });
     }
 
+    const MISS_WINDOW_MS = 200; // Default miss window after note time
+
     function updateGameLoop(ticker: Ticker) {
-        if (state.phase !== 'playing' || state.isPaused || !state.audioElement) {
-            return;
-        }
+        if (!state.pixiApp || state.phase === 'loading') return;
 
-        state.currentSongTimeMs = state.audioElement.currentTime * 1000;
+        const currentPhase = state.callbacks.getGamePhase();
+        const isPaused = state.callbacks.getIsPaused();
 
-        // Missed notes detection
-        while (state.upcomingNoteIndex < state.notes.length &&
-            state.notes[state.upcomingNoteIndex].time < state.currentSongTimeMs - 200 /* MISS_WINDOW_AFTER */) {
-            const missedNote = state.notes[state.upcomingNoteIndex];
-            // Call the game logic handler for a miss
-            _processNoteMiss(missedNote);
-            state.upcomingNoteIndex++;
-        }
+        if (currentPhase === 'playing' && !isPaused) {
+            if (state.sound && state.soundInstance && state.sound.isLoaded) {
+                const progress = state.soundInstance.progress;
+                const duration = state.sound.duration;
+                if (typeof progress === 'number' && typeof duration === 'number' && duration > 0) {
+                    state.currentSongTimeMs = progress * duration * 1000;
+                } else if (state.gameTimeStartMs > 0) { // Fallback if progress/duration not valid yet
+                    state.currentSongTimeMs = performance.now() - state.gameTimeStartMs;
+                }
+            } else if (state.gameTimeStartMs > 0 && state.phase === 'playing') {
+                state.currentSongTimeMs = performance.now() - state.gameTimeStartMs;
+            }
 
-        if (state.audioElement.currentTime >= state.audioElement.duration && state.phase === 'playing') {
-            // console.log('Song ended (detected in game loop)');
+            if (state.callbacks.onTimeUpdate) {
+                state.callbacks.onTimeUpdate(state.currentSongTimeMs);
+            }
+
+            let currentBpm = state.lastKnownBpm;
+            const currentTimingPoint = state.chartData.timing.bpms.findLast(
+                (bpmInfo) => state.currentSongTimeMs >= bpmInfo.time
+            );
+            if (currentTimingPoint) {
+                currentBpm = currentTimingPoint.bpm;
+                state.lastKnownBpm = currentBpm;
+            }
+
+            _renderLoopContent(state.currentSongTimeMs, currentBpm);
+
+            while (
+                state.upcomingNoteIndex < state.notes.length &&
+                state.currentSongTimeMs > state.notes[state.upcomingNoteIndex].time + MISS_WINDOW_MS
+            ) {
+                const missedNote = state.notes[state.upcomingNoteIndex];
+                if (!missedNote.isHit && !missedNote.isMissed) {
+                    _processNoteMiss(missedNote);
+                }
+                state.upcomingNoteIndex++;
+            }
+        } else if (currentPhase === 'countdown' && !isPaused) {
+            _renderLoopContent(0, state.lastKnownBpm);
         }
     }
 
     function _processNoteHit(key: string, laneIndex: number) {
         if (!state.pixiApp) return;
+        const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 50;
+        const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 100;
+        const OK_WINDOW_MS = Preferences.prefs.gameplay.okWindowMs ?? 150;
 
-        const PERFECT_WINDOW = 50; // ms
-        const GOOD_WINDOW = 100; // ms
-        const OK_WINDOW = 150; // ms
-
-        // Iterate backwards through notes near the current time for the pressed lane to find a suitable candidate
-        // This is a more robust way than just looking at upcomingNoteIndex, especially for chords or slight misorderings.
         for (let i = state.notes.length - 1; i >= state.upcomingNoteIndex; i--) {
             const note = state.notes[i];
-            if (note.lane !== laneIndex || (note as any).isHit) continue; // Skip if wrong lane or already hit
+            if (note.lane !== laneIndex || note.isHit || note.isMissed) continue;
 
             const timeDifference = note.time - state.currentSongTimeMs;
             const absTimeDifference = Math.abs(timeDifference);
 
-            if (absTimeDifference <= OK_WINDOW) { // Potential hit
+            if (absTimeDifference <= OK_WINDOW_MS) {
                 let judgment = 'Ok';
-                if (absTimeDifference <= PERFECT_WINDOW) judgment = 'Perfect';
-                else if (absTimeDifference <= GOOD_WINDOW) judgment = 'Good';
+                if (absTimeDifference <= PERFECT_WINDOW_MS) judgment = 'Perfect';
+                else if (absTimeDifference <= GOOD_WINDOW_MS) judgment = 'Good';
 
-                (note as any).isHit = true; // Mark as hit to prevent re-processing
+                note.isHit = true;
+                note.isMissed = false; // Explicitly set isMissed to false on a hit
                 state.currentCombo++;
                 state.currentScore += (judgment === 'Perfect' ? 300 : judgment === 'Good' ? 200 : 100);
                 if (state.currentCombo > state.maxComboSoFar) {
                     state.maxComboSoFar = state.currentCombo;
                 }
                 state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
-                state.callbacks.onNoteHit(note, judgment); // Callback for +page.svelte (e.g., for visual judgment)
-                _spawnVisualJudgment(note, judgment); // Spawn visual judgment directly
+                state.callbacks.onNoteHit(note, judgment);
+                _spawnVisualJudgment(note, judgment);
                 if (state.receptorGraphics && state.receptorGraphics.receptors[laneIndex]) {
                     state.receptorGraphics.receptors[laneIndex].flash();
                 }
-
-                // Optional: if we only want to hit the *closest* note in the window for a given key press
-                // we would `return` here. For now, let's assume a key press can only trigger one note.
                 return;
             }
-            // If a note for this lane is significantly in the future, no need to check earlier notes for this key press.
-            if (timeDifference > OK_WINDOW) {
-                // continue; // Or break if notes are strictly sorted and we are sure no earlier note for this lane could be hit.
-            }
-            // If a note is too far in the past (absTimeDifference > OK_WINDOW and timeDifference < 0), it's a miss.
-            // This miss would typically be caught by updateGameLoop, but this check ensures we don't hit very late notes.
         }
-        // If no note was hit, it might be an "empty" key press (no note in judgment window for that lane)
     }
 
     function _processNoteMiss(note: Note) {
-        // console.log("Note missed:", note);
-        state.currentCombo = 0; // Reset combo
+        state.currentCombo = 0;
+        note.isMissed = true;
+        note.isHit = false; // Explicitly set isHit to false on a miss
         state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
-        state.callbacks.onNoteMiss(note); // Callback for +page.svelte (e.g., for visual judgment)
-        _spawnVisualJudgment(note, 'Miss'); // Spawn visual judgment directly
-        (note as any).isHit = true; // Mark as missed (or hit with miss status) to prevent re-processing
-
+        state.callbacks.onNoteMiss(note);
+        _spawnVisualJudgment(note, 'Miss');
     }
 
     // --- Public API / Instance Methods ---
 
-    async function initialize(canvasElement: HTMLCanvasElement, initialAudioElement: HTMLAudioElement) {
+    async function initialize(canvasElement: HTMLCanvasElement) {
         console.log('Initializing game instance...');
-        state.audioElement = initialAudioElement;
         await _setupPixiApp(canvasElement);
-
         processNotes();
         if (state.pixiApp) {
-            state.pixiApp.ticker.add(() => {
-                // const currentPhase = state.callbacks.getGamePhase(); // Direct state access is fine here
-                // const isPaused = state.callbacks.getIsPaused();
-
-                if (state.isPaused) return;
-
-                if (state.phase === 'playing' || state.phase === 'countdown') {
-                    let currentTimeMs = 0;
-                    if (state.audioElement && state.audioElement.readyState >= 2 && !state.audioElement.paused) {
-                        currentTimeMs = state.audioElement.currentTime * 1000;
-                    } else if (state.phase === 'countdown') {
-                        const cdValue = state.callbacks.getCountdownValue(); // Get from Svelte store
-                        currentTimeMs = -(cdValue > 0 ? cdValue : 0) * 1000;
-                    }
-
-                    const currentTimingPoint = state.chartData.timing.bpms.findLast(
-                        (b: { time: number; bpm: number }) => b.time <= currentTimeMs / 1000
-                    );
-                    if (currentTimingPoint) state.lastKnownBpm = currentTimingPoint.bpm;
-
-                    _renderLoopContent(currentTimeMs, state.lastKnownBpm);
-                }
-            });
-            state.pixiApp.ticker.stop(); // Start it via phase changes
+            state.pixiApp.ticker.add(updateGameLoop);
+            state.pixiApp.ticker.stop();
         } else {
             console.error("PixiApp not initialized, cannot add ticker.");
         }
-        // loadAudio(); // loadAudio will be called by beginGameplaySequence
         console.log("Game instance initialized. Call beginGameplaySequence() to start.");
     }
 
@@ -510,22 +529,16 @@ export function createGame(
     function beginGameplaySequence() {
         console.log('Beginning gameplay sequence...');
         if (state.phase === 'loading' || state.phase === 'summary' || state.phase === 'finished') {
-            // Reset relevant state for a new game
             state.currentScore = 0;
             state.currentCombo = 0;
             state.maxComboSoFar = 0;
             state.currentSongTimeMs = 0;
-            state.upcomingNoteIndex = 0;
             state.isPaused = false;
-            state.judgmentTexts = []; // Clear previous judgments
-            state.noteGraphics = []; // Clear previous note graphics
-            // state.keyStates = {}; // Reset key states if necessary, or rely on keyup
-
-            // Reset UI stores through callbacks
+            state.judgmentTexts.forEach(jt => jt.destroy());
+            state.judgmentTexts = [];
+            processNotes();
             state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
-            // isPaused will be false, onPhaseChange to 'loading' will trigger UI updates
-
-            setPhase('loading'); // Transition to loading to trigger audio load
+            setPhase('loading');
             loadAudio();
         } else {
             console.warn(`Cannot begin gameplay sequence from phase: ${state.phase}`);
@@ -536,37 +549,24 @@ export function createGame(
         initialize,
         beginGameplaySequence,
         pauseGame: () => {
-            if (state.phase === 'playing' || state.phase === 'countdown') {
+            if ((state.phase === 'playing' || state.phase === 'countdown') && !state.isPaused) {
                 state.isPaused = true;
-                state.audioElement?.pause();
+                if (state.soundInstance) state.soundInstance.paused = true;
                 state.pixiApp?.ticker.stop();
-                // Notify Svelte UI to show pause screen (via isPausedStore in +page.svelte)
-                // This can be done by +page.svelte reacting to a callback or checking isPaused()
-                // For simplicity, we assume +page.svelte's isPausedStore is updated by its own logic based on game phase and this call.
-                // Or, add a specific callback if direct control from game.ts is preferred.
-                // state.callbacks.onPauseStateChange?.(true);
                 console.log("Game paused");
             }
         },
         resumeGame: () => {
             if (state.isPaused && (state.phase === 'playing' || state.phase === 'countdown')) {
                 state.isPaused = false;
-                // Only play audio if we are in the 'playing' phase, not 'countdown' (countdown handles its own audio start)
-                if (state.phase === 'playing') {
-                    state.audioElement?.play().catch(e => console.error("Error resuming audio:", e));
+                if (state.phase === 'playing' && state.sound && state.sound.isLoaded) {
+                    if (state.soundInstance) state.soundInstance.paused = false;
                 }
                 state.pixiApp?.ticker.start();
-                // state.callbacks.onPauseStateChange?.(false);
                 console.log("Game resumed");
             }
         },
         handleKeyPress: (key: string, event: KeyboardEvent) => {
-            // const currentPhase = state.callbacks.getGamePhase(); // Direct access fine
-            // const isPaused = state.callbacks.getIsPaused();
-
-            // Pause/Resume with Escape is handled in +page.svelte for now as it directly manipulates UI stores
-            // and gameInstance.pause/resume. If we move that here, we need more callbacks for UI state.
-
             if (state.isPaused || state.phase !== 'playing') return;
 
             const lane = Preferences.prefs.gameplay.keybindings.findIndex(
@@ -579,8 +579,6 @@ export function createGame(
             }
         },
         handleKeyRelease: (key: string, event: KeyboardEvent) => {
-            // const currentPhase = state.callbacks.getGamePhase(); // Direct access fine
-            // if (currentPhase === 'summary' || currentPhase === 'finished') return;
             if (state.phase === 'summary' || state.phase === 'finished') return;
 
             const lane = Preferences.prefs.gameplay.keybindings.findIndex(
@@ -588,7 +586,6 @@ export function createGame(
             );
             if (lane !== -1) {
                 state.keyStates[key.toLowerCase()] = false;
-                // _processNoteRelease(key.toLowerCase(), lane); // For hold notes, if any
                 if (state.receptorGraphics) state.receptorGraphics.receptors[lane]?.release();
             }
         },
@@ -622,33 +619,27 @@ export function createGame(
             console.log('Cleaning up game instance...');
             if (state.countdownIntervalId) clearInterval(state.countdownIntervalId);
             if (state.finishAnimationTimerId) clearTimeout(state.finishAnimationTimerId);
-            state.audioElement?.pause();
-            if (state.audioElement) {
-                state.audioElement.src = '';
-                state.audioElement.load(); // Release resources
-                // Detach event listeners from audio element if they were added by game.ts
-                state.audioElement.oncanplaythrough = null;
-                state.audioElement.onended = null;
-                state.audioElement.onerror = null;
+
+            if (state.soundInstance) {
+                state.soundInstance.destroy();
+                state.soundInstance = null;
             }
-            state.audioContext?.close();
+            if (state.sound) {
+                state.sound.destroy();
+                state.sound = null;
+            }
 
             state.judgmentTexts.forEach((jt) => jt.destroy());
             state.judgmentTexts = [];
-            state.noteGraphics.forEach((ng) => {
-                ng.headGraphics.destroy();
-                ng.bodyGraphics?.destroy();
-            });
-            state.noteGraphics = [];
 
             if (state.pixiApp) {
                 state.pixiApp.ticker.stop();
-                state.pixiApp.ticker.destroy(); // Destroy ticker explicitly
-                state.mainContainer?.destroy({ children: true, texture: true });
-                state.pixiApp.destroy(true, { children: true, texture: true });
+                state.pixiApp.ticker.remove(updateGameLoop);
+                state.pixiApp.ticker.destroy();
+                state.mainContainer?.destroy({ children: true, texture: true }); // Removed baseTexture
+                state.pixiApp.destroy(true, { children: true, texture: true }); // Removed baseTexture
                 state.pixiApp = null;
             }
-            // state.canvasElementRef = null; // No need to nullify, it's owned by Svelte component
         },
         getCurrentPhase: () => state.phase,
         isPaused: () => state.isPaused,

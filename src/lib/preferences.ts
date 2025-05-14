@@ -5,9 +5,11 @@
 interface GameplayPreferences {
     speedMultiplier: number;
     keybindings: string[]; // e.g., ['d', 'f', 'j', 'k']
-    // Add other gameplay-related preferences here
     receptorYPosition?: number; // Optional: if user can customize this
     judgmentLineYOffset?: number; // Optional: offset from receptor for judgment text
+    perfectWindowMs?: number; // Optional: timing window for Perfect judgment
+    goodWindowMs?: number;    // Optional: timing window for Good judgment
+    okWindowMs?: number;      // Optional: timing window for Ok judgment
 }
 
 interface VisualPreferences {
@@ -34,7 +36,10 @@ interface UserPreferences {
 const defaultPreferences: UserPreferences = {
     gameplay: {
         speedMultiplier: 1.0,
-        keybindings: ['d', 'f', 'j', 'k'] // Default 4-key layout
+        keybindings: ['d', 'f', 'j', 'k'], // Default 4-key layout
+        perfectWindowMs: 50, // Default Perfect window
+        goodWindowMs: 100,   // Default Good window
+        okWindowMs: 150      // Default Ok window
     },
     visuals: {
         noteSkin: 'default',

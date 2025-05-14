@@ -33,6 +33,7 @@
 		"vite": "^6.2.6"
 	},
 	"dependencies": {
+		"@pixi/sound": "^6.0.1",
 		"better-sqlite3": "^11.8.0",
 		"drizzle-orm": "^0.40.0",
 		"pixi.js": "^8.9.2",
