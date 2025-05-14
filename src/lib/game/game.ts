@@ -154,11 +154,28 @@ export function createGame(
 
     async function _setupPixiApp(element: HTMLCanvasElement) {
         const pixiAppInstance = new Application();
-        const sizing = GameplaySizing.getGameplaySizing();
+
+        const container = element.parentElement;
+        // Use defaults from GameplaySizing as fallbacks if container is not found,
+        // though GameplaySizing itself might need to expose these defaults or handle undefined.
+        // For now, assuming GameplaySizing.getGameplaySizing can take potentially undefined
+        // and fall back to its own defaults, OR we provide fallbacks here.
+        // Let's provide clear fallbacks here for robustness before calling.
+        let currentWidth = 800; // Fallback width
+        let currentHeight = 600; // Fallback height
+
+        if (container) {
+            currentWidth = container.clientWidth;
+            currentHeight = container.clientHeight;
+        }
+
+        // Pass the actual container dimensions to getGameplaySizing
+        const sizing = GameplaySizing.getGameplaySizing(currentWidth, currentHeight);
+
         await pixiAppInstance.init({
             canvas: element,
-            width: sizing.width,
-            height: sizing.height,
+            width: sizing.width, // Use width from dynamic sizing
+            height: sizing.height, // Use height from dynamic sizing
             antialias: true,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
@@ -170,9 +187,9 @@ export function createGame(
         state.mainContainer = new Container();
         state.pixiApp.stage.addChild(state.mainContainer);
 
-        const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes);
-        const receptorPositions = GameplaySizing.getReceptorPositions(highwayMetrics);
-        const receptorSize = GameplaySizing.getReceptorSize();
+        const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
+        const receptorPositions = GameplaySizing.getReceptorPositions(highwayMetrics, sizing.width, sizing.height);
+        const receptorSize = GameplaySizing.getReceptorSize(sizing.width, sizing.height);
 
         state.highwayGraphics = drawHighway(state.pixiApp, state.mainContainer, highwayMetrics);
         state.receptorGraphics = drawReceptor(state.pixiApp, state.mainContainer, receptorPositions, receptorSize);
@@ -203,8 +220,22 @@ export function createGame(
 
         if (isPaused && currentPhase !== 'playing' && currentPhase !== 'countdown') return;
 
-        const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes);
-        const noteSize = GameplaySizing.getNoteSize();
+        // Recalculate sizing based on current canvas dimensions for the render loop
+        // This ensures that if a resize happened, subsequent calculations are correct.
+        // The actual renderer resize is handled in handleResize.
+        // This is for metrics used in drawing calculations within the loop.
+        const container = state.canvasElementRef?.parentElement;
+        let currentWidth = state.pixiApp.screen.width; // Use current renderer width as default
+        let currentHeight = state.pixiApp.screen.height; // Use current renderer height as default
+        if (container) {
+            currentWidth = container.clientWidth;
+            currentHeight = container.clientHeight;
+        }
+        const sizing = GameplaySizing.getGameplaySizing(currentWidth, currentHeight);
+
+
+        const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
+        const noteSize = GameplaySizing.getNoteSize(sizing.width, sizing.height); // Assuming getNoteSize might also become dynamic
 
         if (state.beatLineGraphics) {
             drawBeatLines(
@@ -563,12 +594,24 @@ export function createGame(
         },
         handleResize: () => {
             if (!state.pixiApp || !state.canvasElementRef) return;
-            const sizing = GameplaySizing.getGameplaySizing(); // Use the canvas from state.canvasElementRef for sizing
+
+            const container = state.canvasElementRef.parentElement;
+            let newWidth = 800; // Fallback
+            let newHeight = 600; // Fallback
+            if (container) {
+                newWidth = container.clientWidth;
+                newHeight = container.clientHeight;
+            }
+
+            // Get new sizing based on actual container dimensions
+            const sizing = GameplaySizing.getGameplaySizing(newWidth, newHeight);
+
             state.pixiApp.renderer.resize(sizing.width, sizing.height);
 
-            const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes);
-            const receptorPositions = GameplaySizing.getReceptorPositions(highwayMetrics);
-            const receptorSize = GameplaySizing.getReceptorSize();
+            // Recalculate metrics based on the new size
+            const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
+            const receptorPositions = GameplaySizing.getReceptorPositions(highwayMetrics, sizing.width, sizing.height);
+            const receptorSize = GameplaySizing.getReceptorSize(sizing.width, sizing.height);
 
             if (state.highwayGraphics) state.highwayGraphics.redraw(highwayMetrics);
             if (state.receptorGraphics) state.receptorGraphics.redraw(receptorPositions, receptorSize);

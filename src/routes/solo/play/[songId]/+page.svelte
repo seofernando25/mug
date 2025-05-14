@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { type ChartData, type GamePhase, type Note, type SongData } from '$lib/game';
 	import { onMount } from 'svelte';
-	import { get, writable, type Writable } from 'svelte/store';
 
 	import CountdownOverlay from '$lib/components/CountdownOverlay.svelte';
 	import FinishOverlay from '$lib/components/FinishOverlay.svelte';
@@ -174,19 +173,18 @@
 <!-- Placeholder for canvas and overlay elements -->
 <style>
 	.gameplay-container {
-		width: 100%;
-		height: 100%;
+		width: 100vw;
+		height: 100vh;
 		display: flex;
 		justify-content: center;
 		align-items: center;
 		position: relative;
-		background-color: #1a1a1a; /* Fallback if canvas is transparent or not full size */
+		background-color: #1a1a1a;
 	}
 
 	canvas {
-		max-width: 100%;
-		max-height: 100%;
-		object-fit: contain; /* Or cover, depending on desired scaling */
+		width: 100%;
+		height: 100%;
 		display: block;
 	}
 </style>
