@@ -7,6 +7,7 @@
 	import FinishOverlay from '$lib/components/FinishOverlay.svelte';
 	import PauseScreen from '$lib/components/PauseScreen.svelte';
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
+	import ComboMeter from '$lib/components/ComboMeter.svelte';
 
 	import { createGame, type GameInstance } from '$lib/game';
 	import LevitatingTextOverlay from '$lib/components/LevitatingTextOverlay.svelte';
@@ -39,7 +40,10 @@
 	let showPauseScreen = $derived(
 		isPausedStore && gamePhaseStore !== 'summary' && gamePhaseStore !== 'finished'
 	);
-	let showLevitatingTextOverlay = $derived(gamePhaseStore === 'playing'); // Condition for LevitatingTextOverlay
+	let showLevitatingTextOverlay = $derived(gamePhaseStore === 'playing');
+	let showComboMeter = $derived(
+		currentComboStore > 0 && (gamePhaseStore === 'playing' || gamePhaseStore === 'countdown')
+	);
 
 	// --- Svelte Lifecycle ---
 	onMount(() => {
@@ -209,6 +213,10 @@
 			songTimeMs={currentSongTimeMsStore}
 			bpm={songData.bpm > 0 ? songData.bpm : 120}
 		/>
+	{/if}
+
+	{#if showComboMeter}
+		<ComboMeter combo={currentComboStore} />
 	{/if}
 </div>
 
