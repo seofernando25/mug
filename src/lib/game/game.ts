@@ -221,21 +221,16 @@ export function createGame(
         if (isPaused && currentPhase !== 'playing' && currentPhase !== 'countdown') return;
 
         // Recalculate sizing based on current canvas dimensions for the render loop
-        // This ensures that if a resize happened, subsequent calculations are correct.
-        // The actual renderer resize is handled in handleResize.
-        // This is for metrics used in drawing calculations within the loop.
         const container = state.canvasElementRef?.parentElement;
-        let currentWidth = state.pixiApp.screen.width; // Use current renderer width as default
-        let currentHeight = state.pixiApp.screen.height; // Use current renderer height as default
+        let currentWidth = state.pixiApp.screen.width;
+        let currentHeight = state.pixiApp.screen.height;
         if (container) {
             currentWidth = container.clientWidth;
             currentHeight = container.clientHeight;
         }
         const sizing = GameplaySizing.getGameplaySizing(currentWidth, currentHeight);
-
-
         const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
-        const noteSize = GameplaySizing.getNoteSize(sizing.width, sizing.height); // Assuming getNoteSize might also become dynamic
+        const noteSize = GameplaySizing.getNoteSize(sizing.width, sizing.height);
 
         if (state.beatLineGraphics) {
             drawBeatLines(
@@ -250,7 +245,13 @@ export function createGame(
             );
         }
 
-        const visibleNotes = state.chartData.notes.filter((note: Note) => {
+        const visibleNotes = state.notes.filter((note: Note) => {
+            // If a note has been hit or missed, it should not be drawn again.
+            // isMissed check can be added if missed notes should also disappear immediately.
+            if (note.isHit || note.isMissed) {
+                return false;
+            }
+
             const noteY = GameplaySizing.getNoteYPosition(
                 note.time,
                 currentTimeMs,
@@ -258,6 +259,7 @@ export function createGame(
                 state.globalSpeedMultiplier,
                 currentBpm
             );
+            // Only draw notes that are on screen
             return noteY > -noteSize.height && noteY < state.pixiApp!.screen.height;
         });
 
