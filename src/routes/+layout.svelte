@@ -3,10 +3,7 @@
 	import { username, logout } from "$lib/stores/userStore";
 	import { page } from "$app/stores";
 	import { goto } from "$app/navigation";
-	import { browser } from '$app/environment';
-	import TweakpaneManager from '$lib/utils/TweakpaneManager';
-	import { isOptionsMenuOpen } from '$lib/stores/settingsStore';
-	import OptionsMenu from '$lib/components/OptionsMenu.svelte';
+	import { isPaused, skipLogin as skipLoginStore } from '$lib/stores/settingsStore';
 
 	let { children } = $props(); // Svelte 5: Get children prop
 
@@ -15,50 +12,42 @@
 
 	// Svelte 5: $effect for side effects (runs after render, client-side implicitly)
 	$effect(() => {
-		// Initialize Tweakpane on component mount (client-side)
-		TweakpaneManager.init();
-
-		// Key listener for Tweakpane toggle and Options Menu
+		// Effect for keyboard listeners (Escape for pause)
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.code === 'Backquote') {
-				console.log('Backquote key pressed, toggling Tweakpane...');
-				TweakpaneManager.toggleVisibility();
-			} else if (event.key === 'Escape') {
-				isOptionsMenuOpen.update(open => !open);
+			if (event.code === 'Escape') {
+				if (isGameplayPage) {
+					isPaused.update(p => !p);
+					console.log('Escape pressed, toggling pause to:', !$isPaused);
+				}
 			}
+			// Removed Tilde key listener for Tweakpane
 		};
 		window.addEventListener('keydown', handleKeyDown);
 
-		// Cleanup function for the effect
 		return () => {
-			console.log('Layout effect cleanup');
 			window.removeEventListener('keydown', handleKeyDown);
-			TweakpaneManager.dispose(); // Dispose Tweakpane
 		};
 	});
 
 	// Svelte 5: Separate $effect for redirection logic (runs after render, client-side implicitly)
 	$effect(() => {
-		console.log('Checking auth state...', $username, $page.url.pathname);
+		console.log('Auth check: user:', $username, 'path:', $page.url.pathname, 'skip:', $skipLoginStore);
 		if ($page.url.pathname !== '/') { 
-			if (!$username) { // If no user is set
-				if (TweakpaneManager.getSkipLogin()) { // And skipLogin is enabled
-					console.log('Auto-logging in via Skip Login...');
+			if (!$username) { 
+				if ($skipLoginStore) { 
+					console.log('Auto-logging in via Skip Login store...');
 					const randomId = Math.random().toString(36).substring(2, 8).toUpperCase();
 					const guestUsername = `GUEST-${randomId}`;
-					username.set(guestUsername); // Set the store
-				} else { // No user, skipLogin is disabled
-					console.log('Redirecting to login (effect, user not set, skipLogin off)...', $page.url.pathname);
+					username.set(guestUsername); 
+				} else { 
+					console.log('Redirecting to login (effect, user not set, skipLoginStore off)...', $page.url.pathname);
 					goto('/', { replaceState: true }); 
 				}
 			}
-			// If $username IS set, do nothing, allow access
 		}
 	});
 
 </script>
-
-<OptionsMenu />
 
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col font-mono">
 	{#if !isGameplayPage}
@@ -68,12 +57,6 @@
 			<div class="flex items-center space-x-4">
 				{#if $username}
 					<span class="text-gray-300">Welcome, <span class="font-semibold text-purple-300">{$username}</span>!</span>
-					<button
-						onclick={() => isOptionsMenuOpen.set(true)}
-						class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"
-					>
-						Options
-					</button>
 					<button
 						onclick={logout}
 						class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"

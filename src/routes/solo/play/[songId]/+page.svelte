@@ -7,6 +7,7 @@
 	import type { PageData } from './$types';
 	import LevitatingTextOverlay from '$lib/LevitatingTextOverlay.svelte';
 	import { setupAudioReactiveBackground } from '$lib/useAudioReactiveBackground';
+	import PauseOverlay from '$lib/components/PauseOverlay.svelte';
 
 	let { data } = $props<{ data: PageData }>(); 
 
@@ -471,6 +472,8 @@
 		songTimeMs={songTime}
 		bpm={metadata.bpm > 0 ? metadata.bpm : 120}
 	/>
+
+	<PauseOverlay />
 </div>
 
 <style lang="postcss">
