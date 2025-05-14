@@ -416,7 +416,7 @@ export function createGame(
         });
     }
 
-    const MISS_WINDOW_MS = 200; // Default miss window after note time
+    const MISS_WINDOW_MS = 150; // Default miss window after note time (aligned with Meh window)
 
     function updateGameLoop(ticker: Ticker) {
         if (!state.pixiApp || state.phase === 'loading') return;
@@ -469,26 +469,40 @@ export function createGame(
 
     function _processNoteHit(key: string, laneIndex: number) {
         if (!state.pixiApp) return;
-        const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 50;
-        const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 100;
-        const OK_WINDOW_MS = Preferences.prefs.gameplay.okWindowMs ?? 150;
+        const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 30;
+        const EXCELLENT_WINDOW_MS = Preferences.prefs.gameplay.excellentWindowMs ?? 75;
+        const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 120;
+        const MEH_WINDOW_MS = Preferences.prefs.gameplay.mehWindowMs ?? 150; // Changed from okWindowMs
 
         for (let i = state.notes.length - 1; i >= state.upcomingNoteIndex; i--) {
             const note = state.notes[i];
             if (note.lane !== laneIndex || note.isHit || note.isMissed) continue;
 
-            const timeDifference = note.time - state.currentSongTimeMs;
+            const timeDifference = note.time - state.currentSongTimeMs; // Negative if late, positive if early
             const absTimeDifference = Math.abs(timeDifference);
 
-            if (absTimeDifference <= OK_WINDOW_MS) {
-                let judgment = 'Ok';
-                if (absTimeDifference <= PERFECT_WINDOW_MS) judgment = 'Perfect';
-                else if (absTimeDifference <= GOOD_WINDOW_MS) judgment = 'Good';
+            if (absTimeDifference <= MEH_WINDOW_MS) { // Check if within the widest judgment window (Meh)
+                let judgment = '';
+                let score = 0;
+
+                if (absTimeDifference <= PERFECT_WINDOW_MS) {
+                    judgment = 'Perfect';
+                    score = 300;
+                } else if (absTimeDifference <= EXCELLENT_WINDOW_MS) {
+                    judgment = timeDifference < 0 ? 'Late Excellent' : 'Early Excellent';
+                    score = 200; // Score for Excellent
+                } else if (absTimeDifference <= GOOD_WINDOW_MS) {
+                    judgment = timeDifference < 0 ? 'Late Good' : 'Early Good';
+                    score = 100;
+                } else { // Implies absTimeDifference <= MEH_WINDOW_MS
+                    judgment = timeDifference < 0 ? 'Late Meh' : 'Early Meh';
+                    score = 50;
+                }
 
                 note.isHit = true;
                 note.isMissed = false; // Explicitly set isMissed to false on a hit
                 state.currentCombo++;
-                state.currentScore += (judgment === 'Perfect' ? 300 : judgment === 'Good' ? 200 : 100);
+                state.currentScore += score;
                 if (state.currentCombo > state.maxComboSoFar) {
                     state.maxComboSoFar = state.currentCombo;
                 }
@@ -498,7 +512,7 @@ export function createGame(
                 if (state.receptorGraphics && state.receptorGraphics.receptors[laneIndex]) {
                     state.receptorGraphics.receptors[laneIndex].flash();
                 }
-                return;
+                return; // Note processed
             }
         }
     }

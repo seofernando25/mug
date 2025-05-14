@@ -7,9 +7,10 @@ interface GameplayPreferences {
     keybindings: string[]; // e.g., ['d', 'f', 'j', 'k']
     receptorYPosition?: number; // Optional: if user can customize this
     judgmentLineYOffset?: number; // Optional: offset from receptor for judgment text
-    perfectWindowMs?: number; // Optional: timing window for Perfect judgment
-    goodWindowMs?: number;    // Optional: timing window for Good judgment
-    okWindowMs?: number;      // Optional: timing window for Ok judgment
+    perfectWindowMs?: number; // Optional: timing window for Perfect judgment (e.g., +/- 30ms)
+    excellentWindowMs?: number; // Optional: timing window for Excellent judgment (e.g., +/- 75ms)
+    goodWindowMs?: number;    // Optional: timing window for Good judgment (e.g., +/- 120ms)
+    mehWindowMs?: number;      // Optional: timing window for Meh judgment (e.g., +/- 150ms)
 }
 
 interface VisualPreferences {
@@ -37,9 +38,10 @@ const defaultPreferences: UserPreferences = {
     gameplay: {
         speedMultiplier: 1.0,
         keybindings: ['d', 'f', 'j', 'k'], // Default 4-key layout
-        perfectWindowMs: 50, // Default Perfect window
-        goodWindowMs: 100,   // Default Good window
-        okWindowMs: 150      // Default Ok window
+        perfectWindowMs: 30,   // New Perfect window
+        excellentWindowMs: 75, // New Excellent window
+        goodWindowMs: 120,     // New Good window
+        mehWindowMs: 150       // New Meh window (renamed from okWindowMs)
     },
     visuals: {
         noteSkin: 'default',
