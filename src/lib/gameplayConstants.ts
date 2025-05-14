@@ -11,6 +11,11 @@ export const Colors = {
 	BACKGROUND_PULSE: 0x1d1d1f, // Color for background pulse effect
 	JUDGMENT_HIT: 0x33ff33,   // Bright Green for HIT text
 	JUDGMENT_MISS: 0xff3333,  // Bright Red for MISS text
+	JUDGMENT_PERFECT: 0xffd700, // Gold
+	JUDGMENT_GREAT: 0x32cd32,  // Lime Green
+	JUDGMENT_GOOD: 0x1e90ff,   // Dodger Blue
+	JUDGMENT_EARLY: 0xffa500,  // Orange
+	JUDGMENT_LATE: 0xda70d6,   // Orchid
 };
 
 export const AlphaValues = {

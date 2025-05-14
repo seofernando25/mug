@@ -11,6 +11,12 @@
 
 	let { data } = $props<{ data: PageData }>(); 
 
+	// Hit Timing Windows (in milliseconds, +/- around the exact note time)
+	const TIMING_PERFECT_MS = 20;
+	const TIMING_GREAT_MS = 40;
+	const TIMING_GOOD_MS = 100;
+	const TIMING_MISS_MS = 250; // Also serves as the overall hit window boundary
+
 	let pixiApp = $state<Application | null>(null);
 	let canvasContainer: HTMLDivElement;
 	let audioElement = $state<HTMLAudioElement | null>(null);
@@ -68,14 +74,31 @@
 
 	let judgedNoteIds = $state(new Set<number>()); // Set to track IDs of notes already judged (hit or miss)
 
-	function spawnJudgmentText(type: "HIT" | "MISS", laneNumber: number, hitZoneY: number, laneWidth: number, highwayX: number) {
+	function spawnJudgmentText(
+		type: "PERFECT" | "GREAT" | "GOOD" | "EARLY" | "LATE" | "MISS", 
+		laneNumber: number, 
+		hitZoneY: number, 
+		laneWidth: number, 
+		highwayX: number
+	) {
 		if (!judgmentTextContainer || !pixiApp) return;
+
+		let color: number;
+		switch (type) {
+			case "PERFECT": color = Colors.JUDGMENT_PERFECT; break;
+			case "GREAT": color = Colors.JUDGMENT_GREAT; break;
+			case "GOOD": color = Colors.JUDGMENT_GOOD; break;
+			case "EARLY": color = Colors.JUDGMENT_EARLY; break;
+			case "LATE": color = Colors.JUDGMENT_LATE; break;
+			case "MISS": color = Colors.JUDGMENT_MISS; break;
+			default: color = Colors.JUDGMENT_MISS; // Fallback
+		}
 
 		const textStyle = new TextStyle({
 			fontFamily: 'Arial',
 			fontSize: 24,
 			fontWeight: 'bold',
-			fill: type === "HIT" ? Colors.JUDGMENT_HIT : Colors.JUDGMENT_MISS, // Assuming these are in Colors
+			fill: color,
 			stroke: { color: '#000000', width: 2 }
 		});
 
@@ -92,7 +115,7 @@
 			instanceId,
 			pixiText,
 			text: type,
-			color: type === "HIT" ? Colors.JUDGMENT_HIT : Colors.JUDGMENT_MISS,
+			color: color, // Use determined color
 			x: pixiText.x,
 			y: pixiText.y,
 			alpha: 1.0,
@@ -148,32 +171,61 @@
 				}
 
 				const hitWindowMs = Timing.HIT_WINDOW_MS;
-				let bestCandidate: { id: number, entry: NoteGraphicsEntry, timeDiff: number } | null = null;
+				let bestCandidate: { id: number, entry: NoteGraphicsEntry, timeDiffAbs: number, actualTimeDiff: number } | null = null;
 
 				for (const [noteId, noteEntry] of noteGraphicsMap) {
-					// Check !judgedNoteIds.has(noteId) AND !noteEntry.isHit to be super safe, though judgedNoteIds should be primary
 					if (!judgedNoteIds.has(noteId) && noteEntry.lane === targetLane && !noteEntry.isHit) {
-						const timeDifference = noteEntry.time - songTime;
-						if (Math.abs(timeDifference) <= hitWindowMs) {
-							if (!bestCandidate || Math.abs(timeDifference) < Math.abs(bestCandidate.timeDiff)) {
-								bestCandidate = { id: noteId, entry: noteEntry, timeDiff: timeDifference };
+						const actualTimeDifference = (songTime) - noteEntry.time; // player time - note time
+						const timeDifferenceAbs = Math.abs(actualTimeDifference);
+
+						// Use TIMING_MISS_MS as the widest possible window for a key press to be associated with a note
+						if (timeDifferenceAbs <= TIMING_MISS_MS) { 
+							if (!bestCandidate || timeDifferenceAbs < bestCandidate.timeDiffAbs) {
+								bestCandidate = { id: noteId, entry: noteEntry, timeDiffAbs: timeDifferenceAbs, actualTimeDiff: actualTimeDifference };
 							}
 						}
 					}
 				}
 
 				if (bestCandidate) {
-					const { id: hitNoteId, entry: hitNoteEntry } = bestCandidate;
+					const { id: hitNoteId, entry: hitNoteEntry, timeDiffAbs, actualTimeDiff } = bestCandidate;
 					
-					if (!judgedNoteIds.has(hitNoteId)) { // Double check here before modifying state
+					if (!judgedNoteIds.has(hitNoteId)) { 
 						judgedNoteIds.add(hitNoteId);
-						judgedNoteIds = new Set(judgedNoteIds); // Ensure reactivity for the Set itself
+						judgedNoteIds = new Set(judgedNoteIds);
 
 						hitNoteEntry.isHit = true; 
 						noteGraphicsMap = new Map(noteGraphicsMap);
 
-						spawnJudgmentText("HIT", targetLane, pixiApp.screen.height * GameplaySizing.HIT_ZONE_Y_RATIO, (pixiApp.screen.width * GameplaySizing.HIGHWAY_WIDTH_RATIO) / chart.lanes, (pixiApp.screen.width * (1 - GameplaySizing.HIGHWAY_WIDTH_RATIO)) / 2);
-						// TODO: Add score, combo, etc.
+						let judgmentType: "PERFECT" | "GREAT" | "GOOD" | "EARLY" | "LATE" | "MISS" | null = null;
+
+						if (timeDiffAbs <= TIMING_PERFECT_MS) {
+							judgmentType = "PERFECT";
+						} else if (timeDiffAbs <= TIMING_GREAT_MS) {
+							judgmentType = "GREAT";
+						} else if (timeDiffAbs <= TIMING_GOOD_MS) {
+							judgmentType = "GOOD";
+						} else if (timeDiffAbs <= TIMING_MISS_MS) { // This is the 101ms to TIMING_MISS_MS (e.g., 250ms) window
+							if (actualTimeDiff < 0) { // player time is less than note time, so pressed early
+								judgmentType = "EARLY";
+							} else { // player time is greater than note time, so pressed late
+								judgmentType = "LATE";
+							}
+						}
+						// If judgmentType is still null here, it means the press was outside TIMING_MISS_MS for this note.
+						// The bestCandidate logic already ensures we only consider notes within TIMING_MISS_MS.
+						// So, a judgmentType should always be assigned if we reach here for a bestCandidate.
+
+						if (judgmentType) {
+							spawnJudgmentText(
+								judgmentType, 
+								targetLane, 
+								pixiApp.screen.height * GameplaySizing.HIT_ZONE_Y_RATIO, 
+								(pixiApp.screen.width * GameplaySizing.HIGHWAY_WIDTH_RATIO) / chart.lanes, 
+								(pixiApp.screen.width * (1 - GameplaySizing.HIGHWAY_WIDTH_RATIO)) / 2
+							);
+							// TODO: Add score, combo based on judgmentType
+						}
 					}
 				}
 			}
@@ -309,14 +361,16 @@
 					}
 
 					// --- Miss Detection (after updateNotes) ---
-					const hitWindowMsForMiss = Timing.HIT_WINDOW_MS;
+					// A note is a "MISS" if its time + TIMING_MISS_MS has passed and it hasn't been hit by a key press.
 					let mutatedInMissDetection = false;
 					noteGraphicsMap.forEach((noteEntry, noteId) => {
-						// Check !judgedNoteIds.has(noteId) first
-						if (!judgedNoteIds.has(noteId) && !noteEntry.isHit && (songTime - noteEntry.time) > hitWindowMsForMiss) {
+						// Check if note is beyond the miss window (songTime > note.time + TIMING_MISS_MS)
+						// and it hasn't been judged yet.
+						if (!judgedNoteIds.has(noteId) && !noteEntry.isHit && (songTime - noteEntry.time) > TIMING_MISS_MS) {
 							judgedNoteIds.add(noteId);
-							// judgedNoteIds = new Set(judgedNoteIds); // Will be done after loop if mutated
 
+							// Marking isHit = true here means it's processed, to prevent re-judging.
+							// For a pure miss, the note wasn't "hit" by the player, but it's "hit" by the timeline.
 							noteEntry.isHit = true; 
 							spawnJudgmentText("MISS", noteEntry.lane, playheadY, noteCtx.laneWidth, noteCtx.highwayX);
 							mutatedInMissDetection = true;
