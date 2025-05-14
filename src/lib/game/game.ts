@@ -91,7 +91,7 @@ interface GameState {
 
     // --- Key state ---
     keyStates: Record<string, boolean>;
-    globalSpeedMultiplier: number;
+    currentSpeedMultiplier: number; // Renamed for clarity, reflects current effective scroll speed
     lastKnownBpm: number;
 }
 
@@ -133,9 +133,19 @@ export function createGame(
         canvasElementRef: null,
         // Key states & game params
         keyStates: {},
-        globalSpeedMultiplier: Preferences.prefs.gameplay.speedMultiplier,
+        currentSpeedMultiplier: 1.0, // Default, will be overridden by chart data
         lastKnownBpm: chartData.timing.bpms[0]?.bpm || 60,
     };
+
+    console.log('chartData', chartData);
+    // Initialize currentSpeedMultiplier from chartData.noteScrollSpeed
+    if (typeof chartData.noteScrollSpeed === 'number' && chartData.noteScrollSpeed > 0) {
+        state.currentSpeedMultiplier = chartData.noteScrollSpeed;
+        console.log(`Chart noteScrollSpeed set to: ${state.currentSpeedMultiplier}`);
+    } else {
+        state.currentSpeedMultiplier = 1.0; // Fallback if not provided or invalid
+        console.log('Chart noteScrollSpeed not found or invalid, defaulting to 1.0');
+    }
 
     // --- Internal Helper Functions ---
     function setPhase(newPhase: GamePhase) {
@@ -207,7 +217,7 @@ export function createGame(
             [], // Empty beats initially
             0,
             0,
-            state.globalSpeedMultiplier
+            state.currentSpeedMultiplier
         );
         state.canvasElementRef = element; // Store for resize
     }
@@ -240,7 +250,7 @@ export function createGame(
                 state.chartData.timing.beats || [],
                 currentTimeMs,
                 currentBpm,
-                state.globalSpeedMultiplier,
+                state.currentSpeedMultiplier,
                 state.beatLineGraphics
             );
         }
@@ -256,7 +266,7 @@ export function createGame(
                 note.time,
                 currentTimeMs,
                 highwayMetrics.receptorYPosition,
-                state.globalSpeedMultiplier,
+                state.currentSpeedMultiplier,
                 currentBpm
             );
             // Only draw notes that are on screen
@@ -269,7 +279,7 @@ export function createGame(
             visibleNotes,
             currentTimeMs,
             highwayMetrics,
-            state.globalSpeedMultiplier,
+            state.currentSpeedMultiplier,
             currentBpm,
             state.noteGraphics
         );

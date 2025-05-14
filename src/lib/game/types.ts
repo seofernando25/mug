@@ -70,12 +70,12 @@ export interface ChartData {
     difficultyName: string; // e.g., "Easy", "Hard", "Expert"
     difficultyLevel?: number; // Numerical representation of difficulty
     numLanes: number;    // Number of lanes/columns in this chart (e.g., 4, 6, 8)
+    noteScrollSpeed?: number; // Add this line: Base scroll speed for this chart
     notes: Note[];       // Array of all notes in the chart, sorted by time
     timing: {
         bpms: { time: number; bpm: number }[]; // Time in seconds
         stops?: { time: number; duration: number }[]; // Time in seconds, duration in seconds
         delays?: { time: number; duration: number }[]; // Time in seconds, duration in seconds
-        scrollSpeeds?: { time: number; multiplier: number }[]; // Time in seconds
         beats?: { time: number; type: 'downbeat' | 'subdivision' }[]; // Beat markers for visual cues, time in ms
     };
     // Add other chart-specific metadata like chart author, description, etc.

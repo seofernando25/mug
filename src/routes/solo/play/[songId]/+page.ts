@@ -46,6 +46,7 @@ export const load = (async ({ params, fetch }) => {
 			songId: gameReadySongData.id,
 			difficultyName: pageChart.difficultyName,
 			numLanes: pageChart.lanes,
+			noteScrollSpeed: pageChart.noteScrollSpeed,
 			notes: pageChart.hitObjects.map((hitObject: PageHitObject, index: number): GameNote => ({
 				id: `note-${index}`,
 				time: hitObject.time,

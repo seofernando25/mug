@@ -3,14 +3,14 @@
 	import { type ChartData, type GamePhase, type Note, type SongData } from '$lib/game';
 	import { onMount } from 'svelte';
 
+	import ComboMeter from '$lib/components/ComboMeter.svelte';
 	import CountdownOverlay from '$lib/components/CountdownOverlay.svelte';
 	import FinishOverlay from '$lib/components/FinishOverlay.svelte';
 	import PauseScreen from '$lib/components/PauseScreen.svelte';
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
-	import ComboMeter from '$lib/components/ComboMeter.svelte';
 
-	import { createGame, type GameInstance } from '$lib/game';
 	import LevitatingTextOverlay from '$lib/components/LevitatingTextOverlay.svelte';
+	import { createGame, type GameInstance } from '$lib/game';
 
 	// Data from +page.ts load function, already transformed
 	const { data } = $props<{ data: { songId: string; songData: SongData; chartData: ChartData } }>();
