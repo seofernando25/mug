@@ -86,7 +86,7 @@ interface GameState {
     noteGraphics: NoteGraphics[];
     beatLineGraphics: BeatLineGraphics | null;
     keyPressEffectGraphics: KeyPressEffectGraphics | null;
-    judgmentTexts: JudgmentText[];
+    judgmentTextsByLane: Record<number, JudgmentText | null>; // For per-lane judgment texts
     canvasElementRef: HTMLCanvasElement | null; // Keep a reference if needed for resize
 
     // --- Key state ---
@@ -129,7 +129,7 @@ export function createGame(
         noteGraphics: [],
         beatLineGraphics: null,
         keyPressEffectGraphics: null,
-        judgmentTexts: [],
+        judgmentTextsByLane: {}, // Initialized for per-lane judgment texts
         canvasElementRef: null,
         // Key states & game params
         keyStates: {},
@@ -301,20 +301,34 @@ export function createGame(
             );
         }
 
-        state.judgmentTexts = state.judgmentTexts.filter((jt) => {
-            jt.updateAnimation(state.pixiApp!.ticker.deltaMS);
-            return jt.alpha > 0;
-        });
+        // Update and filter judgment texts per lane
+        for (const laneIndexStr in state.judgmentTextsByLane) {
+            const laneIndex = parseInt(laneIndexStr, 10); // Ensure laneIndex is a number
+            const judgmentText = state.judgmentTextsByLane[laneIndex];
+            if (judgmentText) {
+                judgmentText.updateAnimation(state.pixiApp!.ticker.deltaMS);
+                if (judgmentText.alpha <= 0) {
+                    judgmentText.destroy(); // Destroy the PIXI object
+                    state.judgmentTextsByLane[laneIndex] = null; // Remove from active judgments
+                }
+            }
+        }
     }
 
     function _spawnVisualJudgment(note: Note, judgment: string) {
         if (!state.pixiApp || !state.mainContainer) return;
 
-        // Get current canvas dimensions
+        const laneIndex = note.lane;
+
+        // If there's an existing judgment for this lane, destroy it first
+        const existingJudgment = state.judgmentTextsByLane[laneIndex];
+        if (existingJudgment) {
+            existingJudgment.destroy();
+        }
+
+        // Get current canvas dimensions for accurate positioning
         const canvasWidth = state.pixiApp.screen.width;
         const canvasHeight = state.pixiApp.screen.height;
-
-        // Calculate highway metrics with actual canvas dimensions
         const currentHighwayMetrics = GameplaySizing.getHighwayMetrics(
             state.chartData.numLanes,
             canvasWidth,
@@ -325,13 +339,11 @@ export function createGame(
             state.pixiApp,
             state.mainContainer,
             judgment,
-            note.lane,
-            // Pass specific metrics instead of numLanes for recalculation
-            currentHighwayMetrics.x, // highwayStartX
-            currentHighwayMetrics.laneWidth,
-            currentHighwayMetrics.judgmentLineYPosition // yPosition remains the same
+            laneIndex, // Pass the lane index for positioning
+            state.chartData.numLanes, // Pass total number of lanes for context
+            currentHighwayMetrics.judgmentLineYPosition
         );
-        state.judgmentTexts.push(newJudgment);
+        state.judgmentTextsByLane[laneIndex] = newJudgment; // Store new judgment by lane
     }
 
     function loadAudio() {
@@ -573,8 +585,12 @@ export function createGame(
             state.maxComboSoFar = 0;
             state.currentSongTimeMs = 0;
             state.isPaused = false;
-            state.judgmentTexts.forEach(jt => jt.destroy());
-            state.judgmentTexts = [];
+            // Clear old judgment texts by lane
+            Object.values(state.judgmentTextsByLane).forEach(jt => {
+                if (jt) jt.destroy();
+            });
+            state.judgmentTextsByLane = {}; // Reset the record
+
             processNotes();
             state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
             setPhase('loading');
@@ -668,8 +684,11 @@ export function createGame(
                 state.sound = null;
             }
 
-            state.judgmentTexts.forEach((jt) => jt.destroy());
-            state.judgmentTexts = [];
+            // Clear judgment texts by lane
+            Object.values(state.judgmentTextsByLane).forEach(jt => {
+                if (jt) jt.destroy();
+            });
+            state.judgmentTextsByLane = {}; // Reset the record
 
             if (state.pixiApp) {
                 state.pixiApp.ticker.stop();
