@@ -2,7 +2,7 @@
 	import { v8_0_0 } from 'pixi.js';
 	import type { Action } from 'svelte/action';
 
-	let { 
+	let {
 		songTimeMs = 0 as number,
 		bpm = 120 as number,
 		title = '' as string,
@@ -18,8 +18,9 @@
 			node.innerHTML = originalText
 				.split('')
 				.map((char, i) =>
-					char === ' ' ? ' ' : // Preserve spaces
-						`<span class="levitate" style="animation-delay: ${-i * 150 + randomOffset}ms">${char}</span>`
+					char === ' '
+						? ' ' // Preserve spaces
+						: `<span class="levitate" style="animation-delay: ${-i * 150 + randomOffset}ms">${char}</span>`
 				)
 				.join('');
 		}
@@ -31,17 +32,19 @@
 		};
 	};
 
-
 	let beatDurationMs = $derived(60000 / bpm / 0.5);
 	let beatProgress = $derived((songTimeMs % beatDurationMs) / beatDurationMs);
 	let titleScale = $derived(1 + 0.02 * Math.sin(beatProgress * Math.PI));
 </script>
 
-
 <!-- HTML Overlay for Title and Difficulty with Levitate Effect -->
-<div class="fixed top-4 left-4 z-10 p-3 rounded-md bg-black  bg-opacity-30 text-overlay-container">
+<div class="fixed top-4 left-4 z-10 p-3 rounded-md bg-black bg-opacity-30 text-overlay-container">
 	{#if title || artist}
-		<h1 use:levitateText class="title-text text-2xl   font-bold mb-1"  style="transform: scale({titleScale});">
+		<h1
+			use:levitateText
+			class="title-text text-2xl font-bold mb-1"
+			style="transform: scale({titleScale});"
+		>
 			{title}{artist ? ` - ${artist}` : ''}
 		</h1>
 	{/if}
@@ -68,6 +71,4 @@
 			transform: rotate(3deg) translatey(0.15rem);
 		}
 	}
-
-	
-</style> 
+</style>

@@ -1,26 +1,19 @@
 import { error } from '@sveltejs/kit';
-import type { Load } from '@sveltejs/kit';
 // Import types from the new central location
-import type { SongData, SongMetadata, Chart } from '$lib/types/song';
+import type { SongData as PageSongData, Chart as PageChart, HitObject as PageHitObject } from '$lib/types/song';
+// Import types expected by the game engine
+import type { SongData as GameSongData, ChartData as GameChartData, Note as GameNote } from '$lib/game/types';
 
 // Disable SSR for this page
 export const ssr = false;
 
-// Define the expected shape of the data returned by load
-export interface PageSongData {
-	songId: string;
-	metadata: SongMetadata;
-	chart: Chart;
-}
-
-// Explicitly type the return value of the async function instead of Load generic
-export const load = (async ({ params, fetch }): Promise<PageSongData> => {
-	const songId = params.songId;
-	if (!songId) {
+export const load = (async ({ params, fetch }) => {
+	const songIdFromRoute = params.songId;
+	if (!songIdFromRoute) {
 		throw error(404, 'Song ID not provided');
 	}
 
-	const songJsonPath = `/songs/${songId}/song.json`;
+	const songJsonPath = `/songs/${songIdFromRoute}/song.json`;
 
 	try {
 		const response = await fetch(songJsonPath);
@@ -29,23 +22,56 @@ export const load = (async ({ params, fetch }): Promise<PageSongData> => {
 			throw error(response.status, `Failed to load song data: ${response.statusText}`);
 		}
 
-		const songData: SongData = await response.json();
+		const pageSongData: PageSongData = await response.json();
 
-		if (!songData || !songData.metadata || !songData.charts || songData.charts.length === 0) {
+		if (!pageSongData || !pageSongData.metadata || !pageSongData.charts || pageSongData.charts.length === 0) {
 			throw error(500, 'Invalid song data format');
 		}
 
-		// Return metadata and the first chart
+		// Transform PageSongData to GameSongData
+		const gameReadySongData: GameSongData = {
+			id: songIdFromRoute, // Use the ID from the route, or pageSongData.metadata.title if preferred
+			title: pageSongData.metadata.title,
+			artist: pageSongData.metadata.artist,
+			audioUrl: `/songs/${songIdFromRoute}/${pageSongData.metadata.audioFilename}`, // Corrected path
+			durationMs: 0, // Placeholder; game logic might update this from actual audio duration
+			// coverUrl and previewStartMs are optional in GameSongData
+		};
+
+		// Assuming we use the first chart
+		const pageChart: PageChart = pageSongData.charts[0];
+
+		// Transform PageChart to GameChartData
+		const gameReadyChartData: GameChartData = {
+			songId: gameReadySongData.id,
+			difficultyName: pageChart.difficultyName,
+			numLanes: pageChart.lanes,
+			notes: pageChart.hitObjects.map((hitObject: PageHitObject, index: number): GameNote => ({
+				id: `note-${index}`,
+				time: hitObject.time,
+				lane: hitObject.lane,
+				type: hitObject.type, // 'tap' | 'hold'
+				duration: hitObject.duration,
+				isHit: false,
+				isMissed: false,
+			})),
+			timing: {
+				bpms: pageSongData.metadata.bpm ? [{ time: 0, bpm: pageSongData.metadata.bpm }] : [],
+				// Optional timing events (stops, delays, scrollSpeeds, beats) can be empty or undefined
+				beats: [], // Defaulting to empty array as per previous logic
+			},
+		};
+
 		return {
-			songId,
-			metadata: songData.metadata,
-			chart: songData.charts[0] 
+			songId: songIdFromRoute, // Keep original songId if needed elsewhere, though gameReadySongData also has an id
+			songData: gameReadySongData, // This is now GameSongData
+			chartData: gameReadyChartData, // This is now GameChartData
 		};
 	} catch (e: any) {
-		console.error(`Error loading song ${songId}:`, e);
+		console.error(`Error loading song ${songIdFromRoute}:`, e);
 		if (e.status) {
 			throw e;
 		}
-		throw error(500, `Could not load song data for ${songId}`);
+		throw error(500, `Could not load song data for ${songIdFromRoute}`);
 	}
 }); 
