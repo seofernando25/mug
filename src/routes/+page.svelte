@@ -5,8 +5,44 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { username as usernameStore } from '$lib/stores/userStore';
+	import { fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import { quintOut } from 'svelte/easing';
 
-	let usernameInput = '';
+	function stretchIn(node: HTMLElement, {
+		delay = 0,
+		duration = 300,
+		easing = quintOut,
+		startScaleX = 3.0,
+		startScaleY = 0.8
+	}) {
+		const style = getComputedStyle(node);
+		const original_transform = style.transform === 'none' ? '' : style.transform;
+
+		return {
+			delay,
+			duration,
+			easing,
+			css: (t: number, u: number) => {
+				const currentScaleX = u * startScaleX + t * 1.0;
+				const currentScaleY = u * startScaleY + t * 1.0;
+				const currentOpacity = t;
+
+				return `
+					transform: ${original_transform} scaleX(${currentScaleX}) scaleY(${currentScaleY});
+					transform-origin: center center;
+					opacity: ${currentOpacity};
+				`;
+			}
+		};
+	}
+
+	let usernameInput = $state('');
+	let showPanel = $state(false);
+
+	onMount(() => {
+		showPanel = true;
+	});
 
 	function join() {
 		let finalUsername = usernameInput.trim();
@@ -25,8 +61,10 @@
 	}
 </script>
 
-
+{#if showPanel}
 <div
+	in:stretchIn={{ startScaleX: 4.0, startScaleY: 0.1	 }}
+	out:fade={{ duration: 150 }}
 	class="
 		fixed left-1/2 top-1/2
 		-translate-x-1/2 -translate-y-1/2
@@ -56,13 +94,4 @@
 	JOIN
 </button>
 </div>
-
-<style>
-	/* Add some basic styling if desired */
-	div {
-		margin-top: 1rem;
-	}
-	input {
-		margin-right: 0.5rem;
-	}
-</style>
+{/if}
