@@ -1,8 +1,15 @@
+<script lang="ts">
+	import Waves from './Waves.svelte';
+</script>
+
 <svelte:head>
 	<title>Home - MUG</title>
 </svelte:head>
 
-<div class="flex flex-col h-full pt-8">
+<div class="flex flex-col h-full pt-8 isolate">
+	<div class="fixed top-0 left-0 w-screen h-screen z-[-1] overflow-visible">
+		<Waves />
+	</div>
 	<h1 class="text-4xl font-bold mb-10 text-gray-200 text-center">Select Mode</h1>
 	<!-- Aligned to the right using ml-auto within the flex container -->
 	<div class="w-full max-w-3xl space-y-5 ml-auto pr-4 md:pr-8 lg:pr-16">
@@ -30,4 +37,5 @@
 			<p class="text-md text-teal-100">Learn more about the project</p>
 		</a>
 	</div>
+
 </div> 
