@@ -1,5 +1,7 @@
 <!-- Placeholder for PauseScreen component -->
 <script lang="ts">
+	import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
+
 	let {
 		onResume = () => {},
 		onRetry = () => {},
@@ -14,6 +16,37 @@
 <div class="overlay-container pause-overlay">
 	<div class="pause-box">
 		<h2 class="pause-title">Paused</h2>
+		
+		<section class="settings-section">
+			<h3 class="section-title">Audio Settings</h3>
+			<div class="volume-controls">
+				<div class="volume-control">
+					<label for="pauseMasterVolume">Master Volume: {Math.round($masterVolume * 100)}%</label>
+					<input 
+						type="range" 
+						id="pauseMasterVolume" 
+						bind:value={$masterVolume} 
+						min="0" 
+						max="1" 
+						step="0.01" 
+						class="volume-slider" 
+					/>
+				</div>
+				<div class="volume-control">
+					<label for="pauseMusicVolume">Music Volume: {Math.round($musicVolume * 100)}%</label>
+					<input 
+						type="range" 
+						id="pauseMusicVolume" 
+						bind:value={$musicVolume} 
+						min="0" 
+						max="1" 
+						step="0.01" 
+						class="volume-slider" 
+					/>
+				</div>
+			</div>
+		</section>
+
 		<div class="pause-buttons">
 			<button onclick={onResume} class="pause-button resume-button">Resume</button>
 			<button onclick={onRetry} class="pause-button retry-button">Retry</button>
@@ -61,6 +94,59 @@
 		font-size: 2.5rem;
 		margin-bottom: 25px;
 		color: #60a5fa; /* A blueish accent for pause */
+	}
+
+	.settings-section {
+		margin: 20px 0;
+		text-align: left;
+	}
+
+	.section-title {
+		font-size: 1.2rem;
+		color: #93c5fd;
+		margin-bottom: 15px;
+		border-bottom: 1px solid rgba(120, 120, 220, 0.3);
+		padding-bottom: 8px;
+	}
+
+	.volume-controls {
+		display: flex;
+		flex-direction: column;
+		gap: 15px;
+	}
+
+	.volume-control {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+	}
+
+	.volume-control label {
+		font-size: 0.9rem;
+		color: #e2e8f0;
+	}
+
+	.volume-slider {
+		width: 100%;
+		height: 6px;
+		background: rgba(120, 120, 220, 0.3);
+		border-radius: 3px;
+		outline: none;
+		-webkit-appearance: none;
+	}
+
+	.volume-slider::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		width: 16px;
+		height: 16px;
+		background: #60a5fa;
+		border-radius: 50%;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+
+	.volume-slider::-webkit-slider-thumb:hover {
+		background: #93c5fd;
 	}
 
 	.pause-buttons {
