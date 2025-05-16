@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { isPaused, skipLogin as skipLoginStore } from '$lib/stores/settingsStore';
+	import MusicPlayer from '$lib/components/MusicPlayer.svelte';
 
 	let { children } = $props(); // Svelte 5: Get children prop
 
@@ -77,6 +78,7 @@
 							Logout
 						</button>
 					{/if}
+					<MusicPlayer />
 				</div>
 			</div>
 		</header>
