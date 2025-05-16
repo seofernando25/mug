@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import gsap from 'gsap';
+  import { enableScreenPulse } from '$lib/stores/settingsStore';
 
   let pulseElement: HTMLDivElement;
   let pulseTimeline: gsap.core.Timeline | null = null;
@@ -14,7 +15,7 @@
     scaleTo: number = 5,      // Scale multiplier
     durationMs: number = 200  // Standard duration
   ) {
-    if (!pulseElement) {
+    if (!pulseElement || !$enableScreenPulse) {
       return;
     }
 
