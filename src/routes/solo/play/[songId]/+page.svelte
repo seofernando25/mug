@@ -106,9 +106,13 @@
 						if (!highwayMetrics) return;
 
 						// Calculate the exact position in the lane
-						const laneX = canvasRect.left + highwayMetrics.x + (highwayMetrics.laneWidth * note.lane) + (highwayMetrics.laneWidth / 2);
+						const laneX =
+							canvasRect.left +
+							highwayMetrics.x +
+							highwayMetrics.laneWidth * note.lane +
+							highwayMetrics.laneWidth / 2;
 						const laneY = canvasRect.top + highwayMetrics.judgmentLineYPosition;
-						
+
 						screenPulseComponent.triggerPulse(laneX, laneY, color, 0.3, 50, 300);
 					}
 				},
