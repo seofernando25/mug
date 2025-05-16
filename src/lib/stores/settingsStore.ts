@@ -38,6 +38,7 @@ export const isPaused = writable(false);
 // Added settings
 export const skipLogin = createPersistentStore('skipLogin', false);
 export const autoPlay = createPersistentStore('autoPlay', false);
+export const enableScreenPulse = createPersistentStore('enableScreenPulse', true);
 
 // Sync isPaused with isOptionsMenuOpen - REMOVED
 // isOptionsMenuOpen.subscribe(isOpen => {

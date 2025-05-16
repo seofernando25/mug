@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { skipLogin, autoPlay, masterVolume, musicVolume } from '$lib/stores/settingsStore';
+	import {
+		skipLogin,
+		autoPlay,
+		masterVolume,
+		musicVolume,
+		enableScreenPulse
+	} from '$lib/stores/settingsStore';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
@@ -37,6 +43,21 @@
 				type="checkbox"
 				id="skipLogin"
 				bind:checked={$skipLogin}
+				class="form-checkbox h-6 w-6 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+			/>
+		</div>
+	</section>
+
+	<section class="space-y-4 p-6 bg-gray-800 rounded-lg shadow-md">
+		<h2 class="text-2xl font-semibold text-purple-300 border-b border-gray-700 pb-2">
+			Visual Settings
+		</h2>
+		<div class="flex items-center justify-between">
+			<label for="enableScreenPulse" class="text-lg">Enable Screen Pulse Effect</label>
+			<input
+				type="checkbox"
+				id="enableScreenPulse"
+				bind:checked={$enableScreenPulse}
 				class="form-checkbox h-6 w-6 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
 			/>
 		</div>

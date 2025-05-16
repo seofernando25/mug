@@ -22,6 +22,7 @@
                         <label for="pauseMusicVolume" class="block text-lg mb-1">Music Volume: {Math.round($musicVolume * 100)}%</label>
                         <input type="range" id="pauseMusicVolume" bind:value={$musicVolume} min="0" max="1" step="0.01" class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600" />
                     </div>
+
                 </div>
             </section>
 
@@ -57,4 +58,4 @@
         border-radius: 50%;
         border: none;
     }
-</style> 
+</style> </style> 

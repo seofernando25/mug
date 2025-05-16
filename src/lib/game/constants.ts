@@ -11,6 +11,7 @@ export const Colors = {
     BACKGROUND_PULSE: 0x202020, // Slightly lighter for background pulse effects
     JUDGMENT_HIT: 0x00ff00,     // Green for generic hit judgments
     JUDGMENT_MISS: 0xff0000,    // Red for miss judgments
+    LANE_COLORS: [0xff0000, 0x00ff00, 0xffff00, 0x0000ff], // Red, Green, Yellow, Blue
 };
 
 export const AlphaValues = {

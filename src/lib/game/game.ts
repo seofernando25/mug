@@ -19,6 +19,8 @@ import {
 } from '$lib/rendering'; // Ensure rendering functions are imported
 import type { SongData, ChartData, Note } from './types';
 import { Preferences } from '$lib/preferences';
+import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
+import { get } from 'svelte/store';
 
 export type GamePhase = 'loading' | 'countdown' | 'playing' | 'finished' | 'summary';
 
@@ -27,7 +29,7 @@ export interface GameCallbacks {
     onCountdownUpdate: (value: number) => void;
     onSongEnd: () => void;
     onScoreUpdate: (score: number, combo: number, maxCombo: number) => void;
-    onNoteHit: (note: Note, judgment: string) => void;
+    onNoteHit: (note: Note, judgment: string, color?: number) => void;
     onNoteMiss: (note: Note) => void;
     getGamePhase: () => GamePhase;
     getIsPaused: () => boolean;
@@ -37,7 +39,6 @@ export interface GameCallbacks {
 
 export interface GameInstance {
     // --- Control Functions ---
-    // startSong: () => void; // This will be part of initial setup or a resetGame method
     initialize: (canvasElement: HTMLCanvasElement) => Promise<void>;
     pauseGame: () => void;
     resumeGame: () => void;
@@ -48,10 +49,9 @@ export interface GameInstance {
 
     // --- State Accessors (if needed, or prefer callbacks for UI updates) ---
     getCurrentPhase: () => GamePhase;
-    // getCurrentScore: () => { score: number; combo: number; maxCombo: number }; // Covered by onScoreUpdate callback
     isPaused: () => boolean;
-    // New method to explicitly start the song sequence (loading, countdown, play)
     beginGameplaySequence: () => void;
+    getHighwayMetrics: () => { x: number; laneWidth: number; judgmentLineYPosition: number } | null;
 }
 
 interface GameState {
@@ -61,7 +61,6 @@ interface GameState {
     soundInstance: IMediaInstance | null; // Using imported IMediaInstance type
     songData: SongData;
     chartData: ChartData;
-    // pixiApp: Application; // Will be initialized and managed within GameState
     callbacks: GameCallbacks;
 
     // Gameplay state
@@ -93,14 +92,15 @@ interface GameState {
     keyStates: Record<string, boolean>;
     currentSpeedMultiplier: number; // Renamed for clarity, reflects current effective scroll speed
     lastKnownBpm: number;
+
+    // New fields for volume handling
+    cleanupSubscriptions?: () => void;
 }
 
 export function createGame(
     songData: SongData,
     chartData: ChartData,
-    // pixiApp: Application, // PixiApp will be created internally
     callbacks: GameCallbacks
-    // initialAudioElement?: HTMLAudioElement, // Will be passed in initialize
 ): GameInstance {
     const state: GameState = {
         phase: 'loading',
@@ -109,7 +109,6 @@ export function createGame(
         soundInstance: null,
         songData,
         chartData,
-        // pixiApp: pixiApp, // Initialized in `initialize`
         callbacks,
         currentSongTimeMs: 0,
         gameTimeStartMs: 0,
@@ -121,7 +120,6 @@ export function createGame(
         upcomingNoteIndex: 0,
         countdownIntervalId: null,
         finishAnimationTimerId: null,
-        // PixiJS elements
         pixiApp: null,
         mainContainer: null,
         highwayGraphics: null,
@@ -129,25 +127,22 @@ export function createGame(
         noteGraphics: [],
         beatLineGraphics: null,
         keyPressEffectGraphics: null,
-        judgmentTextsByLane: {}, // Initialized for per-lane judgment texts
+        judgmentTextsByLane: {},
         canvasElementRef: null,
-        // Key states & game params
         keyStates: {},
-        currentSpeedMultiplier: 1.0, // Default, will be overridden by chart data
+        currentSpeedMultiplier: 1.0,
         lastKnownBpm: chartData.timing.bpms[0]?.bpm || 60,
     };
 
     console.log('chartData', chartData);
-    // Initialize currentSpeedMultiplier from chartData.noteScrollSpeed
     if (typeof chartData.noteScrollSpeed === 'number' && chartData.noteScrollSpeed > 0) {
         state.currentSpeedMultiplier = chartData.noteScrollSpeed;
         console.log(`Chart noteScrollSpeed set to: ${state.currentSpeedMultiplier}`);
     } else {
-        state.currentSpeedMultiplier = 1.0; // Fallback if not provided or invalid
+        state.currentSpeedMultiplier = 1.0;
         console.log('Chart noteScrollSpeed not found or invalid, defaulting to 1.0');
     }
 
-    // --- Internal Helper Functions ---
     function setPhase(newPhase: GamePhase) {
         state.phase = newPhase;
         state.callbacks.onPhaseChange(newPhase);
@@ -166,26 +161,20 @@ export function createGame(
         const pixiAppInstance = new Application();
 
         const container = element.parentElement;
-        // Use defaults from GameplaySizing as fallbacks if container is not found,
-        // though GameplaySizing itself might need to expose these defaults or handle undefined.
-        // For now, assuming GameplaySizing.getGameplaySizing can take potentially undefined
-        // and fall back to its own defaults, OR we provide fallbacks here.
-        // Let's provide clear fallbacks here for robustness before calling.
-        let currentWidth = 800; // Fallback width
-        let currentHeight = 600; // Fallback height
+        let currentWidth = 800;
+        let currentHeight = 600;
 
         if (container) {
             currentWidth = container.clientWidth;
             currentHeight = container.clientHeight;
         }
 
-        // Pass the actual container dimensions to getGameplaySizing
         const sizing = GameplaySizing.getGameplaySizing(currentWidth, currentHeight);
 
         await pixiAppInstance.init({
             canvas: element,
-            width: sizing.width, // Use width from dynamic sizing
-            height: sizing.height, // Use height from dynamic sizing
+            width: sizing.width,
+            height: sizing.height,
             antialias: true,
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
@@ -214,23 +203,21 @@ export function createGame(
             state.pixiApp,
             state.mainContainer,
             highwayMetrics,
-            [], // Empty beats initially
+            [],
             0,
             0,
             state.currentSpeedMultiplier
         );
-        state.canvasElementRef = element; // Store for resize
+        state.canvasElementRef = element;
     }
 
     function _renderLoopContent(currentTimeMs: number, currentBpm: number) {
         if (!state.pixiApp || !state.mainContainer || !state.highwayGraphics) return;
-        // Use callbacks to get current phase and pause state from Svelte store via +page.svelte
         const currentPhase = state.callbacks.getGamePhase();
         const isPaused = state.callbacks.getIsPaused();
 
         if (isPaused && currentPhase !== 'playing' && currentPhase !== 'countdown') return;
 
-        // Recalculate sizing based on current canvas dimensions for the render loop
         const container = state.canvasElementRef?.parentElement;
         let currentWidth = state.pixiApp.screen.width;
         let currentHeight = state.pixiApp.screen.height;
@@ -256,8 +243,6 @@ export function createGame(
         }
 
         const visibleNotes = state.notes.filter((note: Note) => {
-            // If a note has been hit or missed, it should not be drawn again.
-            // isMissed check can be added if missed notes should also disappear immediately.
             if (note.isHit || note.isMissed) {
                 return false;
             }
@@ -269,7 +254,6 @@ export function createGame(
                 state.currentSpeedMultiplier,
                 currentBpm
             );
-            // Only draw notes that are on screen
             return noteY > -noteSize.height && noteY < state.pixiApp!.screen.height;
         });
 
@@ -339,8 +323,9 @@ export function createGame(
             state.pixiApp,
             state.mainContainer,
             judgment,
-            laneIndex, // Pass the lane index for positioning
-            state.chartData.numLanes, // Pass total number of lanes for context
+            laneIndex,
+            currentHighwayMetrics.x,
+            currentHighwayMetrics.laneWidth,
             currentHighwayMetrics.judgmentLineYPosition
         );
         state.judgmentTextsByLane[laneIndex] = newJudgment; // Store new judgment by lane
@@ -374,6 +359,8 @@ export function createGame(
                         return;
                     }
                     state.sound = loadedSound;
+                    // Set initial volume based on store values
+                    state.sound.volume = get(masterVolume) * get(musicVolume);
                     console.log('@pixi/sound: Audio loaded. Duration:', state.sound.duration, 's');
                     if (state.phase === 'loading') {
                         setPhase('countdown');
@@ -381,6 +368,25 @@ export function createGame(
                     }
                 }
             });
+
+            // Subscribe to volume changes
+            const unsubscribeMaster = masterVolume.subscribe(value => {
+                if (state.sound) {
+                    state.sound.volume = value * get(musicVolume);
+                }
+            });
+
+            const unsubscribeMusic = musicVolume.subscribe(value => {
+                if (state.sound) {
+                    state.sound.volume = get(masterVolume) * value;
+                }
+            });
+
+            // Clean up subscriptions when the game is cleaned up
+            state.cleanupSubscriptions = () => {
+                unsubscribeMaster();
+                unsubscribeMusic();
+            };
         } catch (e) {
             console.error("Error initiating @pixi/sound Sound.from:", e);
             setPhase('loading');
@@ -542,7 +548,7 @@ export function createGame(
                     state.maxComboSoFar = state.currentCombo;
                 }
                 state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
-                state.callbacks.onNoteHit(note, judgment);
+                state.callbacks.onNoteHit(note, judgment, Colors.LANE_COLORS[laneIndex]);
                 _spawnVisualJudgment(note, judgment);
                 if (state.receptorGraphics && state.receptorGraphics.receptors[laneIndex]) {
                     state.receptorGraphics.receptors[laneIndex].flash();
@@ -674,7 +680,6 @@ export function createGame(
             console.log('Cleaning up game instance...');
             if (state.countdownIntervalId) clearInterval(state.countdownIntervalId);
             if (state.finishAnimationTimerId) clearTimeout(state.finishAnimationTimerId);
-
             if (state.soundInstance) {
                 state.soundInstance.destroy();
                 state.soundInstance = null;
@@ -683,13 +688,9 @@ export function createGame(
                 state.sound.destroy();
                 state.sound = null;
             }
-
-            // Clear judgment texts by lane
-            Object.values(state.judgmentTextsByLane).forEach(jt => {
-                if (jt) jt.destroy();
-            });
-            state.judgmentTextsByLane = {}; // Reset the record
-
+            if (state.cleanupSubscriptions) {
+                state.cleanupSubscriptions();
+            }
             if (state.pixiApp) {
                 state.pixiApp.ticker.stop();
                 state.mainContainer?.destroy({ children: true, texture: true });
@@ -699,6 +700,18 @@ export function createGame(
         },
         getCurrentPhase: () => state.phase,
         isPaused: () => state.isPaused,
+        getHighwayMetrics: () => {
+            if (!state.pixiApp || !state.canvasElementRef) return null;
+            const container = state.canvasElementRef.parentElement;
+            let width = state.pixiApp.screen.width;
+            let height = state.pixiApp.screen.height;
+            if (container) {
+                width = container.clientWidth;
+                height = container.clientHeight;
+            }
+            const sizing = GameplaySizing.getGameplaySizing(width, height);
+            return GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
+        }
     };
 }
 

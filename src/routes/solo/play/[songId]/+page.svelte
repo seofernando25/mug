@@ -8,7 +8,7 @@
 	import FinishOverlay from '$lib/components/FinishOverlay.svelte';
 	import PauseScreen from '$lib/components/PauseScreen.svelte';
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
-
+	import ScreenPulse from '$lib/components/ScreenPulse.svelte';
 	import LevitatingTextOverlay from '$lib/components/LevitatingTextOverlay.svelte';
 	import { createGame, type GameInstance } from '$lib/game';
 
@@ -30,6 +30,7 @@
 
 	let canvasElement: HTMLCanvasElement;
 	let canvasElementContainer: HTMLDivElement;
+	let screenPulseComponent: ScreenPulse;
 
 	let gameInstance: GameInstance | null = null;
 
@@ -97,14 +98,26 @@
 					currentComboStore = combo;
 					maxComboSoFarStore = maxCombo;
 				},
-				onNoteHit: (note: Note, judgment: string) => {},
+				onNoteHit: (note: Note, judgment: string, color?: number) => {
+					if (color && screenPulseComponent) {
+						const canvasRect = canvasElement.getBoundingClientRect();
+						// Get the highway metrics from the game instance
+						const highwayMetrics = gameInstance?.getHighwayMetrics();
+						if (!highwayMetrics) return;
+
+						// Calculate the exact position in the lane
+						const laneX = canvasRect.left + highwayMetrics.x + (highwayMetrics.laneWidth * note.lane) + (highwayMetrics.laneWidth / 2);
+						const laneY = canvasRect.top + highwayMetrics.judgmentLineYPosition;
+						
+						screenPulseComponent.triggerPulse(laneX, laneY, color, 0.3, 50, 300);
+					}
+				},
 				onNoteMiss: (note: Note) => {},
 				getGamePhase: () => gamePhaseStore,
 				getIsPaused: () => isPausedStore,
 				getCountdownValue: () => countdownValueStore,
 				onTimeUpdate: (timeMs: number) => {
 					currentSongTimeMsStore = timeMs;
-					// console.log('currentSongTimeMsStore', currentSongTimeMsStore); // User can re-enable if needed
 				}
 			});
 			gameInstance = localGameInstance;
@@ -151,6 +164,7 @@
 
 <div class="gameplay-container" bind:this={canvasElementContainer}>
 	<canvas bind:this={canvasElement}></canvas>
+	<ScreenPulse bind:this={screenPulseComponent} />
 	{#if showCountdownOverlay}
 		<CountdownOverlay countdownValue={countdownValueStore} />
 	{/if}

@@ -253,12 +253,16 @@ export function drawNotes(
         const noteRadius = noteVisualWidth / 2;
 
         if (entry.type === 'tap') {
-            entry.headGraphics.circle(0, 0, noteRadius).fill(Colors.NOTE_TAP);
+            const laneColor = Colors.LANE_COLORS[noteData.lane % Colors.LANE_COLORS.length];
+            entry.headGraphics.clear();
+            entry.headGraphics.circle(0, 0, noteRadius).fill(laneColor);
             if (entry.bodyGraphics) {
                 entry.bodyGraphics.visible = false; // Hide body for tap notes
             }
         } else if (entry.type === 'hold') {
-            entry.headGraphics.circle(0, 0, noteRadius).fill(Colors.NOTE_HOLD_HEAD);
+            const laneColor = Colors.LANE_COLORS[noteData.lane % Colors.LANE_COLORS.length];
+            entry.headGraphics.clear();
+            entry.headGraphics.circle(0, 0, noteRadius).fill(laneColor);
             if (noteData.duration && noteData.duration > 0) {
                 if (!entry.bodyGraphics) {
                     entry.bodyGraphics = new Graphics();
@@ -272,7 +276,7 @@ export function drawNotes(
                 const bodyY = entry.headGraphics.y; // Body should start from the head's y
                 entry.bodyGraphics.y = bodyY;
                 // Draw upwards from the head's Y position
-                entry.bodyGraphics.rect(-noteVisualWidth * 0.25, 0, noteVisualWidth * 0.5, -bodyHeight).fill(Colors.NOTE_HOLD_BODY);
+                entry.bodyGraphics.rect(-noteVisualWidth * 0.25, 0, noteVisualWidth * 0.5, -bodyHeight).fill(laneColor);
             } else {
                 if (entry.bodyGraphics) {
                     entry.bodyGraphics.visible = false; // Hide body if duration is zero or undefined
