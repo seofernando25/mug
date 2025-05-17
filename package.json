@@ -37,6 +37,7 @@
 		"better-sqlite3": "^11.8.0",
 		"drizzle-orm": "^0.40.0",
 		"gsap": "^3.13.0",
+		"jszip": "^3.10.1",
 		"pixi.js": "^8.9.2",
 		"tweakpane": "^4.0.5"
 	}
