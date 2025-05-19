@@ -1,18 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { authClient } from '$lib/auth-client';
+	import MusicPlayer from '$lib/components/MusicPlayer.svelte';
 	import { isPaused } from '$lib/stores/settingsStore';
 	import '../app.css';
-	import MusicPlayer from '$lib/components/MusicPlayer.svelte';
-	import { authClient } from '$lib/auth-client';
-	import { onMount } from 'svelte';
 
 	let { children, data } = $props();
 
 	let sessionData = $state(authClient.useSession());
 
 	let isAuthRoute = $derived(
-		page.url.pathname === '/' || page.url.pathname === '/login' || page.url.pathname === '/register'
+		page.url.pathname === '/' ||
+			page.url.pathname === '/login' ||
+			page.url.pathname === '/register' ||
+			page.url.pathname === '/claim-username' ||
+			page.url.pathname === '/express'
 	);
 	let isGameplayPage = $derived(page.url.pathname.startsWith('/solo/play/'));
 
@@ -28,36 +31,6 @@
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
 	});
-
-	// Effect for redirection logic based on better-auth session
-	$effect(() => {
-		const currentPath = page.url.pathname;
-		console.log('Auth check (better-auth): user:', currentUser, 'path:', currentPath);
-
-		// If currentUser is undefined, it means session check is pending. Don't redirect yet.
-		// Only redirect if session check is complete (currentUser is null or an object).
-		if (typeof currentUser !== 'undefined') {
-			// Define publicly accessible prefixes
-			const isPublicPath = currentPath.startsWith('/about/') || currentPath.startsWith('/api/'); // Keep /api public for potential future use
-
-			if (!isAuthRoute && currentPath !== '/home' && !isPublicPath) {
-				// Added !isPublicPath
-				// Allow /home for logged-out users to see links (this condition is effectively part of isAuthRoute or handled by !isPublicPath)
-				if (!currentUser) {
-					console.log(
-						'Redirecting to / (user not set, protected page access attempt)... currentPath: ' +
-							currentPath
-					);
-					goto('/', { replaceState: true });
-				}
-			}
-		}
-	});
-
-	async function handleLogout() {
-		await authClient.signOut();
-		goto('/');
-	}
 
 	let currentUser = $derived($sessionData.data?.user);
 </script>
@@ -77,7 +50,10 @@
 							>!</span
 						>
 						<button
-							onclick={handleLogout}
+							onclick={async () => {
+								await authClient.signOut();
+								goto('/');
+							}}
 							class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"
 						>
 							Logout
@@ -94,16 +70,10 @@
 	{/if}
 
 	<main
-		class="flex-grow {isGameplayPage || isAuthRoute ? '' : 'container mx-auto p-4 pt-20 pb-10'}"
+		class="flex flex-col flex-grow {isGameplayPage || isAuthRoute
+			? ''
+			: 'container mx-auto p-4 pt-20 pb-10'}"
 	>
 		{@render children()}
 	</main>
-
-	{#if !isGameplayPage && !isAuthRoute}
-		<footer
-			class="bg-gray-800 p-2 text-center text-xs text-gray-500 !fixed !bottom-0 !left-0 !right-0 !z-10"
-		>
-			MUG MVP
-		</footer>
-	{/if}
 </div>

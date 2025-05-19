@@ -6,6 +6,7 @@
 	import { ArkErrors } from 'arktype';
 	import { onMount } from 'svelte';
 	import { RegisterFormSchema, type RegisterFormData } from './schema';
+	import { stretchIn } from '$lib/transitions/stretchIn';
 
 	let formData = $state<RegisterFormData>({
 		username: '',
@@ -90,7 +91,10 @@
 <div
 	class="flex flex-col items-center justify-center min-h-screen py-10 bg-gray-900 text-gray-100 font-mono"
 >
-	<div class="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-xl">
+	<div
+		in:stretchIn={{ startScaleX: 1.2, startScaleY: 0.6, duration: 400 }}
+		class="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-xl"
+	>
 		<h1 class="text-3xl font-bold text-center text-purple-400">Create Account</h1>
 
 		<form

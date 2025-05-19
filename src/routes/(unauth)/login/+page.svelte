@@ -2,9 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { quintOut } from 'svelte/easing';
-
 	import { authClient } from '$lib/auth-client';
+	import { stretchIn } from '$lib/transitions/stretchIn';
 
 	let username = $state('');
 	let password = $state('');
@@ -14,21 +13,6 @@
 	// References to DOM elements
 	let usernameInputElement = $state<HTMLInputElement | undefined>();
 	let passwordInputElement = $state<HTMLInputElement | undefined>();
-
-	function stretchIn(
-		node: HTMLElement,
-		{ delay = 0, duration = 300, easing = quintOut, startScaleX = 3.0, startScaleY = 0.8 }
-	) {
-		const style = getComputedStyle(node);
-		const original_transform = style.transform === 'none' ? '' : style.transform;
-		return {
-			delay,
-			duration,
-			easing,
-			css: (t: number, u: number) =>
-				`transform: ${original_transform} scaleX(${u * startScaleX + t * 1.0}) scaleY(${u * startScaleY + t * 1.0}); transform-origin: center center; opacity: ${t};`
-		};
-	}
 
 	onMount(() => {
 		const urlUsername = page.url.searchParams.get('username');
@@ -80,7 +64,10 @@
 </svelte:head>
 
 <div class="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
-	<div class="bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full">
+	<div
+		in:stretchIn={{ startScaleX: 1.2, startScaleY: 0.6, duration: 400 }}
+		class="bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full"
+	>
 		<h1 class="text-3xl font-bold mb-6 text-center">Login to MUG</h1>
 		{#if page.url.searchParams.get('username')}
 			<p class="text-center text-gray-300 mb-4">

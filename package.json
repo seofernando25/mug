@@ -18,6 +18,7 @@
 		"docker:down": "docker compose down",
 		"docker:destroy": "docker compose down -v",
 		"docker:rebuild": "docker compose down -v && docker compose up -d --build",
+		"docker:restart-frontend": "docker compose -p mug restart frontend",
 		"auth:generate": "bunx --bun  @better-auth/cli generate  --config ./src/lib/server/auth.ts  --output ./src/lib/server/db/auth-schema.ts -y",
 		"log:frontend": "docker compose -p mug logs -f --no-log-prefix frontend",
 		"log:db": "docker compose -p mug logs -f db",
