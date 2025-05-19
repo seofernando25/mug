@@ -39,7 +39,7 @@
 	}
 
 	function handleDragLeave(e: DragEvent) {
-		e.preventDefault();
+		e.preventDefault();	
 		e.stopPropagation();
 		isDragging = false;
 	}
@@ -418,6 +418,7 @@
 			<!-- Create Custom Level Button -->
 			<button
 				class="group block bg-gradient-to-r from-purple-600 to-indigo-600 p-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out hover:-translate-y-2"
+				on:click={() => window.location.href = '/level-creator/create'}
 			>
 				<h2 class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center">
 					<svg
@@ -498,5 +499,8 @@
 				{/if}
 			</div>
 		</div>
+
+		<!-- You can add more sections here -->
 	</div>
+
 </div> 

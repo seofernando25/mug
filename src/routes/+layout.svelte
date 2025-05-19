@@ -40,7 +40,8 @@
 			'skip:',
 			$skipLoginStore
 		);
-		if ($page.url.pathname !== '/') {
+		// Allow access to the home page and the create level page without authentication
+		if ($page.url.pathname !== '/' && $page.url.pathname !== '/level-creator/create') {
 			if (!$username) {
 				if ($skipLoginStore) {
 					console.log('Auto-logging in via Skip Login store...');
