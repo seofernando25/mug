@@ -1,6 +1,30 @@
 name: mug
 
 services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src:/app/src
+      - ./static:/app/static
+      - ./.svelte-kit:/app/.svelte-kit
+      - ./package.json:/app/package.json
+      - ./bun.lockb:/app/bun.lockb
+      - ./.npmrc:/app/.npmrc
+      - ./svelte.config.js:/app/svelte.config.js
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./tsconfig.json:/app/tsconfig.json
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5173
+      - DATABASE_URL=postgresql://admin:password@db:5432/postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres
     environment:

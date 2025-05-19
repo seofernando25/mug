@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { authClient } from '$lib/auth-client';
 	import { ArkErrors } from 'arktype';
+	import { onMount } from 'svelte';
 	import { RegisterFormSchema, type RegisterFormData } from './schema';
 
 	let formData = $state<RegisterFormData>({
@@ -18,7 +18,7 @@
 	let emailInputElement = $state<HTMLInputElement | undefined>();
 
 	onMount(() => {
-		const urlUsername = $page.url.searchParams.get('username');
+		const urlUsername = page.url.searchParams.get('username');
 		if (urlUsername) {
 			formData.username = urlUsername;
 			// Focus on email field if username is provided

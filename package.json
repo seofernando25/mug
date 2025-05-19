@@ -17,7 +17,12 @@
 		"docker:up": "docker compose up -d",
 		"docker:down": "docker compose down",
 		"docker:destroy": "docker compose down -v",
-		"auth:generate": "bunx --bun  @better-auth/cli generate  --config ./src/lib/server/auth.ts  --output ./src/lib/server/db/auth-schema.ts -y"
+		"docker:rebuild": "docker compose down -v && docker compose up -d --build",
+		"auth:generate": "bunx --bun  @better-auth/cli generate  --config ./src/lib/server/auth.ts  --output ./src/lib/server/db/auth-schema.ts -y",
+		"log:frontend": "docker compose -p mug logs -f --no-log-prefix frontend",
+		"log:db": "docker compose -p mug logs -f db",
+		"log:minio": "docker compose -p mug logs -f minio",
+		"log:all": "docker compose -p mug logs -f"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^6.0.1",
