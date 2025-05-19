@@ -66,9 +66,34 @@ The `package.json` file includes several scripts to help with development and ma
 
 ### Docker Management
 *   `bun run docker:up`: Starts all services defined in `docker-compose.yml` in detached mode.
+*   `bun run docker:up-no-frontend`: Starts all services except the frontend (useful when you want to run the frontend locally).
 *   `bun run docker:down`: Stops all running Docker Compose services.
 *   `bun run docker:destroy`: Stops all services and removes their volumes (warning: this will delete data in the database and Minio).
 *   `bun run docker:rebuild`: Shuts down services, removes volumes, and then rebuilds the Docker images (specifically the `frontend` image) before starting them up again. Useful when `Dockerfile` changes or to ensure a clean build.
+*   `bun run docker:restart-frontend`: Restarts only the frontend service.
+
+### Development Workflow Options
+
+You have two main options for running the application during development:
+
+1. **Full Docker Setup** (Recommended for most cases):
+   ```bash
+   bun run docker:up
+   ```
+   This runs everything in Docker containers, including the frontend.
+
+2. **Hybrid Setup** (Useful when you want more control over the frontend):
+   ```bash
+   # Start all services except frontend
+   bun run docker:up-no-frontend
+   
+   # Run frontend locally
+   bun run dev
+   ```
+   This approach can be helpful when:
+   - You want to use local development tools more easily
+   - You're experiencing issues with the frontend in Docker
+   - You want to use different frontend configurations
 
 ### Database (Drizzle ORM)
 *   `bun run db:push`: Pushes your Drizzle ORM schema changes to the PostgreSQL database.

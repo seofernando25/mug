@@ -15,6 +15,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
 		"docker:up": "docker compose up -d",
+		"docker:up-no-frontend": "docker compose up -d db minio minio-init",
 		"docker:down": "docker compose down",
 		"docker:destroy": "docker compose down -v",
 		"docker:rebuild": "docker compose down -v && docker compose up -d --build",
