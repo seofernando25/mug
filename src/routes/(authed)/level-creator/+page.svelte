@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import Waves from '../home/Waves.svelte';
 	import JSZip from 'jszip';
+	import Waves from '../home/Waves.svelte';
 
 	let isDragging = $state(false);
 	let importedFile: File | null = $state(null);
@@ -92,9 +91,9 @@
 	function parseOsuFile(content: string) {
 		const sections: { [key: string]: string[] } = {};
 		let currentSection = '';
-		
+
 		// Split content into sections
-		content.split('\n').forEach(line => {
+		content.split('\n').forEach((line) => {
 			line = line.trim();
 			if (line.startsWith('[') && line.endsWith(']')) {
 				currentSection = line.slice(1, -1);
@@ -106,14 +105,14 @@
 
 		// Parse metadata
 		const metadata: { [key: string]: string } = {};
-		sections['Metadata']?.forEach(line => {
-			const [key, value] = line.split(':').map(s => s.trim());
+		sections['Metadata']?.forEach((line) => {
+			const [key, value] = line.split(':').map((s) => s.trim());
 			if (key && value) metadata[key] = value;
 		});
 
 		// Also check General section for audio filename
-		sections['General']?.forEach(line => {
-			const [key, value] = line.split(':').map(s => s.trim());
+		sections['General']?.forEach((line) => {
+			const [key, value] = line.split(':').map((s) => s.trim());
 			if (key && value) {
 				if (key === 'AudioFilename') {
 					metadata['AudioFilename'] = value;
@@ -125,14 +124,25 @@
 
 		// Parse timing points
 		const timingPoints: OsuTimingPoint[] = [];
-		sections['TimingPoints']?.forEach(line => {
-			const [time, beatLength, meter, sampleSet, sampleIndex, volume, uninherited, effects] = line.split(',').map(Number);
-			timingPoints.push({ time, beatLength, meter, sampleSet, sampleIndex, volume, uninherited, effects });
+		sections['TimingPoints']?.forEach((line) => {
+			const [time, beatLength, meter, sampleSet, sampleIndex, volume, uninherited, effects] = line
+				.split(',')
+				.map(Number);
+			timingPoints.push({
+				time,
+				beatLength,
+				meter,
+				sampleSet,
+				sampleIndex,
+				volume,
+				uninherited,
+				effects
+			});
 		});
 
 		// Parse hit objects
 		const hitObjects: OsuHitObject[] = [];
-		sections['HitObjects']?.forEach(line => {
+		sections['HitObjects']?.forEach((line) => {
 			const [x, y, time, type, hitSound, ...rest] = line.split(',');
 			const obj: OsuHitObject = {
 				x: Number(x),
@@ -148,18 +158,24 @@
 		return { metadata, timingPoints, hitObjects };
 	}
 
-	function convertToMugFormat(osuData: { metadata: { [key: string]: string }, timingPoints: OsuTimingPoint[], hitObjects: OsuHitObject[] }) {
+	function convertToMugFormat(osuData: {
+		metadata: { [key: string]: string };
+		timingPoints: OsuTimingPoint[];
+		hitObjects: OsuHitObject[];
+	}) {
 		// Calculate BPM from timing points
-		const bpm = osuData.timingPoints[0] ? Math.round(60000 / osuData.timingPoints[0].beatLength) : 120;
+		const bpm = osuData.timingPoints[0]
+			? Math.round(60000 / osuData.timingPoints[0].beatLength)
+			: 120;
 
 		// Convert hit objects to MUG format
-		const hitObjects = osuData.hitObjects.map(obj => {
+		const hitObjects = osuData.hitObjects.map((obj) => {
 			// Convert x coordinate to lane (0-3)
 			const lane = Math.floor((obj.x / 512) * 4);
-			
+
 			// Check if it's a hold note
 			const isHold = (obj.type & 128) !== 0;
-			
+
 			if (isHold && obj.objectParams) {
 				const [endTime] = obj.objectParams.split(',').map(Number);
 				return {
@@ -194,9 +210,9 @@
 					lyrics: [],
 					hitObjects: hitObjects,
 					mockLeaderboard: [
-						{ name: "DJMax", score: 150000 },
-						{ name: "RhythmFan", score: 140000 },
-						{ name: "OSUConvert", score: 120000 }
+						{ name: 'DJMax', score: 150000 },
+						{ name: 'RhythmFan', score: 140000 },
+						{ name: 'OSUConvert', score: 120000 }
 					]
 				}
 			]
@@ -210,10 +226,10 @@
 			isConverting = true;
 			errorMessage = null;
 			conversionProgress = 'Loading .osz file...';
-			
+
 			// Read the .osz file
 			const oszZip = await JSZip.loadAsync(file);
-			
+
 			// Find all .osu files
 			const osuFiles = Object.entries(oszZip.files).filter(([name]) => name.endsWith('.osu'));
 			if (osuFiles.length === 0) {
@@ -243,12 +259,12 @@
 				const content = await osuFile.async('text');
 				const osuData = parseOsuFile(content);
 				const mugData = convertToMugFormat(osuData);
-				
+
 				// Store metadata from the first chart
 				if (!songMetadata) {
 					songMetadata = mugData.metadata;
 				}
-				
+
 				charts.push(mugData.charts[0]);
 			}
 
@@ -261,8 +277,8 @@
 			}
 
 			// Find the audio file
-			const audioFile = Object.entries(oszZip.files).find(([name]) => 
-				name === audioFilename || name.endsWith('/' + audioFilename)
+			const audioFile = Object.entries(oszZip.files).find(
+				([name]) => name === audioFilename || name.endsWith('/' + audioFilename)
 			);
 
 			if (!audioFile) {
@@ -278,7 +294,7 @@
 
 			// Create a zip file for the converted data
 			const zip = new JSZip();
-			
+
 			// Add the song.json file
 			zip.file('song.json', JSON.stringify(mugData, null, 2));
 
@@ -301,7 +317,10 @@
 
 			// Create FormData to send to server
 			const formData = new FormData();
-			formData.append('songData', new Blob([JSON.stringify(mugData)], { type: 'application/json' }));
+			formData.append(
+				'songData',
+				new Blob([JSON.stringify(mugData)], { type: 'application/json' })
+			);
 			formData.append('audioFile', new Blob([audioContent], { type: 'audio/mpeg' }), audioFilename);
 			formData.append('songDir', songDir);
 
@@ -365,7 +384,13 @@
 			// Create FormData to send to server
 			const formData = new FormData();
 			formData.append('songData', new Blob([songJsonContent], { type: 'application/json' }));
-			formData.append('audioFile', new Blob([audioContent], { type: audioFile.name.endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav' }), audioFilename); // Guess audio type based on extension
+			formData.append(
+				'audioFile',
+				new Blob([audioContent], {
+					type: audioFile.name.endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav'
+				}),
+				audioFilename
+			); // Guess audio type based on extension
 			formData.append('songDir', songDir);
 
 			// Send to server for installation
@@ -419,7 +444,9 @@
 			<button
 				class="group block bg-gradient-to-r from-purple-600 to-indigo-600 p-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out hover:-translate-y-2"
 			>
-				<h2 class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center">
+				<h2
+					class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center"
+				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 512 512"
@@ -439,7 +466,9 @@
 			<div
 				class="group block bg-gradient-to-r from-yellow-500 to-amber-600 p-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out"
 			>
-				<h2 class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center">
+				<h2
+					class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center"
+				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 512 512"
@@ -459,37 +488,43 @@
 					accept=".osz"
 					class="hidden"
 					bind:this={fileInput}
-					on:change={handleFileSelect}
+					onchange={handleFileSelect}
 				/>
 
 				<div
 					class="border-2 border-dashed border-white/30 rounded-lg p-8 text-center transition-colors cursor-pointer {isDragging
 						? 'border-yellow-200 bg-yellow-500/20'
 						: 'hover:border-yellow-200'}"
-					on:dragover={handleDragOver}
-					on:dragleave={handleDragLeave}
-					on:drop={handleDrop}
-					on:click={triggerFileInput}
+					role="button"
+					tabindex="0"
+					ondragover={handleDragOver}
+					ondragleave={handleDragLeave}
+					ondrop={handleDrop}
+					onclick={triggerFileInput}
+					onkeydown={(e) => e.key === 'Enter' && triggerFileInput()}
 				>
 					{#if !importedFile}
-						<p class="text-white/80">
+						<div class="text-white/80">
 							Drag and drop your .osz file here<br />
 							or click to select a file
-						</p>
+						</div>
 					{:else}
-						<p class="text-white/80">
+						<div class="text-white/80">
 							File loaded: {importedFile.name}<br />
 							{#if isConverting}
-								<p class="text-yellow-200 mt-2">{conversionProgress}</p>
+								<div class="text-yellow-200 mt-2">{conversionProgress}</div>
 							{:else if convertedData}
 								<button
 									class="mt-4 bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-4 rounded transition-colors"
-									on:click|stopPropagation={downloadConvertedFile}
+									onclick={(e) => {
+										e.stopPropagation();
+										downloadConvertedFile();
+									}}
 								>
 									Download Converted File
 								</button>
 							{/if}
-						</p>
+						</div>
 					{/if}
 				</div>
 
@@ -499,4 +534,4 @@
 			</div>
 		</div>
 	</div>
-</div> 
+</div>

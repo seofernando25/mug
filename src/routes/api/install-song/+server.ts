@@ -1,5 +1,4 @@
-import { json } from '@sveltejs/kit';
-import { writeFile, mkdir } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 
 export async function POST({ request }) {

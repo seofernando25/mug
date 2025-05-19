@@ -16,32 +16,32 @@
 <div class="overlay-container pause-overlay">
 	<div class="pause-box">
 		<h2 class="pause-title">Paused</h2>
-		
+
 		<section class="settings-section">
 			<h3 class="section-title">Audio Settings</h3>
 			<div class="volume-controls">
 				<div class="volume-control">
 					<label for="pauseMasterVolume">Master Volume: {Math.round($masterVolume * 100)}%</label>
-					<input 
-						type="range" 
-						id="pauseMasterVolume" 
-						bind:value={$masterVolume} 
-						min="0" 
-						max="1" 
-						step="0.01" 
-						class="volume-slider" 
+					<input
+						type="range"
+						id="pauseMasterVolume"
+						bind:value={$masterVolume}
+						min="0"
+						max="1"
+						step="0.01"
+						class="volume-slider"
 					/>
 				</div>
 				<div class="volume-control">
 					<label for="pauseMusicVolume">Music Volume: {Math.round($musicVolume * 100)}%</label>
-					<input 
-						type="range" 
-						id="pauseMusicVolume" 
-						bind:value={$musicVolume} 
-						min="0" 
-						max="1" 
-						step="0.01" 
-						class="volume-slider" 
+					<input
+						type="range"
+						id="pauseMusicVolume"
+						bind:value={$musicVolume}
+						min="0"
+						max="1"
+						step="0.01"
+						class="volume-slider"
 					/>
 				</div>
 			</div>
@@ -132,11 +132,11 @@
 		background: rgba(120, 120, 220, 0.3);
 		border-radius: 3px;
 		outline: none;
-		-webkit-appearance: none;
+		appearance: none;
 	}
 
 	.volume-slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
+		appearance: none;
 		width: 16px;
 		height: 16px;
 		background: #60a5fa;

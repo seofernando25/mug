@@ -10,7 +10,7 @@
     {
       "difficultyName": "Easy // Feelin' It",
       "lanes": 4,
-      "noteScrollSpeed": 1,
+      "noteScrollSpeed": 3,
       "lyrics": [],
       "hitObjects": [
         {
@@ -3136,7 +3136,7 @@
     {
       "difficultyName": "NikoSek's Expert // Overdose",
       "lanes": 4,
-      "noteScrollSpeed": 1,
+      "noteScrollSpeed": 3,
       "lyrics": [],
       "hitObjects": [
         {
@@ -14648,7 +14648,7 @@
     {
       "difficultyName": "Normal // Addicted to You",
       "lanes": 4,
-      "noteScrollSpeed": 1,
+      "noteScrollSpeed": 3,
       "lyrics": [],
       "hitObjects": [
         {
@@ -20151,7 +20151,7 @@
     {
       "difficultyName": "Menphiss' Insane // Dopamine Rush",
       "lanes": 4,
-      "noteScrollSpeed": 1,
+      "noteScrollSpeed": 3,
       "lyrics": [],
       "hitObjects": [
         {
@@ -29033,7 +29033,7 @@
     {
       "difficultyName": "netzoid's Hard // Out of Control",
       "lanes": 4,
-      "noteScrollSpeed": 1,
+      "noteScrollSpeed": 3,
       "lyrics": [],
       "hitObjects": [
         {
