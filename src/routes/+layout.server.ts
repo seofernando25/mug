@@ -5,6 +5,7 @@ export const load = async (event) => {
 		headers: event.request.headers,
 	});
 
+
 	return {
 		session
 	};

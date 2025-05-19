@@ -31,7 +31,7 @@ export const auth = betterAuth({
 	plugins: [
 		username(),
 		anonymous({
-			generateName: () => `guest-${generateRandomString(5)}`
+			generateName: () => `GUEST-${generateRandomString(5)}`
 		})
 	],
 	emailAndPassword: {

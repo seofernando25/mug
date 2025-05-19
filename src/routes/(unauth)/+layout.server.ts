@@ -5,7 +5,7 @@ export const load = async (event) => {
 	const data = await event.parent();
 
 	if (data.session) {
-		throw redirect(303, '/');
+		throw redirect(303, '/express');
 	}
 
 	return {};

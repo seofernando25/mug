@@ -45,9 +45,9 @@
 				<div class="flex items-center space-x-4">
 					{#if currentUser}
 						<span class="text-gray-300"
-							>Welcome, <span class="font-semibold text-purple-300"
-								>{currentUser.username || currentUser.id}</span
-							>!</span
+							>Welcome, <span class="font-semibold text-purple-300">
+								{currentUser.name || currentUser.username || currentUser.id}
+							</span>!</span
 						>
 						<button
 							onclick={async () => {
