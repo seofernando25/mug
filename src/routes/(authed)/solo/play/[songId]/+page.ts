@@ -55,15 +55,7 @@ export const load = (async ({ params, fetch }) => {
 			throw error(response.status, { message: errorResponse.message || `Failed to load song data: ${response.statusText}` });
 		}
 
-		// **** CHANGE: Parse the data expected from the API ****
 		const songDataFromApi: SongDataFromApi = await response.json();
-
-		// Basic validation of the API response structure
-		if (!songDataFromApi || !songDataFromApi.id || !songDataFromApi.metadata || !songDataFromApi.charts || songDataFromApi.charts.length === 0 || !songDataFromApi.audioUrl) {
-			// If the API returns 200 but the data is malformed
-			console.error("API returned malformed song data:", songDataFromApi);
-			throw error(500, { message: 'Invalid song data format received from server' });
-		}
 
 		// Assuming we use the first chart provided by the API for now
 		// You might add logic later to select a specific chart by ID or difficulty

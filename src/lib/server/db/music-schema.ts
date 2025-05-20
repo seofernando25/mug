@@ -53,10 +53,16 @@ export const songRelations = relations(song, ({ many }) => ({
 }));
 
 export const chartRelations = relations(chart, ({ one, many }) => ({
-	song: one(song), // Relation back to song (optional for this query but good practice)
+	song: one(song, {
+		fields: [chart.songId],
+		references: [song.id]
+	}), // Relation back to song (optional for this query but good practice)
 	hitObjects: many(chartHitObject),
 }));
 
 export const chartHitObjectRelations = relations(chartHitObject, ({ one }) => ({
-	chart: one(chart), // Relation back to chart (optional)
+	chart: one(chart, {
+		fields: [chartHitObject.chartId],
+		references: [chart.id]
+	}), // Relation back to chart (optional)
 }));
