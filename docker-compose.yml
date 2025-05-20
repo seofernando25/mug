@@ -60,7 +60,7 @@ services:
       MINIO_ROOT_PASSWORD: password
     ports:
       - "9000:9000" # S3 API
-      - "9001:9001" # Web UI
+      - "9001:9001" # Web UI (http://localhost:9001)
     volumes:
       - minio_data:/data
     healthcheck:
