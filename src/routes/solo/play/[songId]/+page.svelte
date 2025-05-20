@@ -10,7 +10,7 @@
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
 	import ScreenPulse from '$lib/components/ScreenPulse.svelte';
 	import LevitatingTextOverlay from '$lib/components/LevitatingTextOverlay.svelte';
-	import { createGame, type GameInstance } from '$lib/game';
+	import { createGame, type GameInstance } from '$lib/game/game.client';
 
 	// Data from +page.ts load function, already transformed
 	const { data } = $props<{ data: { songId: string; songData: SongData; chartData: ChartData } }>();
