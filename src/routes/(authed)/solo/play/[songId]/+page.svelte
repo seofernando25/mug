@@ -72,6 +72,33 @@
 			gameInstance?.handleResize();
 		};
 
+		const handlePageFocusChange = () => {
+			if (!gameInstance) return;
+
+			if (document.hidden) {
+				// Pause the game if it's in a pausable state and not already paused
+				if ((gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') && !isPausedStore) {
+					gameInstance.pauseGame();
+					isPausedStore = true;
+					console.log('Game paused due to page visibility change (hidden)');
+				}
+			} else {
+				// This else block handles when the tab becomes visible again.
+				// We might resume here IF it was paused by this visibility change logic AND not by window blur.
+				// However, to simplify, window.onfocus will be the primary trigger for resuming.
+				// If needed, more complex state tracking could be added here.
+			}
+		};
+
+		const handleWindowBlur = () => {
+			if (!gameInstance) return;
+			if ((gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') && !isPausedStore) {
+				gameInstance.pauseGame();
+				isPausedStore = true;
+				console.log('Game paused due to window losing focus (blur)');
+			}
+		};
+
 		const initializeGame = async () => {
 			gameInstance = await createGame(data.songData, data.chartData, canvasElement, {
 				onPhaseChange: (phase: GamePhase) => {
@@ -120,6 +147,8 @@
 				window.addEventListener('keydown', handleKeyDown);
 				window.addEventListener('keyup', handleKeyUp);
 				window.addEventListener('resize', handleResize);
+				document.addEventListener('visibilitychange', handlePageFocusChange);
+				window.addEventListener('blur', handleWindowBlur);
 			} catch (err) {
 				console.error('Error during game initialization or event listener setup:', err);
 				alert('Failed to initialize the game. Please check the console for errors.');
@@ -142,6 +171,8 @@
 			window.removeEventListener('keydown', handleKeyDown);
 			window.removeEventListener('keyup', handleKeyUp);
 			window.removeEventListener('resize', handleResize);
+			document.removeEventListener('visibilitychange', handlePageFocusChange);
+			window.removeEventListener('blur', handleWindowBlur);
 
 			gameInstance?.cleanup();
 			gameInstance = null;
