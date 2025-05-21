@@ -54,6 +54,7 @@ export const installSongProcedure = routerBaseContext
 			else if (imageFilename.toLowerCase().endsWith('.png')) imageContentType = 'image/png';
 			else if (imageFilename.toLowerCase().endsWith('.gif')) imageContentType = 'image/gif';
 
+
 			try {
 				await s3Client.write(imageS3Key, processedData.imageContent, { type: imageContentType });
 			} catch (s3Err: any) {
@@ -77,6 +78,7 @@ export const installSongProcedure = routerBaseContext
 			bpm: processedData.metadata.bpm,
 			audioFilename: audioFilename,
 			audioS3Key: audioS3Key,
+			imageS3Key: imageS3Key,
 			uploaderId: uploaderId,
 			previewStartTime: processedData.metadata.previewStartTime ?? 0,
 		});
