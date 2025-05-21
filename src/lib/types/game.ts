@@ -7,7 +7,7 @@ export const Colors = {
 	JUDGMENT_MISS: 0xff0000,
 	LANE_COLORS: [0xffd22b, 0xfe7601, 0xe52661, 0xd940f9], // Note colors for lanes 1-4
 
-	LANE_BACKGROUND_ALPHA: 0.7,
+	LANE_BACKGROUND_ALPHA: 0.8,
 };
 
 export const GameplaySizingConstants = {

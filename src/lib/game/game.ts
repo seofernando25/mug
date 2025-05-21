@@ -111,6 +111,7 @@ export async function createGame(
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
         backgroundColor: 0x000000,
+        backgroundAlpha: 0.0,
     });
 
 

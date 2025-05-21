@@ -18,7 +18,7 @@ export function drawReceptor(
     get(positions).forEach((pos, index) => {
         const graphics = new Graphics();
         graphics.rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
-            .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: Colors.LANE_BACKGROUND_ALPHA });
+            .fill({ color: '#aaaaaa', alpha: 0.5 });
         graphics.x = pos.x;
         graphics.y = pos.y;
         graphics.zIndex = 1;
@@ -31,12 +31,12 @@ export function drawReceptor(
         const press = () => {
             graphics.clear()
                 .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.9 });
+                .fill({ color: '#aaaaaa', alpha: 0.5 });
         };
         const release = () => {
             graphics.clear()
                 .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
+                .fill({ color: '#aaaaaa', alpha: 0.3 });
         };
 
         individualReceptors.push({ graphics, flash, press, release });

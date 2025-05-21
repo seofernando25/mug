@@ -184,7 +184,11 @@
 	<title>Playing: {metadataDisplay.title}</title>
 </svelte:head>
 
-<div class="gameplay-container" bind:this={canvasElementContainer}>
+<div
+	class="gameplay-container"
+	bind:this={canvasElementContainer}
+	style="--bg-url: url('{data.songData.imageUrl}');"
+>
 	<canvas bind:this={canvasElement}></canvas>
 	<ScreenPulse bind:this={screenPulseComponent} />
 	{#if showCountdownOverlay}
@@ -272,7 +276,23 @@
 		justify-content: center;
 		align-items: center;
 		position: relative;
-		background-color: red;
+		z-index: 0;
+		background-size: cover;
+		background-position: center center;
+		background-repeat: no-repeat;
+	}
+	.gameplay-container::before {
+		content: '';
+		filter: blur(16px) brightness(0.5);
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		background-image: var(--bg-url);
+		background-size: cover;
+		background-position: center center;
+		background-repeat: no-repeat;
+		opacity: 1;
+		pointer-events: none;
 	}
 
 	canvas {
