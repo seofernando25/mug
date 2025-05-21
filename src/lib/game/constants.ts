@@ -49,5 +49,3 @@ export const DebugColors = {
     NOTE_DEBUG_BOX: 0xff00ff,     // Magenta for note debug bounding boxes
 };
 
-// If GameplaySizing from gameplayConstants was meant to be this object:
-// export const GameplaySizing = GameplaySizingConstants; 

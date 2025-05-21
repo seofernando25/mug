@@ -4,6 +4,9 @@ import {
     drawJudgmentText,
     drawKeyPressEffects,
     drawReceptor,
+    getHighwayMetrics,
+    getReceptorPositions,
+    getReceptorSize,
     updateKeyPressVisuals,
     updateNotes,
     type NoteGraphicsEntry
@@ -17,7 +20,7 @@ import { Sound, type IMediaInstance } from '@pixi/sound';
 import type { Ticker } from 'pixi.js';
 import { Application, Container } from 'pixi.js';
 import { derived, get, writable } from 'svelte/store';
-import { Colors, getGameplaySizing, getHighwayMetrics, getReceptorPositions, getReceptorSize } from './index';
+import { Colors } from './index';
 
 
 type GameplayNote = ChartHitObject & {
@@ -116,18 +119,15 @@ export async function createGame(
 
     const appWidth = writable(pixiApp.screen.width);
     const appHeight = writable(pixiApp.screen.height);
-    const gameplaySizing = derived(
-        [appWidth, appHeight],
-        ([width, height]) => getGameplaySizing(width, height)
-    );
+
 
     const highwayMetrics = derived(
-        [gameplaySizing],
-        ([sizing]) => getHighwayMetrics(chartData.lanes, sizing.width, sizing.height)
+        [appHeight, appWidth],
+        ([height, width]) => getHighwayMetrics(chartData.lanes, width, height)
     );
     const receptorPositions = getReceptorPositions(highwayMetrics)
 
-    const receptorSize = derived([gameplaySizing], ([sizing]) => getReceptorSize(sizing.width, sizing.height));
+    const receptorSize = derived([appHeight, appWidth], ([height, width]) => getReceptorSize(width, height));
 
     pixiApp.stage.addChild(mainContainer);
 
@@ -178,8 +178,7 @@ export async function createGame(
             currentHeight = container.clientHeight;
         }
 
-        const sizing = getGameplaySizing(currentWidth, currentHeight);
-        const highwayMetrics = getHighwayMetrics(chartData.lanes, sizing.width, sizing.height);
+        const highwayMetrics = getHighwayMetrics(chartData.lanes, currentWidth, currentHeight);
 
 
         // Prepare arguments for updateNotes
@@ -230,6 +229,7 @@ export async function createGame(
             highwayMetrics.laneWidth,
             highwayMetrics.receptorYPosition,
             currentSpeedMultiplier,
+            pixiApp.screen.height,
             sortedActiveNotes,
             noteGraphics,
             judgedNoteIds
@@ -564,11 +564,10 @@ export async function createGame(
                 newWidth = container.clientWidth;
                 newHeight = container.clientHeight;
             }
+            console.log('Resizing to', newWidth, newHeight);
 
             // Get new sizing based on actual container dimensions
-            const sizing = getGameplaySizing(newWidth, newHeight);
-
-            pixiApp.renderer.resize(sizing.width, sizing.height);
+            pixiApp.renderer.resize(newWidth, newHeight);
 
             // Recalculate metrics based on the new size
 
@@ -607,8 +606,7 @@ export async function createGame(
                 width = container.clientWidth;
                 height = container.clientHeight;
             }
-            const sizing = getGameplaySizing(width, height);
-            return getHighwayMetrics(chartData.lanes, sizing.width, sizing.height);
+            return getHighwayMetrics(chartData.lanes, width, height);
         }
     };
 }

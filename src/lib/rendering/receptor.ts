@@ -1,6 +1,9 @@
-import { Graphics, Container, Application } from 'pixi.js';
 import { Colors } from '$lib/game'; // Adjusted path
-import { get, type Readable } from 'svelte/store';
+import { Container, Graphics } from 'pixi.js';
+import { derived, get, type Readable } from 'svelte/store';
+import type { getHighwayMetrics } from './highway';
+
+export const DEFAULT_NOTE_HEIGHT_PROPORTION = 0.03; // 3% of canvas height
 
 export function drawReceptor(
     parentContainer: Container,
@@ -54,4 +57,33 @@ export function drawReceptor(
     };
 
     return { container: receptorContainer, receptors: individualReceptors, redraw, destroy };
-} 
+}
+
+// Get positions for each receptor
+export function getReceptorPositions(highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>) {
+    return derived(highwayMetrics, (metrics) => {
+        const positions = [];
+        for (let i = 0; i < get(highwayMetrics).numLanes; i++) {
+            positions.push({
+                x: get(highwayMetrics).x + i * get(highwayMetrics).laneWidth + get(highwayMetrics).laneWidth / 2, // Center of the lane
+                y: get(highwayMetrics).receptorYPosition
+            });
+        }
+        return positions;
+    });
+}
+
+
+// Get standard size for receptors
+export function getReceptorSize(canvasWidth: number, canvasHeight: number, numLanesIfKnown?: number) {
+    const lanes = numLanesIfKnown ?? 4;
+    const highwayWidthProportion = lanes <= 4 ? 0.5 : lanes <= 6 ? 0.6 : 0.75;
+    const totalHighwayWidth = canvasWidth * highwayWidthProportion;
+    const typicalLaneWidth = totalHighwayWidth / lanes;
+    const noteHeight = canvasHeight * DEFAULT_NOTE_HEIGHT_PROPORTION;
+
+    return {
+        width: typicalLaneWidth, // Receptor can be full lane width
+        height: noteHeight * 1.5 // Receptors can be a bit taller than notes
+    };
+}

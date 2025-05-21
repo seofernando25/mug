@@ -1,7 +1,24 @@
-import { getNoteYPosition } from '$lib/game';
 import type { ChartHitObject } from '$lib/types';
 import { AlphaValues, Colors, GameplaySizingConstants, Timing } from '$lib/types';
 import { Application, Container, Graphics } from 'pixi.js';
+
+// Calculate Y position of a note on the screen
+export function getNoteYPosition(
+    noteTimeMs: number,
+    currentTimeMs: number,
+    receptorYPosition: number,
+    speedMultiplier: number, // User's preferred speed setting
+    canvasHeight: number
+): number {
+    // const effectiveCanvasHeight = canvasHeight ?? DEFAULT_FALLBACK_CANVAS_HEIGHT;
+    // pixelsPerSecondBase could be a fraction of effectiveCanvasHeight to make scroll speed responsive to screen size.
+    // e.g., pixelsPerSecondBase = effectiveCanvasHeight * 0.5; (meaning notes visible for 2 seconds at 1x speed)
+    const pixelsPerSecondBase = canvasHeight * 0.6; // Travels 60% of screen height per second at 1x
+    const timeDifferenceSeconds = (noteTimeMs - currentTimeMs) / 1000;
+    const effectiveScrollSpeed = pixelsPerSecondBase * speedMultiplier;
+    return receptorYPosition - (timeDifferenceSeconds * effectiveScrollSpeed);
+}
+
 
 export type NoteGraphicsEntry = ReturnType<typeof getNoteGraphics>;
 export function updateNotes(
@@ -11,6 +28,7 @@ export function updateNotes(
     laneWidth: number,
     hitZoneY: number,
     scrollSpeed: number,
+    canvasHeight: number,
     sortedHitObjects: Array<ChartHitObject>,
     currentNoteGraphicsMap: Map<number, NoteGraphicsEntry>,
     judgedNoteIds: ReadonlySet<number>
@@ -58,9 +76,9 @@ export function updateNotes(
                 newNoteGraphicsMap.set(noteId, graphicsEntry);
                 if (bodyGraphics) pixiStage.addChild(bodyGraphics);
                 pixiStage.addChild(headGraphics);
-                repositionNoteGraphics(graphicsEntry, noteData, highwayX, laneWidth, songTimeMs, hitZoneY, scrollSpeed);
+                repositionNoteGraphics(graphicsEntry, noteData, highwayX, laneWidth, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
             } else {
-                repositionNoteGraphics(graphicsEntry, noteData, highwayX, laneWidth, songTimeMs, hitZoneY, scrollSpeed);
+                repositionNoteGraphics(graphicsEntry, noteData, highwayX, laneWidth, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
             }
         } else {
             if (graphicsEntry) {
@@ -107,13 +125,14 @@ function repositionNoteGraphics(
     laneWidth: number,
     songTimeMs: number,
     hitZoneY: number,
-    scrollSpeed: number
+    scrollSpeed: number,
+    canvasHeight: number
 ) {
     const { headGraphics, bodyGraphics, time, duration, note_type, lane } = graphicsEntry;
     const currentDuration = duration ?? 0;
     const laneCenterX = highwayX + (lane * laneWidth) + (laneWidth / 2);
 
-    const idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, 0);
+    const idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
 
     headGraphics.x = laneCenterX;
     const interpolationFactor = 0.5;
@@ -124,7 +143,7 @@ function repositionNoteGraphics(
         bodyGraphics.y = headGraphics.y;
 
         const noteEndTime = time + currentDuration;
-        const idealTailY = getNoteYPosition(noteEndTime, songTimeMs, hitZoneY, scrollSpeed, 0);
+        const idealTailY = getNoteYPosition(noteEndTime, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
         const bodyHeight = idealHeadY - idealTailY;
 
         bodyGraphics.clear();
