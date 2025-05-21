@@ -438,7 +438,13 @@ export async function createGame(
     const MISS_WINDOW_MS = 150; // Default miss window after note time (aligned with Meh window)
     const HOLD_PERFECT_SCORE = 150; // Score for completing a hold note perfectly.
     const HOLD_GOOD_SCORE = 100; // Score for a good hold release.
-    const GOOD_WINDOW_MS_FOR_HOLD_CHECK = Preferences.prefs.gameplay.goodWindowMs ?? 90;
+    const HOLD_EXCELLENT_SCORE = 120; // New: Score for excellent hold release
+    const HOLD_MEH_SCORE = 50; // New: Score for meh hold release
+
+    // Get all relevant timing windows from preferences
+    const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 30;
+    const EXCELLENT_WINDOW_MS = Preferences.prefs.gameplay.excellentWindowMs ?? 60;
+    const MEH_WINDOW_MS = Preferences.prefs.gameplay.mehWindowMs ?? 150;
 
     function updateGameLoop(ticker: Ticker) {
         if (!pixiApp || phase === 'loading') return;
@@ -463,58 +469,38 @@ export async function createGame(
                 const keyForLane = Preferences.prefs.gameplay.keybindings[note.lane];
                 const isKeyPressed = keyForLane ? !!keyStates[keyForLane.toLowerCase()] : false;
 
-                // Scenario 1: Key is up while it should be held (e.g. alt-tab or missed keyUp event prior to end window)
-                if (note.isHolding && !isKeyPressed && currentSongTimeMs < holdEndTime - GOOD_WINDOW_MS_FOR_HOLD_CHECK) {
+                // Scenario 1: Key is up while it should be held (released before the start of the Meh window for end-of-hold judgment)
+                if (note.isHolding && !isKeyPressed && currentSongTimeMs < holdEndTime - MEH_WINDOW_MS) {
                     note.isHolding = false;
                     note.holdBroken = true;
-                    note.isMissed = true; // Mark as missed for judgment processing
+                    note.isMissed = true;
                     currentCombo = 0;
                     callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
                     _spawnVisualJudgment(note, 'Hold Broken');
-                    callbacks.onNoteMiss(note); // Notify miss for other game logic if needed
-                    console.log(`Hold BROKEN (key up mid-hold) for note ${note.id}`);
+                    callbacks.onNoteMiss(note);
+                    console.log(`Hold BROKEN (key up mid-hold, too early for end judgment) for note ${note.id}`);
                 }
 
-                // Scenario 2: Current time has passed the hold note's end time.
-                if (currentSongTimeMs >= holdEndTime) {
-                    if (note.isHolding && isKeyPressed) { // Key was held perfectly until the very end.
-                        note.holdSatisfied = true;
-                        note.isHolding = false;
-                        note.isHit = true; // Mark as hit for judgment processing
-                        currentScore += HOLD_PERFECT_SCORE;
-                        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
-                        _spawnVisualJudgment(note, 'Perfect');
-                        callbacks.onNoteHit(note, 'Perfect', Colors.LANE_COLORS[note.lane]);
-                        console.log(`Hold PERFECT for note ${note.id}`);
-                        // Release satisfied note from pool
-                        const pooledPerfectNote = notePool.getActiveNoteById(note.id as number);
-                        if (pooledPerfectNote) {
-                            notePool.releaseNote(pooledPerfectNote);
-                        }
-                    } else if (note.isHolding && !isKeyPressed) { // Key released exactly at/after end, but not explicitly via handleKeyRelease good window
-                        note.holdSatisfied = true;
-                        note.isHolding = false;
-                        note.isHit = true; // Mark as hit
-                        currentScore += HOLD_GOOD_SCORE;
-                        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
-                        _spawnVisualJudgment(note, 'Good');
-                        callbacks.onNoteHit(note, 'Good', Colors.LANE_COLORS[note.lane]);
-                        console.log(`Hold GOOD RELEASE (at/after end) for note ${note.id}`);
-                        // Release satisfied note from pool
-                        const pooledGoodReleaseNote = notePool.getActiveNoteById(note.id as number);
-                        if (pooledGoodReleaseNote) {
-                            notePool.releaseNote(pooledGoodReleaseNote);
-                        }
-                    } else if (!note.isHolding && !note.holdSatisfied) { // Was not holding when end time reached, and not satisfied by handleKeyRelease
-                        note.holdBroken = true;
-                        note.isMissed = true; // Mark as missed
-                        currentCombo = 0;
-                        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
-                        _spawnVisualJudgment(note, 'Hold Broken');
-                        callbacks.onNoteMiss(note);
-                        console.log(`Hold BROKEN (not held to end or released too late by handleKeyRelease) for note ${note.id}`);
-                    }
-                    note.isHolding = false; // Ensure isHolding is false after processing end time
+                // Scenario 2: Current time is past the widest possible release window, and player is still holding (held too long)
+                if (note.isHolding && currentSongTimeMs > holdEndTime + MEH_WINDOW_MS) {
+                    note.isHolding = false;
+                    note.holdBroken = true;
+                    note.isMissed = true;
+                    currentCombo = 0;
+                    callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                    _spawnVisualJudgment(note, 'Hold Broken');
+                    callbacks.onNoteMiss(note);
+                    console.log(`Hold BROKEN (held too long past release window) for note ${note.id}`);
+                } else if (!note.isHolding && !note.holdSatisfied && !note.holdBroken && currentSongTimeMs > holdEndTime + MEH_WINDOW_MS) {
+                    // Fallback: If not holding, not satisfied/broken, but time is well past the note's end - mark as broken.
+                    // This catches cases where a release might have been missed by handleKeyRelease (e.g., due to extreme lag or alt-tab at precise moment)
+                    note.holdBroken = true;
+                    note.isMissed = true;
+                    currentCombo = 0;
+                    callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                    _spawnVisualJudgment(note, 'Hold Broken');
+                    callbacks.onNoteMiss(note);
+                    console.log(`Hold BROKEN (fallback, past time, not holding) for note ${note.id}`);
                 }
             }
         });
@@ -699,7 +685,7 @@ export async function createGame(
                     (n) =>
                         n.lane === lane &&
                         n.note_type === 'hold' &&
-                        n.isHolding &&
+                        n.isHolding && // Important: only consider if game logic thought it was being held
                         !n.holdSatisfied &&
                         !n.holdBroken
                 );
@@ -707,30 +693,50 @@ export async function createGame(
                 if (activeHoldNote) {
                     activeHoldNote.isHolding = false; // Player is no longer physically holding
                     const holdEndTime = activeHoldNote.time + (activeHoldNote.duration ?? 0);
+                    const timeDifferenceFromEnd = currentSongTimeMs - holdEndTime;
+                    const absTimeDifferenceFromEnd = Math.abs(timeDifferenceFromEnd);
 
-                    // Check if released too early (before the note even ends, minus a small window for grace)
-                    if (currentSongTimeMs < holdEndTime - GOOD_WINDOW_MS_FOR_HOLD_CHECK) {
+                    let judgment = '';
+                    let score = 0;
+                    let legitimateRelease = false;
+
+                    if (absTimeDifferenceFromEnd <= PERFECT_WINDOW_MS) {
+                        judgment = 'Perfect';
+                        score = HOLD_PERFECT_SCORE;
+                        legitimateRelease = true;
+                    } else if (absTimeDifferenceFromEnd <= EXCELLENT_WINDOW_MS) {
+                        judgment = timeDifferenceFromEnd < 0 ? 'Early Excellent' : 'Late Excellent';
+                        score = HOLD_EXCELLENT_SCORE;
+                        legitimateRelease = true;
+                    } else if (absTimeDifferenceFromEnd <= GOOD_WINDOW_MS) {
+                        judgment = timeDifferenceFromEnd < 0 ? 'Early Good' : 'Late Good';
+                        score = HOLD_GOOD_SCORE;
+                        legitimateRelease = true;
+                    } else if (absTimeDifferenceFromEnd <= MEH_WINDOW_MS) {
+                        judgment = timeDifferenceFromEnd < 0 ? 'Early Meh' : 'Late Meh';
+                        score = HOLD_MEH_SCORE;
+                        legitimateRelease = true;
+                    }
+
+                    if (legitimateRelease) {
+                        activeHoldNote.holdSatisfied = true;
+                        activeHoldNote.isHit = true;
+                        currentScore += score;
+                        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                        _spawnVisualJudgment(activeHoldNote, judgment);
+                        callbacks.onNoteHit(activeHoldNote, judgment, Colors.LANE_COLORS[lane]);
+                        console.log(`Hold ${judgment} for note ${activeHoldNote.id}`);
+                        const pooledNote = notePool.getActiveNoteById(activeHoldNote.id as number);
+                        if (pooledNote) notePool.releaseNote(pooledNote);
+                    } else {
+                        // If not a legitimate release (too early before MEH window or too late after MEH window)
                         activeHoldNote.holdBroken = true;
-                        activeHoldNote.isMissed = true; // Mark as missed
+                        activeHoldNote.isMissed = true;
                         currentCombo = 0;
                         callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
                         _spawnVisualJudgment(activeHoldNote, 'Hold Broken');
                         callbacks.onNoteMiss(activeHoldNote);
-                        console.log(`Hold BROKEN (early release) for note ${activeHoldNote.id}`);
-                    } else {
-                        // If released within the good window of the hold's end, or after it, it's satisfied
-                        activeHoldNote.holdSatisfied = true;
-                        activeHoldNote.isHit = true; // Mark as hit
-                        currentScore += HOLD_GOOD_SCORE;
-                        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
-                        _spawnVisualJudgment(activeHoldNote, 'Good');
-                        callbacks.onNoteHit(activeHoldNote, 'Good', Colors.LANE_COLORS[lane]);
-                        console.log(`Hold SATISFIED (good release) for note ${activeHoldNote.id}`);
-                        // Release satisfied note from pool
-                        const pooledReleasedNote = notePool.getActiveNoteById(activeHoldNote.id as number);
-                        if (pooledReleasedNote) {
-                            notePool.releaseNote(pooledReleasedNote);
-                        }
+                        console.log(`Hold BROKEN (release timing out of MEH window) for note ${activeHoldNote.id}`);
                     }
                 }
             }
