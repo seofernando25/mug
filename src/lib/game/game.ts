@@ -98,6 +98,7 @@ export async function createGame(
     let judgmentTextsByLane: Record<number, ReturnType<typeof drawJudgmentText> | null> = {};
     let keyStates: Record<string, boolean> = {};
     let currentSpeedMultiplier = 1.0;
+    let pauseStartTimeMs = 0; // Added to track when pause began
 
     let cleanupSubscriptions: (() => void) | null = null;
 
@@ -618,6 +619,7 @@ export async function createGame(
                 if (jt) jt.destroy();
             });
             judgmentTextsByLane = {}; // Reset the record
+            pauseStartTimeMs = 0; // Reset pause time tracker
 
             // Clear active notes from the pool from previous session
             if (notePool) {
@@ -682,6 +684,7 @@ export async function createGame(
         pauseGame: () => {
             if ((phase === 'playing' || phase === 'countdown') && !isPaused) {
                 isPaused = true;
+                pauseStartTimeMs = performance.now(); // Record pause start time
                 if (soundInstance) soundInstance.paused = true;
                 pixiApp?.ticker.stop();
                 console.log("Game paused");
@@ -690,6 +693,11 @@ export async function createGame(
         resumeGame: () => {
             if (isPaused && (phase === 'playing' || phase === 'countdown')) {
                 isPaused = false;
+                if (pauseStartTimeMs > 0) { // Ensure pauseStartTimeMs was set
+                    const pauseDuration = performance.now() - pauseStartTimeMs;
+                    gameTimeStartMs += pauseDuration; // Adjust game start time
+                    pauseStartTimeMs = 0; // Reset for next pause
+                }
                 if (phase === 'playing' && sound && sound.isLoaded) {
                     if (soundInstance) soundInstance.paused = false;
                 }
