@@ -18,9 +18,10 @@ export function drawReceptor(
     get(positions).forEach((pos, index) => {
         const graphics = new Graphics();
         graphics.rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
-            .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
+            .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length] });
         graphics.x = pos.x;
         graphics.y = pos.y;
+        graphics.zIndex = 1;
         receptorContainer.addChild(graphics);
 
         const flash = () => {

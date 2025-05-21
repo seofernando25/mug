@@ -1,4 +1,4 @@
-import { AlphaValues, Colors, GameplaySizingConstants } from '$lib/types'; // Changed path
+import { Colors, GameplaySizingConstants } from '$lib/types'; // Changed path
 import { Application, Container, Graphics } from 'pixi.js';
 import { get, type Readable } from 'svelte/store';
 
@@ -53,7 +53,7 @@ export function drawHighway(
         const metrics = get(highwayMetrics);
         for (let i = 0; i < metrics.numLanes; i++) {
             mainRectsGraphics.rect(metrics.x + i * metrics.laneWidth, 0, metrics.laneWidth, stageDims.height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length], alpha: AlphaValues.LANE_BACKGROUND });
+                .fill({ color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length], alpha: 0.5 });
         }
         lineGraphics.clear();
         for (let i = 0; i < metrics.numLanes + 1; i++) {

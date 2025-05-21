@@ -1,5 +1,5 @@
 import type { ChartHitObject } from '$lib/types';
-import { AlphaValues, Colors, GameplaySizingConstants } from '$lib/types';
+import { Colors, GameplaySizingConstants } from '$lib/types';
 import { Container, Graphics } from 'pixi.js';
 import { GameNote } from './GameNote';
 import { getNoteYPosition } from './noteUtils';
@@ -30,11 +30,11 @@ export class HoldNote extends GameNote {
 		this.bodyGraphics.clear();
 		const bodyWidth = noteVisualWidth * 0.5;
 		this.bodyGraphics.rect(-bodyWidth / 2, 0, bodyWidth, 1)
-			.fill({ color: Colors.NOTE_HOLD_BODY, alpha: AlphaValues.NOTE_IDLE * 0.7 });
+			.fill({ color: Colors.NOTE_HOLD_BODY });
 
 		this.tailGraphics.clear();
 		const noteRadius = noteVisualWidth / 2;
-		this.tailGraphics.circle(0, 0, noteRadius).fill({ color: Colors.NOTE_HOLD_HEAD, alpha: AlphaValues.NOTE_IDLE });
+		this.tailGraphics.circle(0, 0, noteRadius).fill({ color: Colors.NOTE_HOLD_HEAD });
 	}
 
 	addToStage(stage: Container) {
@@ -110,9 +110,9 @@ export class HoldNote extends GameNote {
 		this.bodyGraphics.clear();
 		if (visualBodyHeight > 0 && this.duration > 0) {
 			const noteVisualWidthForBody = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-			const bodyRectWidth = noteVisualWidthForBody * 0.5;
+			const bodyRectWidth = noteVisualWidthForBody;
 			this.bodyGraphics.rect(-bodyRectWidth / 2, 0, bodyRectWidth, visualBodyHeight)
-				.fill({ color: Colors.NOTE_HOLD_BODY, alpha: AlphaValues.NOTE_IDLE * 0.7 });
+				.fill({ color: Colors.NOTE_HOLD_BODY });
 		}
 	}
 

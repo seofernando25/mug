@@ -1,7 +1,11 @@
 import type { ChartHitObject } from '$lib/types';
-import { Timing } from '$lib/types';
 import type { NotePool } from './NotePool';
 import { HoldNote } from './HoldNote'; // HoldNote is needed for instanceof check
+
+export const Timing = {
+	LOOKAHEAD_SECONDS: 3.0,
+	NOTE_RENDER_GRACE_PERIOD_MS: 500
+};
 
 export function updateNotes(
 	songTimeMs: number,

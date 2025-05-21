@@ -1,5 +1,5 @@
 import type { ChartHitObject } from '$lib/types';
-import { AlphaValues, Colors, GameplaySizingConstants } from '$lib/types';
+import { Colors, GameplaySizingConstants } from '$lib/types';
 import { Container, Graphics } from 'pixi.js';
 import { getNoteYPosition } from './noteUtils';
 
@@ -40,7 +40,7 @@ export class GameNote {
 		const headColor = this.note_type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
 
 		this.headGraphics.clear();
-		this.headGraphics.circle(0, 0, noteRadius).fill({ color: headColor, alpha: AlphaValues.NOTE_IDLE });
+		this.headGraphics.circle(0, 0, noteRadius).fill({ color: headColor });
 	}
 
 	addToStage(stage: Container) {

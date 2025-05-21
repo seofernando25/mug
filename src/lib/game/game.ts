@@ -508,7 +508,6 @@ export async function createGame(
                     callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
                     _spawnVisualJudgment(note, 'Hold Broken');
                     callbacks.onNoteMiss(note);
-                    console.log(`Hold BROKEN (key up mid-hold, too early for end judgment) for note ${note.id}`);
                 }
 
                 // Scenario 2: Current time is past the widest possible release window, and player is still holding (held too long)
@@ -520,7 +519,6 @@ export async function createGame(
                     callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
                     _spawnVisualJudgment(note, 'Hold Broken');
                     callbacks.onNoteMiss(note);
-                    console.log(`Hold BROKEN (held too long past release window) for note ${note.id}`);
                 } else if (!note.isHolding && !note.holdSatisfied && !note.holdBroken && currentSongTimeMs > holdEndTime + MEH_WINDOW_MS) {
                     // Fallback: If not holding, not satisfied/broken, but time is well past the note's end - mark as broken.
                     // This catches cases where a release might have been missed by handleKeyRelease (e.g., due to extreme lag or alt-tab at precise moment)
@@ -530,7 +528,6 @@ export async function createGame(
                     callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
                     _spawnVisualJudgment(note, 'Hold Broken');
                     callbacks.onNoteMiss(note);
-                    console.log(`Hold BROKEN (fallback, past time, not holding) for note ${note.id}`);
                 }
             }
         });
@@ -822,7 +819,6 @@ export async function createGame(
                         callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
                         _spawnVisualJudgment(activeHoldNote, judgment);
                         callbacks.onNoteHit(activeHoldNote, judgment, Colors.LANE_COLORS[lane]);
-                        console.log(`Hold ${judgment} for note ${activeHoldNote.id}`);
                         const pooledNote = notePool.getActiveNoteById(activeHoldNote.id as number);
                         if (pooledNote) notePool.releaseNote(pooledNote);
                     } else {
@@ -833,7 +829,6 @@ export async function createGame(
                         callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
                         _spawnVisualJudgment(activeHoldNote, 'Hold Broken');
                         callbacks.onNoteMiss(activeHoldNote);
-                        console.log(`Hold BROKEN (release timing out of MEH window) for note ${activeHoldNote.id}`);
                     }
                 }
             }
