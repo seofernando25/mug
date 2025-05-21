@@ -7,21 +7,22 @@ import {
     getHighwayMetrics,
     getReceptorPositions,
     getReceptorSize,
-    updateKeyPressVisuals,
-    updateNotes,
+    HoldNote,
+    NotePool,
     redrawNoteGraphicsOnResize,
-    type NoteGraphicsEntry
+    updateKeyPressVisuals,
+    updateNotes
 } from '$lib/rendering';
 import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
 import type {
     ChartHitObject,
     ClientChart, ClientSong
 } from '$lib/types';
+import { Colors } from '$lib/types';
 import { Sound, type IMediaInstance } from '@pixi/sound';
 import type { Ticker } from 'pixi.js';
 import { Application, Container } from 'pixi.js';
 import { derived, get, writable } from 'svelte/store';
-import { Colors } from '$lib/types';
 
 
 type GameplayNote = ChartHitObject & {
@@ -93,7 +94,7 @@ export async function createGame(
     let finishAnimationTimerId: ReturnType<typeof setTimeout> | null = null;
     let pixiApp = new Application();
     let mainContainer = new Container();
-    let noteGraphics = new Map<number, NoteGraphicsEntry>();
+    let notePool: NotePool;
     let judgmentTextsByLane: Record<number, ReturnType<typeof drawJudgmentText> | null> = {};
     let keyStates: Record<string, boolean> = {};
     let currentSpeedMultiplier = 1.0;
@@ -130,6 +131,8 @@ export async function createGame(
         [appHeight, appWidth],
         ([height, width]) => getHighwayMetrics(chartData.lanes, width, height)
     );
+    notePool = new NotePool(mainContainer, get(highwayMetrics).laneWidth);
+
     const receptorPositions = getReceptorPositions(highwayMetrics)
 
     const receptorSize = derived([appHeight, appWidth], ([height, width]) => getReceptorSize(width, height));
@@ -155,18 +158,68 @@ export async function createGame(
         console.log('Chart noteScrollSpeed not found or invalid, defaulting to 1.0');
     }
 
-    const setPhase = (newPhase: typeof phase) => {
+    const setPhase = (newPhase: GamePhase) => {
         phase = newPhase;
         callbacks.onPhaseChange(newPhase);
         console.log(`Game phase changed to: ${newPhase}`);
 
         if (newPhase === 'playing' || newPhase === 'countdown') {
-            if (!isPaused) pixiApp.ticker.start();
+            if (!isPaused && pixiApp && pixiApp.ticker) pixiApp.ticker.start();
         } else {
-            pixiApp.ticker.stop();
+            if (pixiApp && pixiApp.ticker) pixiApp.ticker.stop();
         }
-    }
+    };
 
+    const startCountdown = () => {
+        setPhase('countdown');
+        countdownValue = 3;
+        callbacks.onCountdownUpdate(countdownValue);
+
+        gameTimeStartMs = performance.now() + countdownValue * 1000;
+
+        if (countdownIntervalId) clearInterval(countdownIntervalId);
+        countdownIntervalId = setInterval(() => {
+            countdownValue--;
+            callbacks.onCountdownUpdate(countdownValue);
+            if (countdownValue <= 0) {
+                clearInterval(countdownIntervalId as ReturnType<typeof setInterval>);
+                countdownIntervalId = null;
+                if (sound && sound.isLoaded && phase === 'countdown') {
+                    try {
+                        const instanceOrPromise = sound.play();
+                        Promise.resolve(instanceOrPromise).then((instance: IMediaInstance) => {
+                            if (!instance) {
+                                console.error("@pixi/sound.play did not yield a valid instance.");
+                                setPhase('loading');
+                                return;
+                            }
+                            soundInstance = instance;
+                            soundInstance.on('end', () => {
+                                console.log('@pixi/sound: Audio instance ended');
+                                if (phase === 'playing') {
+                                    setPhase('finished');
+                                    callbacks.onSongEnd();
+                                    if (finishAnimationTimerId) clearTimeout(finishAnimationTimerId);
+                                    finishAnimationTimerId = setTimeout(() => {
+                                        setPhase('summary');
+                                    }, 2000);
+                                }
+                            });
+                            setPhase('playing');
+                        }).catch(err => {
+                            console.error("Error resolving sound instance from play():", err);
+                            setPhase('loading');
+                        });
+                    } catch (e) {
+                        console.error("Error playing sound with @pixi/sound:", e);
+                        setPhase('loading');
+                    }
+                } else if (phase === 'countdown') {
+                    console.warn('In countdown, but sound not ready or not in correct phase to play.');
+                }
+            }
+        }, 1000);
+    };
 
     function _renderLoopContent(currentTimeMs: number) {
         if (!pixiApp || !mainContainer || !highwayGraphics) return;
@@ -225,53 +278,51 @@ export async function createGame(
 
 
 
-        noteGraphics = updateNotes(
+        updateNotes(
             currentTimeMs,
-            mainContainer!,
+            notePool,
             highwayMetrics.x,
             highwayMetrics.laneWidth,
             highwayMetrics.receptorYPosition,
             currentSpeedMultiplier,
             pixiApp.screen.height,
             sortedActiveNotes,
-            noteGraphics,
             judgedNoteIds
         );
 
         // After notes are updated by rendering, apply state-specific visuals for holds
-        noteGraphics.forEach(graphicsEntry => {
-            const gameplayNote = notes.find(n => n.id === graphicsEntry.id);
+        for (const gameNote of notePool.getActiveNotes()) {
+            const gameplayNote = notes.find(n => n.id === gameNote.id);
             if (gameplayNote && gameplayNote.note_type === 'hold') {
                 const keyForLane = Preferences.prefs.gameplay.keybindings[gameplayNote.lane];
                 const isKeyPressed = keyForLane ? !!keyStates[keyForLane.toLowerCase()] : false;
 
                 if (gameplayNote.holdBroken) {
-                    graphicsEntry.headGraphics.tint = Colors.NOTE_BROKEN_COLOR;
-                    if (graphicsEntry.bodyGraphics) {
-                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                    gameNote.headGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                    if (gameNote instanceof HoldNote && gameNote.bodyGraphics) {
+                        gameNote.bodyGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                    }
+                    if (gameNote instanceof HoldNote && gameNote.tailGraphics) {
+                        gameNote.tailGraphics.tint = Colors.NOTE_BROKEN_COLOR;
                     }
                 } else if (gameplayNote.isHolding && isKeyPressed) {
-                    graphicsEntry.headGraphics.tint = Colors.NOTE_HOLD_HEAD_ACTIVE;
-                    if (graphicsEntry.bodyGraphics) {
-                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_HOLD_BODY_ACTIVE;
-                    }
-                } else if (gameplayNote.holdSatisfied) {
-                    // Optional: Could add a flash or different color for satisfied holds before they are removed
-                    // For now, they will just use default colors until removed by judgedNoteIds logic in updateNotes
-                    // Ensure they revert if they were active before being satisfied on the same frame
-                    graphicsEntry.headGraphics.tint = Colors.NOTE_HOLD_HEAD; // Default
-                    if (graphicsEntry.bodyGraphics) {
-                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_HOLD_BODY; // Default
+                    gameNote.headGraphics.tint = Colors.NOTE_HOLD_HEAD_ACTIVE;
+                    if (gameNote instanceof HoldNote && gameNote.bodyGraphics) {
+                        gameNote.bodyGraphics.tint = Colors.NOTE_HOLD_BODY_ACTIVE;
                     }
                 } else {
-                    // Default state (e.g. just hit, or key released but not yet broken/satisfied this frame)
-                    graphicsEntry.headGraphics.tint = Colors.NOTE_HOLD_HEAD;
-                    if (graphicsEntry.bodyGraphics) {
-                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_HOLD_BODY;
+                    gameNote.headGraphics.tint = 0xFFFFFF;
+                    if (gameNote instanceof HoldNote && gameNote.bodyGraphics) {
+                        gameNote.bodyGraphics.tint = 0xFFFFFF;
+                    }
+                    if (gameNote instanceof HoldNote && gameNote.tailGraphics) {
+                        gameNote.tailGraphics.tint = 0xFFFFFF;
                     }
                 }
+            } else if (gameplayNote) {
+                gameNote.headGraphics.tint = 0xFFFFFF;
             }
-        });
+        }
 
         if (keyPressEffectGraphics && highwayMetrics) {
             const lanePressedStates = Preferences.prefs.gameplay.keybindings.map(
@@ -365,64 +416,6 @@ export async function createGame(
             console.error("Error initiating @pixi/sound Sound.from:", e);
             setPhase('loading');
         }
-    }
-
-    function startCountdown() {
-        setPhase('countdown');
-        countdownValue = 3;
-        callbacks.onCountdownUpdate(countdownValue);
-
-        // Set gameTimeStartMs to be in the future by the countdown duration
-        gameTimeStartMs = performance.now() + countdownValue * 1000;
-
-        if (countdownIntervalId) clearInterval(countdownIntervalId);
-        countdownIntervalId = setInterval(() => {
-            countdownValue--;
-            callbacks.onCountdownUpdate(countdownValue);
-            if (countdownValue <= 0) {
-                clearInterval(countdownIntervalId as ReturnType<typeof setInterval>);
-                countdownIntervalId = null;
-                if (sound && sound.isLoaded && phase === 'countdown') {
-                    try {
-                        // play() might return an instance or a Promise for an instance
-                        const instanceOrPromise = sound.play();
-                        Promise.resolve(instanceOrPromise).then((instance: IMediaInstance) => { // Use imported IMediaInstance
-                            if (!instance) {
-                                console.error("@pixi/sound.play did not yield a valid instance.");
-                                setPhase('loading');
-                                return;
-                            }
-                            soundInstance = instance;
-                            soundInstance.on('end', () => {
-                                console.log('@pixi/sound: Audio instance ended');
-                                if (phase === 'playing') {
-                                    setPhase('finished');
-                                    callbacks.onSongEnd();
-                                    if (finishAnimationTimerId) clearTimeout(finishAnimationTimerId);
-                                    finishAnimationTimerId = setTimeout(() => {
-                                        setPhase('summary');
-                                    }, 2000);
-                                }
-                            });
-                            // soundInstance.on('progress', (progress: number) => {});
-
-                            // gameTimeStartMs = performance.now(); // This is now set before countdown
-                            // currentSongTimeMs = 0; // This will now naturally reach 0
-                            setPhase('playing');
-
-                        }).catch(err => {
-                            console.error("Error resolving sound instance from play():", err);
-                            setPhase('loading');
-                        });
-                    } catch (e) {
-                        console.error("Error playing sound with @pixi/sound:", e);
-                        setPhase('loading');
-                    }
-                } else if (phase === 'countdown') {
-                    console.warn('In countdown, but sound not ready or not in correct phase to play.');
-                }
-            }
-        }, 1000);
     }
 
     function processNotes() {
@@ -626,6 +619,34 @@ export async function createGame(
         }
     }
 
+    function handleResize() {
+        if (!pixiApp) return;
+        const parent = pixiApp.canvas.parentElement;
+        if (parent) {
+            pixiApp.renderer.resize(parent.clientWidth, parent.clientHeight);
+            appWidth.set(pixiApp.screen.width);
+            appHeight.set(pixiApp.screen.height);
+
+            const newHighwayMetrics = getHighwayMetrics(chartData.lanes, pixiApp.screen.width, pixiApp.screen.height);
+
+            // Update positions of static elements
+            highwayGraphics.redraw();
+            receptorGraphics.redraw();
+            keyPressEffectGraphics.redraw();
+
+            // Redraw notes using the new NotePool method
+            redrawNoteGraphicsOnResize(
+                notePool,
+                newHighwayMetrics.x,
+                newHighwayMetrics.laneWidth,
+                currentSongTimeMs,
+                newHighwayMetrics.receptorYPosition,
+                currentSpeedMultiplier,
+                pixiApp.screen.height
+            );
+        }
+    }
+
     return {
         beginGameplaySequence,
         pauseGame: () => {
@@ -704,41 +725,7 @@ export async function createGame(
                 }
             }
         },
-        handleResize: () => {
-            const container = pixiApp.canvas.parentElement;
-            let newWidth = 800; // Fallback
-            let newHeight = 600; // Fallback
-            if (container) {
-                newWidth = container.clientWidth;
-                newHeight = container.clientHeight;
-            }
-            console.log('Resizing to', newWidth, newHeight);
-
-            // Get new sizing based on actual container dimensions
-            pixiApp.renderer.resize(newWidth, newHeight);
-
-            // Recalculate metrics based on the new size
-            const newHighwayMetrics = getHighwayMetrics(chartData.lanes, newWidth, newHeight);
-
-
-            highwayGraphics.redraw();
-            receptorGraphics.redraw();
-            keyPressEffectGraphics.redraw();
-
-            // Redraw notes with new dimensions and positions
-            if (noteGraphics && typeof currentSongTimeMs === 'number' && currentSpeedMultiplier) {
-                redrawNoteGraphicsOnResize(
-                    noteGraphics,
-                    newHighwayMetrics.x,
-                    newHighwayMetrics.laneWidth,
-                    currentSongTimeMs,
-                    newHighwayMetrics.receptorYPosition,
-                    currentSpeedMultiplier,
-                    newHeight
-                );
-            }
-            // Beatlines and notes will be redrawn on next _renderLoopContent call.
-        },
+        handleResize: handleResize,
         cleanup: () => {
             console.log('Cleaning up game instance...');
             if (countdownIntervalId) clearInterval(countdownIntervalId);
@@ -757,6 +744,11 @@ export async function createGame(
                 pixiApp.ticker.stop();
                 mainContainer?.destroy({ children: true, texture: true });
                 pixiApp.destroy(true, { children: true, texture: true });
+            }
+            if (notePool) {
+                for (const note of notePool.getActiveNotes()) {
+                    notePool.releaseNote(note);
+                }
             }
         },
         getCurrentPhase: () => phase,
