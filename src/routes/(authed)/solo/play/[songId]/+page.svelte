@@ -7,7 +7,7 @@
 	import PauseScreen from '$lib/components/PauseScreen.svelte';
 	import ScreenPulse from '$lib/components/ScreenPulse.svelte';
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
-	import { createGame, type GamePhase } from '$lib/game';
+	import { createGame, type GamePhase } from '$lib/game/game.client.js';
 	import { onMount } from 'svelte';
 
 	const { data } = $props();

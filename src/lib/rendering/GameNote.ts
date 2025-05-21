@@ -36,7 +36,7 @@ export class GameNote {
 
 	protected _createOrUpdateHeadGraphics() {
 		const noteVisualWidth = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-		const noteRadius = noteVisualWidth / 2;
+		const noteRadius = 3 * noteVisualWidth / 4;
 		const headColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 
 		this.headGraphics.clear();
