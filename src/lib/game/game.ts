@@ -720,6 +720,7 @@ export async function createGame(
                 newHighwayMetrics.laneWidth,
                 currentSongTimeMs,
                 newHighwayMetrics.receptorYPosition,
+                newHighwayMetrics.receptorYPosition,
                 currentSpeedMultiplier,
                 pixiApp.screen.height
             );

@@ -7,23 +7,23 @@ export class GameNote {
 	id: number;
 	headGraphics: Graphics;
 	lane: number;
-	originalTime: number; // Renamed from time: original chart time
-	effectiveScrollTime: number; // Time used for Y position calculation
+	originalTime: number;
+	effectiveScrollTime: number;
 	note_type: 'tap' | 'hold';
 	isVisible: boolean = false;
 	isJudged: boolean = false;
 	isActivelyHeld: boolean = false;
-	private prevIsActivelyHeld: boolean = false; // To detect hold release
+	private prevIsActivelyHeld: boolean = false;
 
 	protected noteData: ChartHitObject;
-	laneWidth: number; // Stored to allow resizing
+	laneWidth: number;
 
 	constructor(noteData: ChartHitObject, laneWidth: number) {
 		this.id = noteData.id;
 		this.noteData = noteData;
 		this.lane = noteData.lane;
 		this.originalTime = noteData.time;
-		this.effectiveScrollTime = noteData.time; // Initialize effectiveScrollTime
+		this.effectiveScrollTime = noteData.time;
 		this.note_type = noteData.note_type;
 		this.laneWidth = laneWidth;
 
@@ -70,13 +70,13 @@ export class GameNote {
 		this.id = newNoteData.id;
 		this.lane = newNoteData.lane;
 		this.originalTime = newNoteData.time;
-		this.effectiveScrollTime = newNoteData.time; // Reset effectiveScrollTime
+		this.effectiveScrollTime = newNoteData.time;
 		this.note_type = newNoteData.note_type;
 		this.laneWidth = newLaneWidth;
 
 		this.isJudged = false;
 		this.isActivelyHeld = false;
-		this.prevIsActivelyHeld = false; // Reset prevIsActivelyHeld
+		this.prevIsActivelyHeld = false;
 
 		this._createOrUpdateHeadGraphics();
 		this.hide();
@@ -86,7 +86,7 @@ export class GameNote {
 		highwayX: number,
 		songTimeMs: number,
 		hitZoneY: number,
-		receptorYPosition: number, // Added for clarity in calculation
+		receptorYPosition: number,
 		scrollSpeed: number,
 		canvasHeight: number
 	) {
@@ -96,47 +96,37 @@ export class GameNote {
 		if (this.note_type === 'hold') {
 			if (this.isActivelyHeld) {
 				idealHeadY = hitZoneY;
-				// effectiveScrollTime is not updated while actively held, as Y is fixed
 			} else {
 				if (this.prevIsActivelyHeld) {
-					// Just released this frame: recalculate effectiveScrollTime to start scrolling from hitZoneY
 					const scrollPixelsPerSecond = canvasHeight * 0.6 * scrollSpeed;
-					if (scrollPixelsPerSecond > 0) { // Avoid division by zero
+					if (scrollPixelsPerSecond > 0) {
 						this.effectiveScrollTime = songTimeMs + ((receptorYPosition - hitZoneY) * 1000 / scrollPixelsPerSecond);
 					} else {
-						// Fallback or maintain current effectiveScrollTime if scroll speed is zero
-						// This case should ideally not happen in active gameplay with scrolling notes
+						// Fallback if scroll speed is zero, should not happen in normal gameplay.
 					}
-					// For this frame, head is at hitZoneY. Next frame it will scroll using the new effectiveScrollTime.
 					idealHeadY = hitZoneY;
 				} else {
-					// Not actively held, and was not held last frame (or never held)
 					idealHeadY = getNoteYPosition(this.effectiveScrollTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
 				}
 			}
-		} else { // For tap notes
+		} else {
 			idealHeadY = getNoteYPosition(this.effectiveScrollTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
 		}
 
 		this.headGraphics.x = laneCenterX;
 		this.headGraphics.y = idealHeadY;
 
-		this.prevIsActivelyHeld = this.isActivelyHeld; // Update for next frame
+		this.prevIsActivelyHeld = this.isActivelyHeld;
 	}
 
 	onResize(newLaneWidth: number, highwayX: number, songTimeMs: number, hitZoneY: number, receptorYPosition: number, scrollSpeed: number, canvasHeight: number) {
 		this.laneWidth = newLaneWidth;
 		this._createOrUpdateHeadGraphics();
-		// Pass receptorYPosition to reposition
 		this.reposition(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
 	}
 
 	isOffscreen(canvasHeight: number, receptorYPosition: number, songTimeMs: number, scrollSpeed: number): boolean {
-		// Use effectiveScrollTime for offscreen check
 		const headY = getNoteYPosition(this.effectiveScrollTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
-		// If it was held and just released, its current headGraphics.y might be hitZoneY,
-		// but its effectiveScrollTime might make it seem offscreen if not handled carefully.
-		// However, for simplicity, we rely on effectiveScrollTime reflecting its true scroll path.
 		// A small visual buffer might be needed if notes are large.
 		return headY > canvasHeight;
 	}

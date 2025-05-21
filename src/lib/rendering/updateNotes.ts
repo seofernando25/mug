@@ -36,7 +36,9 @@ export function updateNotes(
 			if (activeNote.note_type === 'tap') {
 				notePool.releaseNote(activeNote);
 			} else if (activeNote instanceof HoldNote) {
+				// TODO: Review if the second hitZoneY argument should be receptorYPosition.
 				activeNote.reposition(highwayX, songTimeMs, hitZoneY, hitZoneY, scrollSpeed, canvasHeight);
+				// TODO: Review if the hitZoneY argument for receptorYPosition is correct.
 				if (activeNote.isOffscreen(canvasHeight, hitZoneY, songTimeMs, scrollSpeed)) {
 					notePool.releaseNote(activeNote);
 				}
@@ -49,6 +51,7 @@ export function updateNotes(
 				activeNote = notePool.getNote(noteData);
 			}
 			activeNote.isActivelyHeld = noteData.isActivelyHeld ?? false;
+			// TODO: Review if the second hitZoneY argument should be receptorYPosition.
 			activeNote.reposition(highwayX, songTimeMs, hitZoneY, hitZoneY, scrollSpeed, canvasHeight);
 			if (!activeNote.isVisible) {
 				activeNote.show();
@@ -68,13 +71,17 @@ export function updateNotes(
 				notePool.releaseNote(activeNote);
 				continue;
 			}
+			// TODO: Review if the second hitZoneY argument should be receptorYPosition.
 			activeNote.reposition(highwayX, songTimeMs, hitZoneY, hitZoneY, scrollSpeed, canvasHeight);
+			// TODO: Review if the hitZoneY argument for receptorYPosition is correct.
 			if (activeNote.isOffscreen(canvasHeight, hitZoneY, songTimeMs, scrollSpeed)) {
 				notePool.releaseNote(activeNote);
 			}
 		} else {
 			activeNote.isActivelyHeld = false;
+			// TODO: Review if the second hitZoneY argument should be receptorYPosition.
 			activeNote.reposition(highwayX, songTimeMs, hitZoneY, hitZoneY, scrollSpeed, canvasHeight);
+			// TODO: Review if the hitZoneY argument for receptorYPosition is correct.
 			if (activeNote.isOffscreen(canvasHeight, hitZoneY, songTimeMs, scrollSpeed)) {
 				notePool.releaseNote(activeNote);
 			}
