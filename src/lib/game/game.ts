@@ -772,6 +772,7 @@ export async function createGame(
                 keyStates[key.toLowerCase()] = true;
                 _processNoteHit(key.toLowerCase(), lane); // Internal game logic for hit
                 if (receptorGraphics) receptorGraphics.receptors[lane]?.press();
+                if (highwayGraphics) highwayGraphics.triggerLaneIllumination(lane, true);
             }
         },
         handleKeyRelease: (key: string, event: KeyboardEvent) => {
@@ -785,6 +786,7 @@ export async function createGame(
             if (lane !== -1) {
                 keyStates[key.toLowerCase()] = false;
                 if (receptorGraphics) receptorGraphics.receptors[lane]?.release();
+                if (highwayGraphics) highwayGraphics.triggerLaneIllumination(lane, false);
 
                 const activeHoldNote = notes.find(
                     (n) =>
