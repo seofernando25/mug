@@ -1,4 +1,4 @@
-import { AlphaValues, Colors, GameplaySizingConstants } from '$lib/game'; // Adjusted path
+import { AlphaValues, Colors, GameplaySizingConstants } from '$lib/types'; // Changed path
 import { Application, Container, Graphics } from 'pixi.js';
 import { get, type Readable } from 'svelte/store';
 

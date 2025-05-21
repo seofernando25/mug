@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { orpcClient } from '$lib/rpc/client';
+
 	// States related to the import functionality
 	let isDragging = $state(false);
 	let importedFile: File | null = $state(null);
@@ -20,10 +22,7 @@
 		isDragging = false;
 	}
 
-	async function uploadAndProcessFile(
-		file: File,
-		onProgress?: (msg: string) => void
-	): Promise<{ success: boolean; message: string; title?: string }> {
+	async function uploadAndProcessFile(file: File, onProgress?: (msg: string) => void) {
 		onProgress?.(`Uploading ${file.name}...`);
 
 		const formData = new FormData();
@@ -31,27 +30,22 @@
 		formData.append('levelFile', file, file.name); // Pass file name for the server
 
 		try {
-			// Fetch call remains the same, sending the FormData to the server API
-			const response = await fetch('/api/install-song', {
-				method: 'POST',
-				body: formData
-				// Note: Content-Type header is automatically set by fetch when using FormData
+			const response = await orpcClient.song.install({
+				file: file
 			});
 
 			// The server will send progress updates (if implemented) or just the final result
 			// For now, we just wait for the final response and display its message.
 
-			if (!response.ok) {
-				const errorResponse = await response.json(); // Server sends JSON error
-				const errorMessage = errorResponse.message || `Server returned status ${response.status}`;
-				console.error('Server error during processing:', response.status, errorMessage);
+			if (!response.success) {
+				const errorMessage = response.message;
+				console.error('Server error during processing:', errorMessage);
 				return { success: false, message: `Failed to install song: ${errorMessage}` };
 			}
 
-			const result: { success: boolean; message: string; title?: string } = await response.json();
-			onProgress?.(result.message); // Display final message from server
+			onProgress?.(response.message);
 
-			return result;
+			return response;
 		} catch (error: any) {
 			console.error('Network error during upload:', error);
 			onProgress?.(''); // Clear progress message or show network error

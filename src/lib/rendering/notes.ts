@@ -19,8 +19,19 @@ export function getNoteYPosition(
     return receptorYPosition - (timeDifferenceSeconds * effectiveScrollSpeed);
 }
 
+// Updated to include tailGraphics
+export type NoteGraphicsEntry = {
+    id: number;
+    headGraphics: Graphics;
+    bodyGraphics?: Graphics;
+    tailGraphics?: Graphics; // Added for hold note tails
+    lane: number;
+    time: number;
+    duration?: number;
+    note_type: 'tap' | 'hold';
+    isHit: boolean; // This property might be from an old approach, GameplayNote in game.ts handles state
+};
 
-export type NoteGraphicsEntry = ReturnType<typeof getNoteGraphics>;
 export function updateNotes(
     songTimeMs: number,
     pixiStage: Container,
@@ -29,7 +40,7 @@ export function updateNotes(
     hitZoneY: number,
     scrollSpeed: number,
     canvasHeight: number,
-    sortedHitObjects: Array<ChartHitObject>,
+    sortedHitObjects: Array<ChartHitObject & { isActivelyHeld?: boolean }>,
     currentNoteGraphicsMap: Map<number, NoteGraphicsEntry>,
     judgedNoteIds: ReadonlySet<number>
 ): Map<number, NoteGraphicsEntry> {
@@ -45,49 +56,49 @@ export function updateNotes(
 
         if (judgedNoteIds.has(noteId)) {
             if (graphicsEntry) {
-                if (graphicsEntry.headGraphics.parent) graphicsEntry.headGraphics.parent.removeChild(graphicsEntry.headGraphics);
-                graphicsEntry.headGraphics.destroy();
-                if (graphicsEntry.bodyGraphics) {
-                    if (graphicsEntry.bodyGraphics.parent) graphicsEntry.bodyGraphics.parent.removeChild(graphicsEntry.bodyGraphics);
-                    graphicsEntry.bodyGraphics.destroy();
-                }
+                graphicsEntry.headGraphics.destroy(true);
+                if (graphicsEntry.bodyGraphics) graphicsEntry.bodyGraphics.destroy(true);
+                if (graphicsEntry.tailGraphics) graphicsEntry.tailGraphics.destroy(true); // Destroy tail
                 newNoteGraphicsMap.delete(noteId);
             }
             return;
         }
 
         const noteStartTime = noteData.time;
-        const currentDuration = noteData.duration ?? undefined;
-        const noteEndTime = noteData.time + (currentDuration ?? 0);
+        const currentDuration = noteData.duration ?? 0; // Ensure duration is a number
+        const noteEndTime = noteData.time + currentDuration;
 
+        // Note should be visible if its start time is before maxVisible OR its end time is after minVisible
         if (noteStartTime <= maxVisibleTime && noteEndTime >= minVisibleTime) {
             if (!graphicsEntry) {
-                const { headGraphics, bodyGraphics } = createSingleNoteGraphics(noteData, laneWidth);
+                const { headGraphics, bodyGraphics, tailGraphics } = createSingleNoteGraphics(noteData, laneWidth);
                 graphicsEntry = {
                     id: noteData.id,
                     headGraphics,
                     bodyGraphics,
+                    tailGraphics, // Add tail
                     lane: noteData.lane,
                     time: noteData.time,
                     duration: currentDuration,
                     note_type: noteData.note_type,
-                    isHit: false
+                    isHit: false // This state is primarily managed in game.ts's GameplayNote
                 };
                 newNoteGraphicsMap.set(noteId, graphicsEntry);
+                // Add in specific order for potential z-index benefits (body, then tail, then head)
                 if (bodyGraphics) pixiStage.addChild(bodyGraphics);
+                if (tailGraphics) pixiStage.addChild(tailGraphics); // Add tail to stage
                 pixiStage.addChild(headGraphics);
+                // Initial position set here
                 repositionNoteGraphics(graphicsEntry, noteData, highwayX, laneWidth, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
             } else {
+                // Update existing note's position
                 repositionNoteGraphics(graphicsEntry, noteData, highwayX, laneWidth, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
             }
-        } else {
+        } else { // Note is not visible
             if (graphicsEntry) {
-                if (graphicsEntry.headGraphics.parent) graphicsEntry.headGraphics.parent.removeChild(graphicsEntry.headGraphics);
-                graphicsEntry.headGraphics.destroy();
-                if (graphicsEntry.bodyGraphics) {
-                    if (graphicsEntry.bodyGraphics.parent) graphicsEntry.bodyGraphics.parent.removeChild(graphicsEntry.bodyGraphics);
-                    graphicsEntry.bodyGraphics.destroy();
-                }
+                graphicsEntry.headGraphics.destroy(true);
+                if (graphicsEntry.bodyGraphics) graphicsEntry.bodyGraphics.destroy(true);
+                if (graphicsEntry.tailGraphics) graphicsEntry.tailGraphics.destroy(true); // Destroy tail
                 newNoteGraphicsMap.delete(noteId);
             }
         }
@@ -99,28 +110,37 @@ export function updateNotes(
 function createSingleNoteGraphics(
     noteData: ChartHitObject,
     laneWidth: number
-): { headGraphics: Graphics, bodyGraphics?: Graphics } {
+): { headGraphics: Graphics, bodyGraphics?: Graphics, tailGraphics?: Graphics } { // Updated return type
+    console.log(`[createSingleNoteGraphics] ID: ${noteData.id}, Type: ${noteData.note_type}, Time: ${noteData.time}, Duration: ${noteData.duration}`);
     const headGraphics = new Graphics();
     const noteVisualWidth = laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
     const noteRadius = noteVisualWidth / 2;
 
-    const noteColor = noteData.note_type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
-    headGraphics.circle(0, 0, noteRadius).fill({ color: noteColor, alpha: AlphaValues.NOTE_IDLE });
+    const headColor = noteData.note_type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
+    headGraphics.circle(0, 0, noteRadius).fill({ color: headColor, alpha: AlphaValues.NOTE_IDLE });
 
     let bodyGraphics: Graphics | undefined;
+    let tailGraphics: Graphics | undefined; // Added tail
+
     if (noteData.note_type === 'hold' && (noteData.duration ?? 0) > 0) {
+        console.log(`[createSingleNoteGraphics] ID: ${noteData.id} - Creating body and tail.`);
         bodyGraphics = new Graphics();
-        const bodyWidth = noteVisualWidth * 0.5;
-        bodyGraphics.rect(-bodyWidth / 2, 0, bodyWidth, 1)
+        // Initial body rect is minimal, repositionNoteGraphics will size it
+        const bodyWidth = noteVisualWidth * 0.5; // Make body thinner than head/tail
+        bodyGraphics.rect(-bodyWidth / 2, 0, bodyWidth, 1) // Height 1, y 0 initially
             .fill({ color: Colors.NOTE_HOLD_BODY, alpha: AlphaValues.NOTE_IDLE * 0.7 });
+
+        tailGraphics = new Graphics();
+        // Tail looks same as head for now, can be changed
+        tailGraphics.circle(0, 0, noteRadius).fill({ color: Colors.NOTE_HOLD_HEAD, alpha: AlphaValues.NOTE_IDLE });
     }
 
-    return { headGraphics, bodyGraphics };
+    return { headGraphics, bodyGraphics, tailGraphics };
 }
 
 function repositionNoteGraphics(
     graphicsEntry: NoteGraphicsEntry,
-    noteData: ChartHitObject,
+    noteDataOriginal: ChartHitObject & { isActivelyHeld?: boolean },
     highwayX: number,
     laneWidth: number,
     songTimeMs: number,
@@ -128,28 +148,58 @@ function repositionNoteGraphics(
     scrollSpeed: number,
     canvasHeight: number
 ) {
-    const { headGraphics, bodyGraphics, time, duration, note_type, lane } = graphicsEntry;
-    const currentDuration = duration ?? 0;
+    const { headGraphics, bodyGraphics, tailGraphics, time, duration, note_type, lane, id: noteId } = graphicsEntry;
+    const currentDuration = duration ?? 0; // Use duration from graphicsEntry (already processed from noteData)
     const laneCenterX = highwayX + (lane * laneWidth) + (laneWidth / 2);
 
-    const idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
-
+    // Position Head
+    let idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
     headGraphics.x = laneCenterX;
+    // Sticky head logic for actively held hold notes
+    let stickyHead = false;
+    if (note_type === 'hold' && noteDataOriginal.isActivelyHeld) {
+        idealHeadY = hitZoneY;
+        stickyHead = true;
+    }
     headGraphics.y = idealHeadY;
 
-    if (bodyGraphics && note_type === 'hold' && currentDuration > 0) {
-        bodyGraphics.x = laneCenterX;
-        bodyGraphics.y = idealHeadY;
-
+    if (note_type === 'hold' && currentDuration > 0) { // Check for hold note with duration
         const noteEndTime = time + currentDuration;
         const idealTailY = getNoteYPosition(noteEndTime, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
-        const bodyHeight = idealHeadY - idealTailY;
 
-        bodyGraphics.clear();
-        const noteVisualWidth = laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-        const bodyWidth = noteVisualWidth * 0.5;
-        bodyGraphics.rect(-bodyWidth / 2, -bodyHeight, bodyWidth, bodyHeight)
-            .fill({ color: Colors.NOTE_HOLD_BODY, alpha: AlphaValues.NOTE_IDLE * 0.7 });
+
+        console.log(
+            `[repositionNoteGraphics] ID: ${noteId}, Time: ${time}, Duration: ${currentDuration}, SongTime: ${songTimeMs.toFixed(0)}\n` +
+            `  HeadY: ${idealHeadY.toFixed(2)}, TailY: ${idealTailY.toFixed(2)}\n` +
+            `  BodyExists: ${!!bodyGraphics}, TailExists: ${!!tailGraphics}`
+        );
+
+        // Position Tail
+        if (tailGraphics) {
+            tailGraphics.x = laneCenterX;
+            tailGraphics.y = idealTailY;
+        }
+
+        // Position and draw Body between head and tail
+        if (bodyGraphics) { // Explicit check for bodyGraphics to satisfy linter
+            bodyGraphics.x = laneCenterX;
+            bodyGraphics.y = idealHeadY; // Body anchored at the head's current Y (sticky or not)
+            let bodyHeight = idealHeadY - idealTailY;
+            if (stickyHead) {
+                // If sticky, head is at hitZoneY, tail moves as normal
+                bodyHeight = hitZoneY - idealTailY;
+            }
+            console.log(`[repositionNoteGraphics] ID: ${noteId} - BodyHeight: ${bodyHeight.toFixed(2)}, BodyVisible: ${bodyGraphics.visible}, BodyAlpha: ${bodyGraphics.alpha}`);
+
+            bodyGraphics.clear();
+            const noteVisualWidthForBody = laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+            const bodyRectWidth = noteVisualWidthForBody * 0.5; // Thinner body
+
+            if (bodyHeight > 0) {
+                bodyGraphics.rect(-bodyRectWidth / 2, -bodyHeight, bodyRectWidth, bodyHeight)
+                    .fill({ color: Colors.NOTE_HOLD_BODY, alpha: AlphaValues.NOTE_IDLE * 0.7 });
+            } // else: body is already cleared, so it will be empty
+        } // End explicit check for bodyGraphics
     }
 }
 
@@ -162,80 +212,77 @@ export function redrawNoteGraphicsOnResize(
     scrollSpeed: number,
     canvasHeight: number
 ) {
-    noteGraphicsMap.forEach((noteGfx) => {
-        const { headGraphics, bodyGraphics, lane, note_type, duration, time } = noteGfx;
+    noteGraphicsMap.forEach((graphicsEntry) => {
+        const { headGraphics, bodyGraphics, tailGraphics, lane, note_type, duration, time } = graphicsEntry;
         const currentDuration = duration ?? 0;
 
         const currentLaneX = highwayX + (lane * laneWidth) + (laneWidth / 2);
-        headGraphics.x = currentLaneX;
+        const noteVisualWidth = laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+        const noteRadius = noteVisualWidth / 2;
 
+        // Reposition and redraw head
+        headGraphics.x = currentLaneX;
         const idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
         headGraphics.y = idealHeadY;
-
-        const noteVisualWidth = laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
         headGraphics.clear();
+        const headColor = note_type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
+        headGraphics.circle(0, 0, noteRadius).fill({ color: headColor, alpha: AlphaValues.NOTE_IDLE });
 
-        const noteColor = note_type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
-        headGraphics.circle(0, 0, noteVisualWidth / 2).fill({ color: noteColor, alpha: AlphaValues.NOTE_IDLE });
-
-        if (bodyGraphics && currentDuration > 0 && note_type === 'hold') {
-            bodyGraphics.x = currentLaneX;
-            bodyGraphics.y = headGraphics.y;
+        if (note_type === 'hold' && currentDuration > 0) {
             const noteEndTime = time + currentDuration;
             const idealTailY = getNoteYPosition(noteEndTime, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
-            const bodyHeight = idealHeadY - idealTailY;
-            const bodyWidth = noteVisualWidth * 0.5;
-            bodyGraphics.clear();
-            bodyGraphics.rect(-bodyWidth / 2, -bodyHeight, bodyWidth, bodyHeight).fill({ color: Colors.NOTE_HOLD_BODY, alpha: AlphaValues.NOTE_IDLE * 0.7 });
+
+            // Reposition and redraw tail
+            if (tailGraphics) {
+                tailGraphics.x = currentLaneX;
+                tailGraphics.y = idealTailY;
+                tailGraphics.clear();
+                // Assuming tail looks like head
+                tailGraphics.circle(0, 0, noteRadius).fill({ color: Colors.NOTE_HOLD_HEAD, alpha: AlphaValues.NOTE_IDLE });
+            }
+
+            // Reposition and redraw body
+            if (bodyGraphics) {
+                bodyGraphics.x = currentLaneX;
+                bodyGraphics.y = idealHeadY;
+                const bodyHeight = idealHeadY - idealTailY;
+                bodyGraphics.clear();
+                const bodyRectWidth = noteVisualWidth * 0.5;
+                if (bodyHeight > 0) {
+                    bodyGraphics.rect(-bodyRectWidth / 2, -bodyHeight, bodyRectWidth, bodyHeight)
+                        .fill({ color: Colors.NOTE_HOLD_BODY, alpha: AlphaValues.NOTE_IDLE * 0.7 });
+                }
+            }
         }
     });
 }
 
+// getNoteGraphics and createNoteGraphicsPool might need minor updates if used directly
+// for previews or other non-gameplay scenarios, to include tailGraphics.
+// For now, focusing on the main gameplay loop.
+
 export function getNoteGraphics(initialProps: {
     hitObject: ChartHitObject;
     laneWidth: number;
-    noteHeight: number;
-    holdBodyHeight?: number;
-}) {
-    const { headGraphics, bodyGraphics } = createSingleNoteGraphics(initialProps.hitObject, initialProps.laneWidth);
-    const tempId = (initialProps.hitObject).id || Date.now() + Math.random();
+    // noteHeight and holdBodyHeight are less relevant with dynamic sizing
+}): NoteGraphicsEntry {
+    const { headGraphics, bodyGraphics, tailGraphics } = createSingleNoteGraphics(initialProps.hitObject, initialProps.laneWidth);
+    const noteId = initialProps.hitObject.id;
 
-    const graphicsEntry = {
-        id: tempId,
+    return {
+        id: noteId,
         headGraphics,
         bodyGraphics,
+        tailGraphics,
         lane: initialProps.hitObject.lane,
         time: initialProps.hitObject.time,
-        duration: initialProps.hitObject.duration ?? undefined,
+        duration: initialProps.hitObject.duration ?? 0,
         note_type: initialProps.hitObject.note_type,
         isHit: false
     };
-    return graphicsEntry;
 }
 
-export function createNoteGraphicsPool(
-    app: Application,
-    poolSize: number,
-    sampleHitObject: ChartHitObject & { id: number },
-    laneWidth: number
-): NoteGraphicsEntry[] {
-    const pool: NoteGraphicsEntry[] = [];
-    for (let i = 0; i < poolSize; i++) {
-        const { headGraphics, bodyGraphics } = createSingleNoteGraphics(sampleHitObject, laneWidth);
-        headGraphics.visible = false;
-        if (bodyGraphics) bodyGraphics.visible = false;
-
-        pool.push({
-            id: sampleHitObject.id + i,
-            headGraphics,
-            bodyGraphics,
-            lane: sampleHitObject.lane,
-            time: sampleHitObject.time,
-            duration: sampleHitObject.duration ?? undefined,
-            note_type: sampleHitObject.note_type,
-            isHit: false,
-        });
-    }
-    return pool;
-}
+// createNoteGraphicsPool is mainly for optimization, can be updated later if this pattern is kept.
+// For now, focusing on direct creation in updateNotes.
+// ... (createNoteGraphicsPool can be left as is or updated similarly to getNoteGraphics)
 

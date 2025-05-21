@@ -1,4 +1,4 @@
-import { Colors } from '$lib/game';
+import { Colors } from '$lib/types';
 import type { JudgmentText } from '$lib/types';
 import { Application, Container, Text, TextStyle } from 'pixi.js';
 

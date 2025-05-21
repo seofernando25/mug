@@ -1,4 +1,4 @@
-import { Colors } from '$lib/game'; // Adjusted path
+import { Colors } from '$lib/types'; // Changed path
 import { Container, Graphics } from 'pixi.js';
 import { derived, get, type Readable } from 'svelte/store';
 import type { getHighwayMetrics } from './highway';

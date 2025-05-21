@@ -9,7 +9,7 @@ import s3Client from '../s3';
 import { requireAuth } from './middleware/auth';
 import { routerBaseContext } from './context';
 
-const songInsertSchema = createInsertSchema(song).omit("id", "uploadDate");
+const songInsertSchema = createInsertSchema(song).omit("uploadDate");
 const chartInsertSchema = createInsertSchema(chart).omit("id");
 const chartHitObjectInsertSchema = createInsertSchema(chartHitObject).omit("id");
 
@@ -69,20 +69,17 @@ export const installSongProcedure = routerBaseContext
 			throw new ORPCError('INTERNAL_SERVER_ERROR', { message: `Failed to upload audio file to storage: ${s3Err.message || 'Unknown S3 error'}` });
 		}
 
-		const songInsertPayload = {
+
+		const songValidationResult = songInsertSchema({
 			id: songUUID,
 			title: processedData.metadata.title,
 			artist: processedData.metadata.artist,
 			bpm: processedData.metadata.bpm,
-			previewStartTime: processedData.metadata.previewStartTime ?? 0,
 			audioFilename: audioFilename,
 			audioS3Key: audioS3Key,
-			imageS3Key: imageS3Key,
 			uploaderId: uploaderId,
-			uploadDate: new Date(), // Drizzle schema has defaultNow(), but explicit is fine
-		};
-
-		const songValidationResult = songInsertSchema(songInsertPayload);
+			previewStartTime: processedData.metadata.previewStartTime ?? 0,
+		});
 		if (songValidationResult instanceof type.errors) {
 			console.error('Song schema validation failed:', songValidationResult.issues);
 			// Consider cleaning up S3 objects if validation fails here
@@ -98,18 +95,16 @@ export const installSongProcedure = routerBaseContext
 				for (let i = 0; i < processedData.charts.length; i++) {
 					const chartData = processedData.charts[i];
 					const hitObjectsForChart = processedData.hitObjects[i]; // Array of hit objects for this chart
-					const chartUUID = randomUUIDv7();
 
-					const chartInsertPayload = {
-						id: chartUUID,
+
+
+					const chartValidationResult = chartInsertSchema({
 						songId: newSongId,
 						difficultyName: chartData.difficultyName || 'Unknown Difficulty',
 						lanes: chartData.lanes || 4,
 						noteScrollSpeed: chartData.noteScrollSpeed ?? 1.0, // Default from schema is 1.0
 						lyrics: chartData.lyrics ? (typeof chartData.lyrics === 'string' ? JSON.parse(chartData.lyrics) : chartData.lyrics) : null,
-					};
-
-					const chartValidationResult = chartInsertSchema(chartInsertPayload);
+					});
 					if (chartValidationResult instanceof type.errors) {
 						console.error(`Chart ${i} schema validation failed:`, chartValidationResult.issues);
 						// No explicit tx.rollback(); Drizzle handles rollback on throw
@@ -122,17 +117,23 @@ export const installSongProcedure = routerBaseContext
 
 					if (hitObjectsForChart && Array.isArray(hitObjectsForChart) && hitObjectsForChart.length > 0) {
 						const hitObjectInserts = hitObjectsForChart.map((ho) => {
-							const hoPayload = {
+
+							const hoValidationResult = chartHitObjectInsertSchema({
 								chartId: newChartId,
 								time: ho.time,
 								lane: ho.lane,
-								type: ho.type,
+								note_type: ho.type,
 								duration: ho.duration ?? null,
-							};
-							const hoValidationResult = chartHitObjectInsertSchema(hoPayload);
+							});
+
+							// If hold and duration is null console.warn
+							if (ho.type === 'hold' && ho.duration === null) {
+								console.warn(`Hold with no duration at time ${ho.time} for chart ${i}`);
+							}
+
 							if (hoValidationResult instanceof type.errors) {
-								console.error(`Hit object validation failed for chart ${i}, time ${ho.time}:`, hoValidationResult.issues);
-								throw new Error(`Processed hit object data for chart ${i}, time ${ho.time} is invalid.`);
+								console.error(`Hit object validation failed for chart ${i}, time ${ho.time}:`, hoValidationResult.summary);
+								throw new Error(`Processed hit object data for chart ${i}, time ${ho.time} is invalid. ${hoValidationResult.summary}`);
 							}
 							return hoValidationResult;
 						});

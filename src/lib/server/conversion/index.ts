@@ -106,22 +106,33 @@ function convertOsuDataToChart(osuData: ParsedOsuData): { chartData: ConvertedCh
 		const lane = Math.min(3, Math.max(0, Math.floor((obj.x / 512) * 4))); // Basic 4-lane mapping for mania mode
 		const isHold = (obj.type & 128) !== 0;
 		let duration: number | null = null; // Use number | null for duration
+		let finalType: 'tap' | 'hold' = isHold ? 'hold' : 'tap';
 
 		if (isHold && obj.objectParams) {
-			const [endTimeString] = obj.objectParams.split(',');
+			const params = obj.objectParams.split(':'); // Mania hold format is endTime:hitSample
+			const endTimeString = params[0];
 			const endTime = Number(endTimeString);
-			if (!isNaN(endTime)) {
+
+			if (!isNaN(endTime) && endTime > obj.time) {
 				duration = endTime - obj.time;
-				// Ensure duration is non-negative
-				if (duration < 0) duration = 0;
+			} else {
+				// If endTime is invalid or not greater than startTime, treat as a tap note.
+				console.warn(`Invalid hold note params for object at time ${obj.time}: objectParams='${obj.objectParams}'. Falling back to tap.`);
+				finalType = 'tap';
+				duration = null;
 			}
+		} else if (isHold && !obj.objectParams) {
+			// If it's supposed to be a hold note but has no objectParams, it's malformed. Treat as tap.
+			console.warn(`Hold note missing objectParams at time ${obj.time}. Falling back to tap.`);
+			finalType = 'tap';
+			duration = null;
 		}
 
 		return {
 			time: obj.time,
 			lane,
-			type: isHold ? 'hold' : 'tap',
-			duration: duration // Will be null for 'tap'
+			type: finalType,
+			duration: duration
 		};
 	});
 

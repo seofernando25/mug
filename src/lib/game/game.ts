@@ -21,13 +21,17 @@ import { Sound, type IMediaInstance } from '@pixi/sound';
 import type { Ticker } from 'pixi.js';
 import { Application, Container } from 'pixi.js';
 import { derived, get, writable } from 'svelte/store';
-import { Colors } from './index';
+import { Colors } from '$lib/types';
 
 
 type GameplayNote = ChartHitObject & {
     id: string | number; // Unique identifier for the note (could be original index)
-    isHit: boolean;
-    isMissed: boolean;
+    isHit: boolean; // True if the head of the note was hit
+    isMissed: boolean; // True if the head of the note was missed
+    isHolding?: boolean; // True if the player is currently holding the key for an active hold note
+    holdSatisfied?: boolean; // True if the hold was successfully completed
+    holdBroken?: boolean; // True if the hold was released too early
+    // TODO: Potentially add visualState: 'idle' | 'active' | 'broken' | 'satisfied' for rendering
 };
 
 
@@ -183,35 +187,33 @@ export async function createGame(
 
 
         // Prepare arguments for updateNotes
-        const activeNotesForUpdate: Array<ChartHitObject> = [];
+        const activeNotesForUpdate: Array<ChartHitObject & { isActivelyHeld?: boolean }> = [];
         const judgedNoteIds = new Set<number>();
 
         notes.forEach(note => {
-            // Assuming note.id is consistently a number. If it can be a string, conversion or different handling is needed.
-            // ClientHitObject is Pick<ChartHitObject, 'time' | 'lane' | 'type' | 'duration'>
-            // GameplayNote = ClientHitObject & { id: string | number; isHit: boolean; isMissed: boolean; };
-            // ChartHitObject has id: number. So GameplayNote.id should ideally come from there or be a number.
-
-            const noteId = typeof note.id === 'string' ? parseInt(note.id, 10) : note.id; // Attempt to ensure numeric ID
-
+            const noteId = typeof note.id === 'string' ? parseInt(note.id, 10) : note.id;
             if (isNaN(noteId)) {
                 console.warn("Skipping note with non-numeric ID:", note);
                 return;
             }
-
             if (note.isHit || note.isMissed) {
                 judgedNoteIds.add(noteId);
             }
-            // updateNotes itself filters by visibility, so we pass all non-judged notes.
-            // However, updateNotes expects ClientHitObject & { id: number }.
-            // GameplayNote already extends ClientHitObject.
+            // Add isActivelyHeld for hold notes
+            let isActivelyHeld: boolean | undefined = undefined;
+            if (note.note_type === 'hold') {
+                const keyForLane = Preferences.prefs.gameplay.keybindings[note.lane];
+                const isKeyPressed = keyForLane ? !!keyStates[keyForLane.toLowerCase()] : false;
+                isActivelyHeld = !!note.isHolding && isKeyPressed;
+            }
             activeNotesForUpdate.push({
                 id: noteId,
                 chartId: chartData.id,
                 time: note.time,
                 lane: note.lane,
                 note_type: note.note_type,
-                duration: note.duration
+                duration: note.duration,
+                ...(isActivelyHeld !== undefined ? { isActivelyHeld } : {})
             });
         });
 
@@ -235,6 +237,41 @@ export async function createGame(
             noteGraphics,
             judgedNoteIds
         );
+
+        // After notes are updated by rendering, apply state-specific visuals for holds
+        noteGraphics.forEach(graphicsEntry => {
+            const gameplayNote = notes.find(n => n.id === graphicsEntry.id);
+            if (gameplayNote && gameplayNote.note_type === 'hold') {
+                const keyForLane = Preferences.prefs.gameplay.keybindings[gameplayNote.lane];
+                const isKeyPressed = keyForLane ? !!keyStates[keyForLane.toLowerCase()] : false;
+
+                if (gameplayNote.holdBroken) {
+                    graphicsEntry.headGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                    if (graphicsEntry.bodyGraphics) {
+                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                    }
+                } else if (gameplayNote.isHolding && isKeyPressed) {
+                    graphicsEntry.headGraphics.tint = Colors.NOTE_HOLD_HEAD_ACTIVE;
+                    if (graphicsEntry.bodyGraphics) {
+                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_HOLD_BODY_ACTIVE;
+                    }
+                } else if (gameplayNote.holdSatisfied) {
+                    // Optional: Could add a flash or different color for satisfied holds before they are removed
+                    // For now, they will just use default colors until removed by judgedNoteIds logic in updateNotes
+                    // Ensure they revert if they were active before being satisfied on the same frame
+                    graphicsEntry.headGraphics.tint = Colors.NOTE_HOLD_HEAD; // Default
+                    if (graphicsEntry.bodyGraphics) {
+                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_HOLD_BODY; // Default
+                    }
+                } else {
+                    // Default state (e.g. just hit, or key released but not yet broken/satisfied this frame)
+                    graphicsEntry.headGraphics.tint = Colors.NOTE_HOLD_HEAD;
+                    if (graphicsEntry.bodyGraphics) {
+                        graphicsEntry.bodyGraphics.tint = Colors.NOTE_HOLD_BODY;
+                    }
+                }
+            }
+        });
 
         if (keyPressEffectGraphics && highwayMetrics) {
             const lanePressedStates = Preferences.prefs.gameplay.keybindings.map(
@@ -394,14 +431,20 @@ export async function createGame(
             .sort((a, b) => a.time - b.time)
             .map((note, index) => ({
                 ...note,
+                id: note.id, // Ensure 'id' is explicitly carried over or regenerated if needed
                 isHit: false,
                 isMissed: false,
+                isHolding: false,
+                holdSatisfied: false,
+                holdBroken: false,
             }));
         upcomingNoteIndex = 0;
         console.log(`Processed ${notes.length} notes.`);
     }
 
     const MISS_WINDOW_MS = 150; // Default miss window after note time (aligned with Meh window)
+    const HOLD_PERFECT_SCORE = 150; // Score for completing a hold note perfectly.
+    const GOOD_WINDOW_MS_FOR_HOLD_CHECK = Preferences.prefs.gameplay.goodWindowMs ?? 90;
 
     function updateGameLoop(ticker: Ticker) {
         if (!pixiApp || phase === 'loading') return;
@@ -418,6 +461,66 @@ export async function createGame(
 
 
         _renderLoopContent(currentSongTimeMs);
+
+        // Iterate through all notes to check for hold logic
+        notes.forEach(note => {
+            if (note.note_type === 'hold' && note.isHit && !note.holdSatisfied && !note.holdBroken) {
+                const holdEndTime = note.time + (note.duration ?? 0);
+                const keyForLane = Preferences.prefs.gameplay.keybindings[note.lane];
+                const isKeyPressed = keyForLane ? !!keyStates[keyForLane.toLowerCase()] : false;
+
+                // Scenario 1: Key is supposed to be held (isHolding = true), but physical key is up.
+                // This handles cases like alt-tabbing or missed keyUp events.
+                if (note.isHolding && !isKeyPressed) {
+                    note.isHolding = false;
+                    note.holdBroken = true;
+                    currentCombo = 0; // Break combo
+                    callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                    console.log(`Hold BROKEN (key up) for note ${note.id} in lane ${note.lane} at ${currentSongTimeMs}`);
+                    // Visuals will be updated by _renderLoopContent
+                }
+
+                // Scenario 2: Current time has passed the hold note's end time.
+                if (currentSongTimeMs >= holdEndTime) {
+                    if (note.isHolding && isKeyPressed) { // Key was held until the very end.
+                        note.holdSatisfied = true;
+                        note.isHolding = false;
+                        currentScore += HOLD_PERFECT_SCORE; // Add score for perfect hold
+                        // Combo is maintained, not broken, not incremented again (head hit already did)
+                        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                        console.log(`Hold PERFECT for note ${note.id} in lane ${note.lane}`);
+                    } else if (!note.holdBroken) {
+                        // If it wasn't a "perfect" hold until the end (e.g. key released slightly early but handled by handleKeyRelease as satisfied)
+                        // or if it was broken by key release.
+                        // If handleKeyRelease marked it satisfied, that's fine.
+                        // If it's not satisfied and not broken yet, but key is up or was released, it implies a break if not already handled.
+                        // This primarily catches cases where the key was released exactly on time or slightly after,
+                        // but not "too early" to be broken by handleKeyRelease.
+                        // If isHolding is false here, handleKeyRelease did its job.
+                        // If isHolding is true but key is NOT pressed (e.g. perfect release timing caught here),
+                        // we can count it as satisfied.
+                        if (note.isHolding && !isKeyPressed) { // Key released exactly at/after end
+                            note.holdSatisfied = true; // Treat as satisfied
+                            note.isHolding = false;
+                            // Potentially a different score for "good" release vs "perfect" hold through
+                            // currentScore += HOLD_GOOD_RELEASE_SCORE;
+                            callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                            console.log(`Hold GOOD RELEASE (at end) for note ${note.id} in lane ${note.lane}`);
+                        } else if (!note.isHolding && !note.holdSatisfied) {
+                            // If not holding, and not satisfied, it must have been broken by handleKeyRelease or key up logic above.
+                            // If it's not marked broken yet, mark it now.
+                            note.holdBroken = true;
+                            note.isHolding = false; // ensure
+                            currentCombo = 0;
+                            callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                            console.log(`Hold BROKEN (not held to end) for note ${note.id} in lane ${note.lane}`);
+                        }
+                    }
+                    // Ensure isHolding is false once hold duration is over and processed
+                    note.isHolding = false;
+                }
+            }
+        });
 
         while (
             upcomingNoteIndex < notes.length &&
@@ -465,6 +568,12 @@ export async function createGame(
 
                 note.isHit = true;
                 note.isMissed = false; // Explicitly set isMissed to false on a hit
+
+                if (note.note_type === 'hold') {
+                    note.isHolding = true;
+                    // Visuals for active hold head/body will be handled in _renderLoopContent
+                }
+
                 currentCombo++;
                 currentScore += score;
                 if (currentCombo > maxCombo) {
@@ -552,12 +661,47 @@ export async function createGame(
         handleKeyRelease: (key: string, event: KeyboardEvent) => {
             if (phase === 'summary' || phase === 'finished') return;
 
+            const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 90;
+
             const lane = Preferences.prefs.gameplay.keybindings.findIndex(
                 (k) => k === key.toLowerCase()
             );
             if (lane !== -1) {
                 keyStates[key.toLowerCase()] = false;
                 if (receptorGraphics) receptorGraphics.receptors[lane]?.release();
+
+                // Find if there's an active hold note in this lane
+                const activeHoldNote = notes.find(
+                    (n) =>
+                        n.lane === lane &&
+                        n.note_type === 'hold' &&
+                        n.isHolding && // Player was holding this note
+                        !n.holdSatisfied && // Not already completed
+                        !n.holdBroken // Not already broken
+                );
+
+                if (activeHoldNote) {
+                    activeHoldNote.isHolding = false;
+                    const holdEndTime = activeHoldNote.time + (activeHoldNote.duration ?? 0);
+
+                    // Check if released too early (before the note even ends, minus a small window for grace)
+                    // Or if it was released after the natural end of the note (which is fine)
+                    if (currentSongTimeMs < holdEndTime - GOOD_WINDOW_MS) {
+                        activeHoldNote.holdBroken = true;
+                        // Potentially break combo or apply score penalty for broken hold
+                        currentCombo = 0; // Example: break combo
+                        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                        console.log(`Hold broken for note ${activeHoldNote.id} in lane ${lane}`);
+                        // Visual update for broken hold will be in _renderLoopContent
+                    } else {
+                        // If released within the good window of the hold's end, or after it, it's satisfied
+                        activeHoldNote.holdSatisfied = true;
+                        // Add score for successful hold completion
+                        // currentScore += 50; // Example: Add 50 points for a good hold
+                        // callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                        console.log(`Hold satisfied for note ${activeHoldNote.id} in lane ${lane}`);
+                    }
+                }
             }
         },
         handleResize: () => {

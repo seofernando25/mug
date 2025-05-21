@@ -7,6 +7,7 @@
 	import { onMount } from 'svelte';
 	import { RegisterFormSchema, type RegisterFormData } from './schema';
 	import { stretchIn } from '$lib/transitions/stretchIn';
+	import { orpcClient } from '$lib/rpc/client';
 
 	let formData = $state<RegisterFormData>({
 		username: '',
@@ -46,12 +47,12 @@
 			if (usernameCheckTimeout) clearTimeout(usernameCheckTimeout);
 			usernameCheckTimeout = setTimeout(async () => {
 				try {
-					const res = await fetch(
-						`/api/check-username?username=${encodeURIComponent(formData.username)}`
-					);
-					const data = await res.json();
+					const res = await orpcClient.user.checkUsername({
+						username: formData.username
+					});
+
 					lastCheckedUsername = formData.username;
-					if (data.exists) {
+					if (!res.available) {
 						unavailableUsernames.add(formData.username);
 						asyncUsernameError = 'Username is already taken';
 					} else if (asyncUsernameError === 'Username is already taken') {
@@ -59,6 +60,7 @@
 					}
 				} catch (e) {
 					// Optionally handle network/API errors
+					console.error(e);
 				}
 			}, 400); // 400ms debounce
 		} else if (!formData.username) {

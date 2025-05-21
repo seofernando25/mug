@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { authClient } from '$lib/auth-client';
+	import { orpcClient } from '$lib/rpc/client';
 	import { stretchIn } from '$lib/transitions/stretchIn';
 	import { onMount, tick } from 'svelte';
 
@@ -42,22 +43,18 @@
 			}
 		} else {
 			try {
-				const response = await fetch(
-					`/api/check-username?username=${encodeURIComponent(usernameInput.trim())}`
-				);
-				if (!response.ok) {
-					const errData = await response.json();
-					throw new Error(errData.error || `Server error: ${response.status}`);
-				}
-				const { exists } = await response.json();
+				const res = await orpcClient.user.checkUsername({
+					username: usernameInput.trim()
+				});
 
-				if (exists) {
+				if (!res.available) {
 					goto(`/login?username=${encodeURIComponent(usernameInput.trim())}`);
 				} else {
 					goto(`/claim-username?username=${encodeURIComponent(usernameInput.trim())}`);
 				}
 			} catch (e: any) {
 				error = e.message || 'Failed to check username.';
+				goto(`/claim-username?username=${encodeURIComponent(usernameInput.trim())}`);
 			}
 		}
 		isLoading = false;
