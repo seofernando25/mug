@@ -135,12 +135,11 @@ function repositionNoteGraphics(
     const idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
 
     headGraphics.x = laneCenterX;
-    const interpolationFactor = 0.5;
-    headGraphics.y += (idealHeadY - headGraphics.y) * interpolationFactor;
+    headGraphics.y = idealHeadY;
 
     if (bodyGraphics && note_type === 'hold' && currentDuration > 0) {
         bodyGraphics.x = laneCenterX;
-        bodyGraphics.y = headGraphics.y;
+        bodyGraphics.y = idealHeadY;
 
         const noteEndTime = time + currentDuration;
         const idealTailY = getNoteYPosition(noteEndTime, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
@@ -160,7 +159,8 @@ export function redrawNoteGraphicsOnResize(
     laneWidth: number,
     songTimeMs: number,
     hitZoneY: number,
-    scrollSpeed: number
+    scrollSpeed: number,
+    canvasHeight: number
 ) {
     noteGraphicsMap.forEach((noteGfx) => {
         const { headGraphics, bodyGraphics, lane, note_type, duration, time } = noteGfx;
@@ -169,21 +169,20 @@ export function redrawNoteGraphicsOnResize(
         const currentLaneX = highwayX + (lane * laneWidth) + (laneWidth / 2);
         headGraphics.x = currentLaneX;
 
-        const idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, 0);
+        const idealHeadY = getNoteYPosition(time, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
         headGraphics.y = idealHeadY;
 
         const noteVisualWidth = laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-        const noteRadius = noteVisualWidth / 2;
         headGraphics.clear();
 
         const noteColor = note_type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
-        headGraphics.circle(0, 0, noteRadius).fill({ color: noteColor, alpha: AlphaValues.NOTE_IDLE });
+        headGraphics.circle(0, 0, noteVisualWidth / 2).fill({ color: noteColor, alpha: AlphaValues.NOTE_IDLE });
 
         if (bodyGraphics && currentDuration > 0 && note_type === 'hold') {
             bodyGraphics.x = currentLaneX;
             bodyGraphics.y = headGraphics.y;
             const noteEndTime = time + currentDuration;
-            const idealTailY = getNoteYPosition(noteEndTime, songTimeMs, hitZoneY, scrollSpeed, 0);
+            const idealTailY = getNoteYPosition(noteEndTime, songTimeMs, hitZoneY, scrollSpeed, canvasHeight);
             const bodyHeight = idealHeadY - idealTailY;
             const bodyWidth = noteVisualWidth * 0.5;
             bodyGraphics.clear();

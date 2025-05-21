@@ -35,7 +35,9 @@
 	let showPauseScreen = $derived(
 		isPausedStore && gamePhaseStore !== 'summary' && gamePhaseStore !== 'finished'
 	);
-	let showLevitatingTextOverlay = $derived(gamePhaseStore === 'playing');
+	let showLevitatingTextOverlay = $derived(
+		gamePhaseStore === 'playing' || gamePhaseStore === 'countdown'
+	);
 	let showComboMeter = $derived(
 		currentComboStore > 0 && (gamePhaseStore === 'playing' || gamePhaseStore === 'countdown')
 	);

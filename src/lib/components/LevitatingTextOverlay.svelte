@@ -46,6 +46,11 @@
 			Difficulty: <span class="font-mono text-purple-300">{difficultyName}</span>
 		</p>
 	{/if}
+	{#if songTimeMs !== undefined}
+		<p class="time-text text-lg text-gray-400 mt-1">
+			Time: <span class="font-mono text-green-400">{songTimeMs.toFixed(0)} ms</span>
+		</p>
+	{/if}
 </div>
 
 <style lang="postcss">

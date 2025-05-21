@@ -9,6 +9,7 @@ import {
     getReceptorSize,
     updateKeyPressVisuals,
     updateNotes,
+    redrawNoteGraphicsOnResize,
     type NoteGraphicsEntry
 } from '$lib/rendering';
 import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
@@ -334,6 +335,9 @@ export async function createGame(
         countdownValue = 3;
         callbacks.onCountdownUpdate(countdownValue);
 
+        // Set gameTimeStartMs to be in the future by the countdown duration
+        gameTimeStartMs = performance.now() + countdownValue * 1000;
+
         if (countdownIntervalId) clearInterval(countdownIntervalId);
         countdownIntervalId = setInterval(() => {
             countdownValue--;
@@ -365,8 +369,8 @@ export async function createGame(
                             });
                             // soundInstance.on('progress', (progress: number) => {});
 
-                            gameTimeStartMs = performance.now();
-                            currentSongTimeMs = 0;
+                            // gameTimeStartMs = performance.now(); // This is now set before countdown
+                            // currentSongTimeMs = 0; // This will now naturally reach 0
                             setPhase('playing');
 
                         }).catch(err => {
@@ -570,10 +574,25 @@ export async function createGame(
             pixiApp.renderer.resize(newWidth, newHeight);
 
             // Recalculate metrics based on the new size
+            const newHighwayMetrics = getHighwayMetrics(chartData.lanes, newWidth, newHeight);
+
 
             highwayGraphics.redraw();
             receptorGraphics.redraw();
             keyPressEffectGraphics.redraw();
+
+            // Redraw notes with new dimensions and positions
+            if (noteGraphics && typeof currentSongTimeMs === 'number' && currentSpeedMultiplier) {
+                redrawNoteGraphicsOnResize(
+                    noteGraphics,
+                    newHighwayMetrics.x,
+                    newHighwayMetrics.laneWidth,
+                    currentSongTimeMs,
+                    newHighwayMetrics.receptorYPosition,
+                    currentSpeedMultiplier,
+                    newHeight
+                );
+            }
             // Beatlines and notes will be redrawn on next _renderLoopContent call.
         },
         cleanup: () => {
