@@ -99,11 +99,6 @@ export class HoldNote extends GameNote {
 		this.tailGraphics.x = laneCenterX;
 		this.tailGraphics.y = currentTailY;
 
-
-
-
-
-
 		this.bodyGraphics.x = laneCenterX;
 
 		const topY = Math.min(currentHeadY, currentTailY);
