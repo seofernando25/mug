@@ -444,6 +444,7 @@ export async function createGame(
     // Get all relevant timing windows from preferences
     const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 30;
     const EXCELLENT_WINDOW_MS = Preferences.prefs.gameplay.excellentWindowMs ?? 60;
+    const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 90;
     const MEH_WINDOW_MS = Preferences.prefs.gameplay.mehWindowMs ?? 150;
 
     function updateGameLoop(ticker: Ticker) {
@@ -588,7 +589,25 @@ export async function createGame(
     // This replaces the old 'startSong' and the implicit call to loadAudio in setup
     function beginGameplaySequence() {
         console.log('Beginning gameplay sequence...');
-        if (phase === 'loading' || phase === 'summary' || phase === 'finished') {
+
+        // Allow retry from playing/countdown (paused) states as well
+        if (phase === 'loading' || phase === 'summary' || phase === 'finished' || phase === 'playing' || phase === 'countdown') {
+            // If retrying from an active (even if paused) game state, clean up active components first
+            if (phase === 'playing' || phase === 'countdown') {
+                if (soundInstance) {
+                    soundInstance.stop(); // Stop playback
+                    soundInstance.destroy(); // Destroy the instance
+                    soundInstance = null;
+                }
+                if (pixiApp && pixiApp.ticker) {
+                    pixiApp.ticker.stop(); // Stop the game loop
+                }
+                if (countdownIntervalId) {
+                    clearInterval(countdownIntervalId);
+                    countdownIntervalId = null;
+                }
+            }
+
             currentScore = 0;
             currentCombo = 0;
             maxCombo = 0;
@@ -600,10 +619,31 @@ export async function createGame(
             });
             judgmentTextsByLane = {}; // Reset the record
 
+            // Clear active notes from the pool from previous session
+            if (notePool) {
+                for (const note of Array.from(notePool.getActiveNotes())) { // Iterate over a copy
+                    notePool.releaseNote(note);
+                }
+            }
+
             processNotes();
             callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
             setPhase('loading');
             loadAudio();
+
+
+            if (sound && sound.isLoaded) {
+                console.log('Audio is already loaded. Proceeding to countdown directly for retry.');
+                setPhase('countdown'); // Ensure phase is countdown
+                startCountdown();      // Start the countdown process
+            } else if (sound) {
+
+                console.log('Audio not yet loaded. Waiting for the initial loaded callback to proceed.');
+            } else {
+                // This case should ideally not happen if sound was initialized.
+                console.error('Sound object is null/undefined in beginGameplaySequence. Cannot proceed with countdown.');
+                // Consider setting an error phase or notifying the user.
+            }
         } else {
             console.warn(`Cannot begin gameplay sequence from phase: ${phase}`);
         }
