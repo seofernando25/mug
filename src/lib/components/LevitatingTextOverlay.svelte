@@ -1,14 +1,7 @@
 <script lang="ts">
-	import { v8_0_0 } from 'pixi.js';
 	import type { Action } from 'svelte/action';
 
-	let {
-		songTimeMs = 0 as number,
-		bpm = 120 as number,
-		title = '' as string,
-		artist = '' as string,
-		difficultyName = '' as string
-	} = $props();
+	let { songTimeMs = 0, bpm = 120, title = '', artist = '', difficultyName = '' } = $props();
 
 	// Svelte Action for levitating text effect
 	const levitateText: Action<HTMLElement> = (node) => {
@@ -51,6 +44,11 @@
 	{#if difficultyName}
 		<p use:levitateText class="difficulty-text text-sm">
 			Difficulty: <span class="font-mono text-purple-300">{difficultyName}</span>
+		</p>
+	{/if}
+	{#if songTimeMs !== undefined}
+		<p class="time-text text-lg text-gray-400 mt-1">
+			Time: <span class="font-mono text-green-400">{songTimeMs.toFixed(0)} ms</span>
 		</p>
 	{/if}
 </div>

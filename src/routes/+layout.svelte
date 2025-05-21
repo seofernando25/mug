@@ -1,83 +1,67 @@
 <script lang="ts">
-	import '../app.css';
-	import { username, logout } from '$lib/stores/userStore';
-	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { isPaused, skipLogin as skipLoginStore } from '$lib/stores/settingsStore';
+	import { page } from '$app/state';
+	import { authClient } from '$lib/auth-client';
 	import MusicPlayer from '$lib/components/MusicPlayer.svelte';
+	import { isPaused } from '$lib/stores/settingsStore';
+	import '../app.css';
 
-	let { children } = $props(); // Svelte 5: Get children prop
+	let { children } = $props();
 
-	// Svelte 5: Use $derived for computed values
-	let isGameplayPage = $derived($page.url.pathname.startsWith('/solo/play/'));
+	let sessionData = $state(authClient.useSession());
 
-	// Svelte 5: $effect for side effects (runs after render, client-side implicitly)
+	let isAuthRoute = $derived(
+		page.url.pathname === '/' ||
+			page.url.pathname === '/login' ||
+			page.url.pathname === '/register' ||
+			page.url.pathname === '/claim-username' ||
+			page.url.pathname === '/express'
+	);
+	let isGameplayPage = $derived(page.url.pathname.startsWith('/solo/play/'));
+
+	// Effect for keyboard listeners
 	$effect(() => {
-		// Effect for keyboard listeners (Escape for pause)
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.code === 'Escape') {
 				if (isGameplayPage) {
 					isPaused.update((p) => !p);
-					console.log('Escape pressed, toggling pause to:', !$isPaused);
 				}
 			}
-			// Removed Tilde key listener for Tweakpane
 		};
 		window.addEventListener('keydown', handleKeyDown);
-
-		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-		};
+		return () => window.removeEventListener('keydown', handleKeyDown);
 	});
 
-	// Svelte 5: Separate $effect for redirection logic (runs after render, client-side implicitly)
-	$effect(() => {
-		console.log(
-			'Auth check: user:',
-			$username,
-			'path:',
-			$page.url.pathname,
-			'skip:',
-			$skipLoginStore
-		);
-		// Allow access to the home page and the create level page without authentication
-		if ($page.url.pathname !== '/' && $page.url.pathname !== '/level-creator/create') {
-			if (!$username) {
-				if ($skipLoginStore) {
-					console.log('Auto-logging in via Skip Login store...');
-					const randomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-					const guestUsername = `GUEST-${randomId}`;
-					username.set(guestUsername);
-				} else {
-					console.log(
-						'Redirecting to login (effect, user not set, skipLoginStore off)...',
-						$page.url.pathname
-					);
-					goto('/', { replaceState: true });
-				}
-			}
-		}
-	});
+	let currentUser = $derived($sessionData.data?.user);
 </script>
 
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col font-mono">
-	{#if !isGameplayPage}
+	{#if !isGameplayPage && !isAuthRoute}
 		<header class="bg-gray-800 p-4 shadow-md !fixed !top-0 !left-0 !right-0 !z-10">
 			<div class="container mx-auto flex justify-between items-center">
 				<a href="/home" class="text-xl font-bold text-purple-400 hover:text-purple-300"
 					>MUG Rhythm</a
 				>
 				<div class="flex items-center space-x-4">
-					{#if $username}
+					{#if currentUser}
 						<span class="text-gray-300"
-							>Welcome, <span class="font-semibold text-purple-300">{$username}</span>!</span
+							>Welcome, <span class="font-semibold text-purple-300">
+								{currentUser.name || currentUser.username || currentUser.id}
+							</span>!</span
 						>
 						<button
-							onclick={logout}
+							onclick={async () => {
+								await authClient.signOut();
+								goto('/');
+							}}
 							class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition-colors"
 						>
 							Logout
 						</button>
+					{:else if !isAuthRoute}
+						<!-- Don't show login/register on auth pages itself -->
+						<a href="/login" class="text-purple-300 hover:text-purple-200">Login</a>
+						<a href="/register" class="text-purple-300 hover:text-purple-200">Register</a>
 					{/if}
 					<MusicPlayer />
 				</div>
@@ -85,15 +69,11 @@
 		</header>
 	{/if}
 
-	<main class="flex-grow {isGameplayPage ? '' : 'container mx-auto p-4 pt-20 pb-10'}">
+	<main
+		class="flex flex-col flex-grow {isGameplayPage || isAuthRoute
+			? ''
+			: 'container mx-auto p-4 pt-20 pb-10'}"
+	>
 		{@render children()}
 	</main>
-
-	{#if !isGameplayPage}
-		<footer
-			class="bg-gray-800 p-2 text-center text-xs text-gray-500 !fixed !bottom-0 !left-0 !right-0 !z-10"
-		>
-			MUG MVP
-		</footer>
-	{/if}
 </div>

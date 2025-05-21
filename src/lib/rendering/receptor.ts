@@ -1,50 +1,54 @@
-import { Graphics, Container, Application } from 'pixi.js';
-import { Colors } from '$lib/game'; // Adjusted path
-import type { ReceptorGraphics } from './types';
+import { Colors } from '$lib/types'; // Changed path
+import { Container, Graphics } from 'pixi.js';
+import { derived, get, type Readable } from 'svelte/store';
+import type { getHighwayMetrics } from './highway';
+
+export const DEFAULT_NOTE_HEIGHT_PROPORTION = 0.03; // 3% of canvas height
 
 export function drawReceptor(
-    app: Application, // app is unused
     parentContainer: Container,
-    positions: { x: number; y: number }[],
-    size: { width: number; height: number }
-): ReceptorGraphics {
+    positions: Readable<{ x: number; y: number }[]>,
+    size: Readable<{ width: number; height: number }>
+) {
+
     const receptorContainer = new Container();
     parentContainer.addChild(receptorContainer);
-    const individualReceptors: ReceptorGraphics['receptors'] = [];
+    const individualReceptors: { graphics: Graphics; flash: () => void; press: () => void; release: () => void }[] = [];
 
-    positions.forEach((pos, index) => {
+    get(positions).forEach((pos, index) => {
         const graphics = new Graphics();
-        graphics.rect(-size.width / 2, -size.height / 2, size.width, size.height)
-            .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
+        graphics.rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
+            .fill({ color: '#aaaaaa', alpha: 0.5 });
         graphics.x = pos.x;
         graphics.y = pos.y;
+        graphics.zIndex = 1;
         receptorContainer.addChild(graphics);
 
         const flash = () => {
             graphics.alpha = 1;
-            setTimeout(() => { graphics.alpha = 0.7; }, 100); // Consider using a tweening library or app.ticker for animations
+            setTimeout(() => { graphics.alpha = Colors.LANE_BACKGROUND_ALPHA; }, 100);
         };
         const press = () => {
             graphics.clear()
-                .rect(-size.width / 2, -size.height / 2, size.width, size.height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.9 });
+                .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
+                .fill({ color: '#aaaaaa', alpha: 0.5 });
         };
         const release = () => {
             graphics.clear()
-                .rect(-size.width / 2, -size.height / 2, size.width, size.height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
+                .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
+                .fill({ color: '#aaaaaa', alpha: 0.3 });
         };
 
         individualReceptors.push({ graphics, flash, press, release });
     });
 
-    const redraw = (newPositions: { x: number; y: number }[], newSize: { width: number; height: number }) => {
+    const redraw = () => {
         individualReceptors.forEach((receptor, index) => {
-            receptor.graphics.x = newPositions[index].x;
-            receptor.graphics.y = newPositions[index].y;
+            receptor.graphics.x = get(positions)[index].x;
+            receptor.graphics.y = get(positions)[index].y;
             receptor.graphics.clear()
-                .rect(-newSize.width / 2, -newSize.height / 2, newSize.width, newSize.height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
+                .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
+                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: Colors.LANE_BACKGROUND_ALPHA });
         });
     };
 
@@ -54,4 +58,33 @@ export function drawReceptor(
     };
 
     return { container: receptorContainer, receptors: individualReceptors, redraw, destroy };
-} 
+}
+
+// Get positions for each receptor
+export function getReceptorPositions(highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>) {
+    return derived(highwayMetrics, (metrics) => {
+        const positions = [];
+        for (let i = 0; i < get(highwayMetrics).numLanes; i++) {
+            positions.push({
+                x: get(highwayMetrics).x + i * get(highwayMetrics).laneWidth + get(highwayMetrics).laneWidth / 2, // Center of the lane
+                y: get(highwayMetrics).receptorYPosition
+            });
+        }
+        return positions;
+    });
+}
+
+
+// Get standard size for receptors
+export function getReceptorSize(canvasWidth: number, canvasHeight: number, numLanesIfKnown?: number) {
+    const lanes = numLanesIfKnown ?? 4;
+    const highwayWidthProportion = lanes <= 4 ? 0.5 : lanes <= 6 ? 0.6 : 0.75;
+    const totalHighwayWidth = canvasWidth * highwayWidthProportion;
+    const typicalLaneWidth = totalHighwayWidth / lanes;
+    const noteHeight = canvasHeight * DEFAULT_NOTE_HEIGHT_PROPORTION;
+
+    return {
+        width: typicalLaneWidth, // Receptor can be full lane width
+        height: noteHeight * 1.5 // Receptors can be a bit taller than notes
+    };
+}

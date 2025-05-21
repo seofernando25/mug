@@ -1,6 +1,5 @@
 import { Graphics, Container, Application } from 'pixi.js';
-import { GameplaySizingConstants } from '$lib/game'; // Adjusted path
-import type { KeyPressEffectGraphics } from './types';
+import { GameplaySizingConstants, Colors } from '$lib/types'; // Changed path
 
 export function updateKeyPressVisuals(
     graphics: Graphics,
@@ -42,12 +41,9 @@ export function updateKeyPressVisuals(
 }
 
 export function drawKeyPressEffects(
-    app: Application, // app is unused here
     parentContainer: Container,
-    receptorPositions: { x: number; y: number }[], // receptorPositions unused
-    receptorSize: { width: number; height: number }, // receptorSize unused
     numLanes: number
-): KeyPressEffectGraphics {
+) {
     const effectsContainer = new Container();
     parentContainer.addChild(effectsContainer);
     const pressGraphics = new Graphics();
@@ -59,7 +55,7 @@ export function drawKeyPressEffects(
         container: effectsContainer,
         visuals: pressGraphics,
         laneData: laneDataArray,
-        redraw: (newReceptorPositions, newReceptorSize) => {
+        redraw: () => {
             // Redraw logic might be needed if receptors move or resize
         },
         destroy: () => {
