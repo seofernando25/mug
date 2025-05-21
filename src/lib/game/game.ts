@@ -294,6 +294,7 @@ export async function createGame(
             highwayMetrics.x,
             highwayMetrics.laneWidth,
             highwayMetrics.receptorYPosition,
+            highwayMetrics.receptorYPosition,
             currentSpeedMultiplier,
             pixiApp.screen.height,
             sortedActiveNotes,
