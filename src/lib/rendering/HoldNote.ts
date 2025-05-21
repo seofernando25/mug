@@ -87,11 +87,22 @@ export class HoldNote extends GameNote {
 		const laneCenterX = highwayX + (this.lane * this.laneWidth) + (this.laneWidth / 2);
 		const noteEndTime = this.originalTime + this.duration;
 
-		const currentHeadY = this.headGraphics.y;
+		let currentHeadY = this.headGraphics.y;
 		const currentTailY = getNoteYPosition(noteEndTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
+
+		// Visually clamp head to not go past the tail if actively held
+		if (this.isActivelyHeld && currentHeadY < currentTailY) {
+			currentHeadY = currentTailY;
+			this.headGraphics.y = currentHeadY; // Update the actual graphic position
+		}
 
 		this.tailGraphics.x = laneCenterX;
 		this.tailGraphics.y = currentTailY;
+
+
+
+
+
 
 		this.bodyGraphics.x = laneCenterX;
 
