@@ -7,6 +7,7 @@
 	import PauseScreen from '$lib/components/PauseScreen.svelte';
 	import ScreenPulse from '$lib/components/ScreenPulse.svelte';
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
+	import ScoreDisplay from '$lib/components/ScoreDisplay.svelte';
 	import { createGame, type GamePhase } from '$lib/game/game.client.js';
 	import { onMount } from 'svelte';
 
@@ -250,14 +251,16 @@
 			title={metadataDisplay.title}
 			artist={metadataDisplay.artist}
 			difficultyName={data.chartData.difficultyName}
+			bpm={data.songData.bpm}
 			songTimeMs={currentSongTimeMsStore}
-			bpm={data.songData.bpm > 0 ? data.songData.bpm : 120}
 		/>
 	{/if}
 
 	{#if showComboMeter}
 		<ComboMeter combo={currentComboStore} />
 	{/if}
+
+	<ScoreDisplay score={currentScoreStore} />
 </div>
 
 <!-- Placeholder for canvas and overlay elements -->

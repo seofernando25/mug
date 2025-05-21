@@ -1,29 +1,7 @@
 <script lang="ts">
-	import type { Action } from 'svelte/action';
+	import { levitateText } from '$lib/actions/levitateText';
 
 	let { songTimeMs = 0, bpm = 120, title = '', artist = '', difficultyName = '' } = $props();
-
-	// Svelte Action for levitating text effect
-	const levitateText: Action<HTMLElement> = (node) => {
-		const originalText = node.textContent || '';
-		const randomOffset = Math.random() * 100;
-		if (originalText) {
-			node.innerHTML = originalText
-				.split('')
-				.map((char, i) =>
-					char === ' '
-						? ' ' // Preserve spaces
-						: `<span class="levitate" style="animation-delay: ${-i * 150 + randomOffset}ms">${char}</span>`
-				)
-				.join('');
-		}
-
-		return {
-			destroy() {
-				// Optional: Restore original text content if needed
-			}
-		};
-	};
 
 	let beatDurationMs = $derived(60000 / bpm / 0.5);
 	let beatProgress = $derived((songTimeMs % beatDurationMs) / beatDurationMs);
