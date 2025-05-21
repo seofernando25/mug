@@ -27,14 +27,16 @@ export class HoldNote extends GameNote {
 
 	protected _createOrUpdateHoldPartsGraphics() {
 		const noteVisualWidth = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+		const laneNoteColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
+
 		this.bodyGraphics.clear();
 		const bodyWidth = noteVisualWidth * 0.5;
 		this.bodyGraphics.rect(-bodyWidth / 2, 0, bodyWidth, 1)
-			.fill({ color: Colors.NOTE_HOLD_BODY });
+			.fill({ color: laneNoteColor });
 
 		this.tailGraphics.clear();
 		const noteRadius = noteVisualWidth / 2;
-		this.tailGraphics.circle(0, 0, noteRadius).fill({ color: Colors.NOTE_HOLD_HEAD });
+		this.tailGraphics.circle(0, 0, noteRadius).fill({ color: laneNoteColor });
 	}
 
 	addToStage(stage: Container) {
@@ -110,9 +112,9 @@ export class HoldNote extends GameNote {
 		this.bodyGraphics.clear();
 		if (visualBodyHeight > 0 && this.duration > 0) {
 			const noteVisualWidthForBody = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-			const bodyRectWidth = noteVisualWidthForBody;
+			const bodyRectWidth = noteVisualWidthForBody * 0.5;
 			this.bodyGraphics.rect(-bodyRectWidth / 2, 0, bodyRectWidth, visualBodyHeight)
-				.fill({ color: Colors.NOTE_HOLD_BODY });
+				.fill({ color: Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length] });
 		}
 	}
 

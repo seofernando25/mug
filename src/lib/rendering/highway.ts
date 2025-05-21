@@ -53,7 +53,7 @@ export function drawHighway(
         const metrics = get(highwayMetrics);
         for (let i = 0; i < metrics.numLanes; i++) {
             mainRectsGraphics.rect(metrics.x + i * metrics.laneWidth, 0, metrics.laneWidth, stageDims.height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length], alpha: 0.5 });
+                .fill({ color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length], alpha: Colors.LANE_BACKGROUND_ALPHA });
         }
         lineGraphics.clear();
         for (let i = 0; i < metrics.numLanes + 1; i++) {

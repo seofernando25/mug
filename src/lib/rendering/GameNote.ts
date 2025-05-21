@@ -37,7 +37,7 @@ export class GameNote {
 	protected _createOrUpdateHeadGraphics() {
 		const noteVisualWidth = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
 		const noteRadius = noteVisualWidth / 2;
-		const headColor = this.note_type === 'hold' ? Colors.NOTE_HOLD_HEAD : Colors.NOTE_TAP;
+		const headColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 
 		this.headGraphics.clear();
 		this.headGraphics.circle(0, 0, noteRadius).fill({ color: headColor });

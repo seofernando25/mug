@@ -18,7 +18,7 @@ export function drawReceptor(
     get(positions).forEach((pos, index) => {
         const graphics = new Graphics();
         graphics.rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
-            .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length] });
+            .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: Colors.LANE_BACKGROUND_ALPHA });
         graphics.x = pos.x;
         graphics.y = pos.y;
         graphics.zIndex = 1;
@@ -26,7 +26,7 @@ export function drawReceptor(
 
         const flash = () => {
             graphics.alpha = 1;
-            setTimeout(() => { graphics.alpha = 0.7; }, 100); // Consider using a tweening library or app.ticker for animations
+            setTimeout(() => { graphics.alpha = Colors.LANE_BACKGROUND_ALPHA; }, 100);
         };
         const press = () => {
             graphics.clear()
@@ -48,7 +48,7 @@ export function drawReceptor(
             receptor.graphics.y = get(positions)[index].y;
             receptor.graphics.clear()
                 .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
-                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
+                .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: Colors.LANE_BACKGROUND_ALPHA });
         });
     };
 

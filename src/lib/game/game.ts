@@ -309,29 +309,40 @@ export async function createGame(
                 const isKeyPressed = keyForLane ? !!keyStates[keyForLane.toLowerCase()] : false;
 
                 if (gameplayNote.holdBroken) {
-                    gameNote.headGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                    const brokenColor = Colors.LANE_BACKGROUNDS[gameplayNote.lane % Colors.LANE_BACKGROUNDS.length];
+                    gameNote.headGraphics.tint = brokenColor;
                     if (gameNote instanceof HoldNote && gameNote.bodyGraphics) {
-                        gameNote.bodyGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                        gameNote.bodyGraphics.tint = brokenColor;
                     }
                     if (gameNote instanceof HoldNote && gameNote.tailGraphics) {
-                        gameNote.tailGraphics.tint = Colors.NOTE_BROKEN_COLOR;
+                        gameNote.tailGraphics.tint = brokenColor;
                     }
                 } else if (gameplayNote.isHolding && isKeyPressed) {
-                    gameNote.headGraphics.tint = Colors.NOTE_HOLD_HEAD_ACTIVE;
+                    const activeColor = Colors.LANE_COLORS[gameplayNote.lane % Colors.LANE_COLORS.length];
+                    gameNote.headGraphics.tint = activeColor;
                     if (gameNote instanceof HoldNote && gameNote.bodyGraphics) {
-                        gameNote.bodyGraphics.tint = Colors.NOTE_HOLD_BODY_ACTIVE;
+                        gameNote.bodyGraphics.tint = activeColor;
                     }
+                    // Active hold tail could also use activeColor or a distinct variant if desired
+                    // For now, it will reset to default (lane color) if not actively held or broken.
                 } else {
-                    gameNote.headGraphics.tint = 0xFFFFFF;
+                    // Reset to default lane color (which is now set in GameNote/HoldNote create/reset)
+                    // No explicit tinting needed here if default is desired, 
+                    // but good to ensure it reverts from active/broken states.
+                    const defaultLaneColor = Colors.LANE_COLORS[gameplayNote.lane % Colors.LANE_COLORS.length];
+                    gameNote.headGraphics.tint = defaultLaneColor;
                     if (gameNote instanceof HoldNote && gameNote.bodyGraphics) {
-                        gameNote.bodyGraphics.tint = 0xFFFFFF;
+                        gameNote.bodyGraphics.tint = defaultLaneColor;
                     }
                     if (gameNote instanceof HoldNote && gameNote.tailGraphics) {
-                        gameNote.tailGraphics.tint = 0xFFFFFF;
+                        gameNote.tailGraphics.tint = defaultLaneColor;
                     }
                 }
             } else if (gameplayNote) {
-                gameNote.headGraphics.tint = 0xFFFFFF;
+                // For tap notes, or holds that are not in a special state (active/broken), rely on their base color.
+                // Base color is already set by _createOrUpdateHeadGraphics to the correct lane color.
+                // If a different tint is ever applied to tap notes, this is where it would be reset.
+                gameNote.headGraphics.tint = Colors.LANE_COLORS[gameplayNote.lane % Colors.LANE_COLORS.length];
             }
         }
 
