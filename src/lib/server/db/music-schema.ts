@@ -1,4 +1,4 @@
-import { integer, jsonb, pgTable, real, serial, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgEnum, pgTable, real, serial, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema"; // Import the user table from your auth schema
 import { relations } from "drizzle-orm";
 
@@ -26,12 +26,15 @@ export const chart = pgTable('chart', {
 });
 
 // New table for individual hit objects belonging to a chart
+
+export const noteTypePgEnum = pgEnum('note_type', ['tap', 'hold']);
+
 export const chartHitObject = pgTable('chart_hit_object', { // Using snake_case for table name common in SQL, adjust if you prefer camelCase
 	id: serial('id').primaryKey(), // Simple auto-incrementing ID for each hit object
 	chartId: uuid('chart_id').notNull().references(() => chart.id, { onDelete: 'cascade' }), // Link to the chart this object belongs to
 	time: integer('time').notNull(), // Hit time in milliseconds
 	lane: integer('lane').notNull(), // Lane number (0-indexed)
-	type: text('type').notNull(), // e.g., 'tap', 'hold'
+	note_type: noteTypePgEnum('note_type').notNull(),
 	duration: integer('duration'), // Duration in milliseconds (only for 'hold' type)
 	// Add any other hit object properties needed later (e.g., custom sound, position)
 });

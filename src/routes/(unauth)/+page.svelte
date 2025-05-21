@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { authClient } from '$lib/auth-client';
-	import { onMount, tick } from 'svelte';
-	import { stretchIn } from '$lib/transitions/stretchIn';
 	import { page } from '$app/state';
+	import { authClient } from '$lib/auth-client';
+	import { stretchIn } from '$lib/transitions/stretchIn';
+	import { onMount, tick } from 'svelte';
 
 	let usernameInput = $state(page.url.searchParams.get('username') || '');
 	let isLoading = $state(false);

@@ -1,6 +1,6 @@
 <script lang="ts">
 	// songTimeMs and bpm are no longer needed
-	let { combo = 0 as number } = $props();
+	let { combo = 0 } = $props();
 
 	let comboDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
 

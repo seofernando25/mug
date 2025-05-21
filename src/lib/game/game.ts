@@ -1,389 +1,325 @@
-import { Application, Container } from 'pixi.js';
-import type { Ticker } from 'pixi.js';
-import { Sound, type IMediaInstance } from '@pixi/sound'; // Using type-only import for IMediaInstance
-import { GameplaySizing, Colors } from './index'; // Assuming GameplaySizing and Colors are exported
+import { Preferences } from '$lib/preferences';
 import {
-    drawBeatLines,
     drawHighway,
     drawJudgmentText,
     drawKeyPressEffects,
-    drawNotes,
     drawReceptor,
     updateKeyPressVisuals,
-    type BeatLineGraphics,
-    type HighwayGraphics,
-    type JudgmentText,
-    type KeyPressEffectGraphics,
-    type NoteGraphics,
-    type ReceptorGraphics
-} from '$lib/rendering'; // Ensure rendering functions are imported
-import type { SongData, ChartData, Note } from './types';
-import { Preferences } from '$lib/preferences';
+    updateNotes,
+    type NoteGraphicsEntry
+} from '$lib/rendering';
 import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
-import { get } from 'svelte/store';
+import type {
+    ChartHitObject,
+    ClientChart, ClientSong
+} from '$lib/types';
+import { Sound, type IMediaInstance } from '@pixi/sound';
+import type { Ticker } from 'pixi.js';
+import { Application, Container } from 'pixi.js';
+import { derived, get, writable } from 'svelte/store';
+import { Colors, getGameplaySizing, getHighwayMetrics, getReceptorPositions, getReceptorSize } from './index';
+
+
+type GameplayNote = ChartHitObject & {
+    id: string | number; // Unique identifier for the note (could be original index)
+    isHit: boolean;
+    isMissed: boolean;
+};
+
 
 export type GamePhase = 'loading' | 'countdown' | 'playing' | 'finished' | 'summary';
 
-export interface GameCallbacks {
-    onPhaseChange: (phase: GamePhase) => void;
-    onCountdownUpdate: (value: number) => void;
-    onSongEnd: () => void;
-    onScoreUpdate: (score: number, combo: number, maxCombo: number) => void;
-    onNoteHit: (note: Note, judgment: string, color?: number) => void;
-    onNoteMiss: (note: Note) => void;
-    getGamePhase: () => GamePhase;
-    getIsPaused: () => boolean;
-    getCountdownValue: () => number;
-    onTimeUpdate?: (currentTimeMs: number) => void; // Added for live time updates
-}
+export async function createGame(
+    songData: ClientSong,
+    chartData: ClientChart,
+    canvasElement: HTMLCanvasElement,
+    callbacks: {
+        onPhaseChange: (phase: GamePhase) => void;
+        onCountdownUpdate: (value: number) => void;
+        onSongEnd: () => void;
+        onScoreUpdate: (score: number, combo: number, maxCombo: number) => void;
+        onNoteHit: (note: GameplayNote, judgment: string, color?: number) => void;
+        onNoteMiss: (note: GameplayNote) => void;
+        getGamePhase: () => GamePhase;
+        getIsPaused: () => boolean;
+        getCountdownValue: () => number;
+        onTimeUpdate?: (currentTimeMs: number) => void; // Added for live time updates
+    }
+) {
+    let phase: GamePhase = 'loading';
+    let isPaused: boolean = false;
+    let sound: Sound = Sound.from({
+        url: songData.audioUrl,
+        preload: true,
+        loaded: (err: Error | null, loadedSound?: Sound) => {
+            if (err) {
+                console.error('@pixi/sound error loading sound:', err);
+                setPhase('loading');
+                return;
+            }
+            if (!loadedSound) {
+                console.error('@pixi/sound loaded callback: sound resource is null or undefined');
+                setPhase('loading');
+                return;
+            }
+            sound = loadedSound;
+            // Set initial volume based on store values
+            sound.volume = get(masterVolume) * get(musicVolume);
+            console.log('@pixi/sound: Audio loaded. Duration:', sound.duration, 's');
+            if (phase === 'loading') {
+                setPhase('countdown');
+                startCountdown();
+            }
+        }
+    });
+    let soundInstance: IMediaInstance | null = null;
+    let currentSongTimeMs = 0;
+    let gameTimeStartMs = 0;
+    let countdownValue = 3;
+    let currentScore = 0;
+    let currentCombo = 0;
+    let maxCombo = 0;
+    let notes: GameplayNote[] = [];
+    let upcomingNoteIndex = 0;
+    let countdownIntervalId: ReturnType<typeof setInterval> | null = null;
+    let finishAnimationTimerId: ReturnType<typeof setTimeout> | null = null;
+    let pixiApp = new Application();
+    let mainContainer = new Container();
+    let noteGraphics = new Map<number, NoteGraphicsEntry>();
+    let judgmentTextsByLane: Record<number, ReturnType<typeof drawJudgmentText> | null> = {};
+    let keyStates: Record<string, boolean> = {};
+    let currentSpeedMultiplier = 1.0;
 
-export interface GameInstance {
-    // --- Control Functions ---
-    initialize: (canvasElement: HTMLCanvasElement) => Promise<void>;
-    pauseGame: () => void;
-    resumeGame: () => void;
-    handleKeyPress: (key: string, event: KeyboardEvent) => void;
-    handleKeyRelease: (key: string, event: KeyboardEvent) => void;
-    handleResize: () => void;
-    cleanup: () => void;
+    let cleanupSubscriptions: (() => void) | null = null;
 
-    // --- State Accessors (if needed, or prefer callbacks for UI updates) ---
-    getCurrentPhase: () => GamePhase;
-    isPaused: () => boolean;
-    beginGameplaySequence: () => void;
-    getHighwayMetrics: () => { x: number; laneWidth: number; judgmentLineYPosition: number } | null;
-}
+    await pixiApp.init({
+        canvas: canvasElement,
+        width: canvasElement.clientWidth,
+        height: canvasElement.clientHeight,
+        antialias: true,
+        resolution: window.devicePixelRatio || 1,
+        autoDensity: true,
+        backgroundColor: 0x000000,
+    });
 
-interface GameState {
-    phase: GamePhase;
-    isPaused: boolean;
-    sound: Sound | null; // Using imported Sound type
-    soundInstance: IMediaInstance | null; // Using imported IMediaInstance type
-    songData: SongData;
-    chartData: ChartData;
-    callbacks: GameCallbacks;
 
-    // Gameplay state
-    currentSongTimeMs: number;
-    gameTimeStartMs: number; // System time when 'playing' phase began
-    countdownValue: number;
-    currentScore: number;
-    currentCombo: number;
-    maxComboSoFar: number;
-    notes: Note[]; // Processed notes with timing info
-    upcomingNoteIndex: number;
+    console.log('Initializing game instance...');
+    processNotes();
+    if (pixiApp) {
+        pixiApp.ticker.add(updateGameLoop);
+        pixiApp.ticker.stop();
+    } else {
+        console.error("PixiApp not initialized, cannot add ticker.");
+    }
+    console.log("Game instance initialized. Call beginGameplaySequence() to start.");
 
-    // Timers
-    countdownIntervalId: any | null;
-    finishAnimationTimerId: any | null;
 
-    // --- PixiJS Application and Graphics Elements ---
-    pixiApp: Application | null;
-    mainContainer: Container | null;
-    highwayGraphics: HighwayGraphics | null;
-    receptorGraphics: ReceptorGraphics | null;
-    noteGraphics: NoteGraphics[];
-    beatLineGraphics: BeatLineGraphics | null;
-    keyPressEffectGraphics: KeyPressEffectGraphics | null;
-    judgmentTextsByLane: Record<number, JudgmentText | null>; // For per-lane judgment texts
-    canvasElementRef: HTMLCanvasElement | null; // Keep a reference if needed for resize
+    const appWidth = writable(pixiApp.screen.width);
+    const appHeight = writable(pixiApp.screen.height);
+    const gameplaySizing = derived(
+        [appWidth, appHeight],
+        ([width, height]) => getGameplaySizing(width, height)
+    );
 
-    // --- Key state ---
-    keyStates: Record<string, boolean>;
-    currentSpeedMultiplier: number; // Renamed for clarity, reflects current effective scroll speed
-    lastKnownBpm: number;
+    const highwayMetrics = derived(
+        [gameplaySizing],
+        ([sizing]) => getHighwayMetrics(chartData.lanes, sizing.width, sizing.height)
+    );
+    const receptorPositions = getReceptorPositions(highwayMetrics)
 
-    // New fields for volume handling
-    cleanupSubscriptions?: () => void;
-}
+    const receptorSize = derived([gameplaySizing], ([sizing]) => getReceptorSize(sizing.width, sizing.height));
 
-export function createGame(
-    songData: SongData,
-    chartData: ChartData,
-    callbacks: GameCallbacks
-): GameInstance {
-    const state: GameState = {
-        phase: 'loading',
-        isPaused: false,
-        sound: null,
-        soundInstance: null,
-        songData,
-        chartData,
-        callbacks,
-        currentSongTimeMs: 0,
-        gameTimeStartMs: 0,
-        countdownValue: 3,
-        currentScore: 0,
-        currentCombo: 0,
-        maxComboSoFar: 0,
-        notes: [],
-        upcomingNoteIndex: 0,
-        countdownIntervalId: null,
-        finishAnimationTimerId: null,
-        pixiApp: null,
-        mainContainer: null,
-        highwayGraphics: null,
-        receptorGraphics: null,
-        noteGraphics: [],
-        beatLineGraphics: null,
-        keyPressEffectGraphics: null,
-        judgmentTextsByLane: {},
-        canvasElementRef: null,
-        keyStates: {},
-        currentSpeedMultiplier: 1.0,
-        lastKnownBpm: chartData.timing.bpms[0]?.bpm || 60,
-    };
+    pixiApp.stage.addChild(mainContainer);
+
+    const highwayGraphics = drawHighway(pixiApp, mainContainer, highwayMetrics)
+    const receptorGraphics = drawReceptor(mainContainer, receptorPositions, receptorSize);
+
+
+    const keyPressEffectGraphics = drawKeyPressEffects(
+        mainContainer,
+        chartData.lanes,
+    );
+
 
     console.log('chartData', chartData);
     if (typeof chartData.noteScrollSpeed === 'number' && chartData.noteScrollSpeed > 0) {
-        state.currentSpeedMultiplier = chartData.noteScrollSpeed;
-        console.log(`Chart noteScrollSpeed set to: ${state.currentSpeedMultiplier}`);
+        currentSpeedMultiplier = chartData.noteScrollSpeed;
+        console.log(`Chart noteScrollSpeed set to: ${currentSpeedMultiplier}`);
     } else {
-        state.currentSpeedMultiplier = 1.0;
+        currentSpeedMultiplier = 1.0;
         console.log('Chart noteScrollSpeed not found or invalid, defaulting to 1.0');
     }
 
-    function setPhase(newPhase: GamePhase) {
-        state.phase = newPhase;
-        state.callbacks.onPhaseChange(newPhase);
+    const setPhase = (newPhase: typeof phase) => {
+        phase = newPhase;
+        callbacks.onPhaseChange(newPhase);
         console.log(`Game phase changed to: ${newPhase}`);
 
-        if (state.pixiApp) {
-            if (newPhase === 'playing' || newPhase === 'countdown') {
-                if (!state.isPaused) state.pixiApp.ticker.start();
-            } else {
-                state.pixiApp.ticker.stop();
-            }
+        if (newPhase === 'playing' || newPhase === 'countdown') {
+            if (!isPaused) pixiApp.ticker.start();
+        } else {
+            pixiApp.ticker.stop();
         }
     }
 
-    async function _setupPixiApp(element: HTMLCanvasElement) {
-        const pixiAppInstance = new Application();
 
-        const container = element.parentElement;
-        let currentWidth = 800;
-        let currentHeight = 600;
-
-        if (container) {
-            currentWidth = container.clientWidth;
-            currentHeight = container.clientHeight;
-        }
-
-        const sizing = GameplaySizing.getGameplaySizing(currentWidth, currentHeight);
-
-        await pixiAppInstance.init({
-            canvas: element,
-            width: sizing.width,
-            height: sizing.height,
-            antialias: true,
-            resolution: window.devicePixelRatio || 1,
-            autoDensity: true,
-            backgroundColor: 0x000000,
-            backgroundAlpha: 0.5
-        });
-
-        state.pixiApp = pixiAppInstance;
-        state.mainContainer = new Container();
-        state.pixiApp.stage.addChild(state.mainContainer);
-
-        const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
-        const receptorPositions = GameplaySizing.getReceptorPositions(highwayMetrics, sizing.width, sizing.height);
-        const receptorSize = GameplaySizing.getReceptorSize(sizing.width, sizing.height);
-
-        state.highwayGraphics = drawHighway(state.pixiApp, state.mainContainer, highwayMetrics);
-        state.receptorGraphics = drawReceptor(state.pixiApp, state.mainContainer, receptorPositions, receptorSize);
-        state.keyPressEffectGraphics = drawKeyPressEffects(
-            state.pixiApp,
-            state.mainContainer,
-            receptorPositions,
-            receptorSize,
-            state.chartData.numLanes
-        );
-        state.beatLineGraphics = drawBeatLines(
-            state.pixiApp,
-            state.mainContainer,
-            highwayMetrics,
-            [],
-            0,
-            0,
-            state.currentSpeedMultiplier
-        );
-        state.canvasElementRef = element;
-    }
-
-    function _renderLoopContent(currentTimeMs: number, currentBpm: number) {
-        if (!state.pixiApp || !state.mainContainer || !state.highwayGraphics) return;
-        const currentPhase = state.callbacks.getGamePhase();
-        const isPaused = state.callbacks.getIsPaused();
+    function _renderLoopContent(currentTimeMs: number) {
+        if (!pixiApp || !mainContainer || !highwayGraphics) return;
+        const currentPhase = callbacks.getGamePhase();
+        const isPaused = callbacks.getIsPaused();
 
         if (isPaused && currentPhase !== 'playing' && currentPhase !== 'countdown') return;
 
-        const container = state.canvasElementRef?.parentElement;
-        let currentWidth = state.pixiApp.screen.width;
-        let currentHeight = state.pixiApp.screen.height;
+        const container = pixiApp.canvas.parentElement
+        let currentWidth = pixiApp.screen.width;
+        let currentHeight = pixiApp.screen.height;
         if (container) {
             currentWidth = container.clientWidth;
             currentHeight = container.clientHeight;
         }
-        const sizing = GameplaySizing.getGameplaySizing(currentWidth, currentHeight);
-        const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
-        const noteSize = GameplaySizing.getNoteSize(sizing.width, sizing.height);
 
-        if (state.beatLineGraphics) {
-            drawBeatLines(
-                state.pixiApp,
-                state.mainContainer,
-                highwayMetrics,
-                state.chartData.timing.beats || [],
-                currentTimeMs,
-                currentBpm,
-                state.currentSpeedMultiplier,
-                state.beatLineGraphics
-            );
-        }
+        const sizing = getGameplaySizing(currentWidth, currentHeight);
+        const highwayMetrics = getHighwayMetrics(chartData.lanes, sizing.width, sizing.height);
 
-        const visibleNotes = state.notes.filter((note: Note) => {
-            if (note.isHit || note.isMissed) {
-                return false;
+
+        // Prepare arguments for updateNotes
+        const activeNotesForUpdate: Array<ChartHitObject> = [];
+        const judgedNoteIds = new Set<number>();
+
+        notes.forEach(note => {
+            // Assuming note.id is consistently a number. If it can be a string, conversion or different handling is needed.
+            // ClientHitObject is Pick<ChartHitObject, 'time' | 'lane' | 'type' | 'duration'>
+            // GameplayNote = ClientHitObject & { id: string | number; isHit: boolean; isMissed: boolean; };
+            // ChartHitObject has id: number. So GameplayNote.id should ideally come from there or be a number.
+
+            const noteId = typeof note.id === 'string' ? parseInt(note.id, 10) : note.id; // Attempt to ensure numeric ID
+
+            if (isNaN(noteId)) {
+                console.warn("Skipping note with non-numeric ID:", note);
+                return;
             }
 
-            const noteY = GameplaySizing.getNoteYPosition(
-                note.time,
-                currentTimeMs,
-                highwayMetrics.receptorYPosition,
-                state.currentSpeedMultiplier,
-                currentBpm
-            );
-            return noteY > -noteSize.height && noteY < state.pixiApp!.screen.height;
+            if (note.isHit || note.isMissed) {
+                judgedNoteIds.add(noteId);
+            }
+            // updateNotes itself filters by visibility, so we pass all non-judged notes.
+            // However, updateNotes expects ClientHitObject & { id: number }.
+            // GameplayNote already extends ClientHitObject.
+            activeNotesForUpdate.push({
+                id: noteId,
+                chartId: chartData.id,
+                time: note.time,
+                lane: note.lane,
+                note_type: note.note_type,
+                duration: note.duration
+            });
         });
 
-        state.noteGraphics = drawNotes(
-            state.pixiApp,
-            state.mainContainer,
-            visibleNotes,
+        // The updateNotes function from notes.ts expects sortedHitObjects.
+        // The current notes might not be sorted by time if notes are processed out of order or ids are not sequential with time.
+        // For now, proceeding without explicit re-sorting here, assuming notes is appropriately ordered or updateNotes handles it.
+        // If not, notes should be sorted by time before this step.
+        const sortedActiveNotes = activeNotesForUpdate.sort((a, b) => a.time - b.time);
+
+
+
+        noteGraphics = updateNotes(
             currentTimeMs,
-            highwayMetrics,
-            state.currentSpeedMultiplier,
-            currentBpm,
-            state.noteGraphics
+            mainContainer!,
+            highwayMetrics.x,
+            highwayMetrics.laneWidth,
+            highwayMetrics.receptorYPosition,
+            currentSpeedMultiplier,
+            sortedActiveNotes,
+            noteGraphics,
+            judgedNoteIds
         );
 
-        if (state.keyPressEffectGraphics && highwayMetrics) {
+        if (keyPressEffectGraphics && highwayMetrics) {
             const lanePressedStates = Preferences.prefs.gameplay.keybindings.map(
-                (key) => !!state.keyStates[key.toLowerCase()]
+                (key) => !!keyStates[key.toLowerCase()]
             );
             updateKeyPressVisuals(
-                state.keyPressEffectGraphics.visuals,
-                state.keyPressEffectGraphics.laneData,
+                keyPressEffectGraphics.visuals,
+                keyPressEffectGraphics.laneData,
                 lanePressedStates,
-                state.chartData.numLanes,
+                chartData.lanes,
                 highwayMetrics.laneWidth,
                 highwayMetrics.x,
                 highwayMetrics.receptorYPosition,
-                state.pixiApp.ticker.deltaMS / 1000,
+                pixiApp.ticker.deltaMS / 1000,
                 Colors.HIT_ZONE_CENTER
             );
         }
 
         // Update and filter judgment texts per lane
-        for (const laneIndexStr in state.judgmentTextsByLane) {
+        for (const laneIndexStr in judgmentTextsByLane) {
             const laneIndex = parseInt(laneIndexStr, 10); // Ensure laneIndex is a number
-            const judgmentText = state.judgmentTextsByLane[laneIndex];
+            const judgmentText = judgmentTextsByLane[laneIndex];
             if (judgmentText) {
-                judgmentText.updateAnimation(state.pixiApp!.ticker.deltaMS);
+                judgmentText.updateAnimation(pixiApp!.ticker.deltaMS);
                 if (judgmentText.alpha <= 0) {
                     judgmentText.destroy(); // Destroy the PIXI object
-                    state.judgmentTextsByLane[laneIndex] = null; // Remove from active judgments
+                    judgmentTextsByLane[laneIndex] = null; // Remove from active judgments
                 }
             }
         }
     }
 
-    function _spawnVisualJudgment(note: Note, judgment: string) {
-        if (!state.pixiApp || !state.mainContainer) return;
+    function _spawnVisualJudgment(note: GameplayNote, judgment: string) {
+        if (!pixiApp || !mainContainer) return;
 
         const laneIndex = note.lane;
 
         // If there's an existing judgment for this lane, destroy it first
-        const existingJudgment = state.judgmentTextsByLane[laneIndex];
+        const existingJudgment = judgmentTextsByLane[laneIndex];
         if (existingJudgment) {
             existingJudgment.destroy();
         }
 
         // Get current canvas dimensions for accurate positioning
-        const canvasWidth = state.pixiApp.screen.width;
-        const canvasHeight = state.pixiApp.screen.height;
-        const currentHighwayMetrics = GameplaySizing.getHighwayMetrics(
-            state.chartData.numLanes,
+        const canvasWidth = pixiApp.screen.width;
+        const canvasHeight = pixiApp.screen.height;
+        const currentHighwayMetrics = getHighwayMetrics(
+            chartData.lanes,
             canvasWidth,
             canvasHeight
         );
 
         const newJudgment = drawJudgmentText(
-            state.pixiApp,
-            state.mainContainer,
+            pixiApp,
+            mainContainer,
             judgment,
             laneIndex,
             currentHighwayMetrics.x,
             currentHighwayMetrics.laneWidth,
             currentHighwayMetrics.judgmentLineYPosition
         );
-        state.judgmentTextsByLane[laneIndex] = newJudgment; // Store new judgment by lane
+        judgmentTextsByLane[laneIndex] = newJudgment; // Store new judgment by lane
     }
 
     function loadAudio() {
-        if (state.soundInstance) {
-            state.soundInstance.destroy();
-            state.soundInstance = null;
-        }
-        if (state.sound) {
-            state.sound.destroy();
-            state.sound = null;
-        }
+        soundInstance?.destroy();
 
-        console.log('Loading audio with @pixi/sound:', state.songData.audioUrl);
+
+        console.log('Loading audio with @pixi/sound:', songData.audioUrl);
         try {
-            // Use the imported Sound class directly
-            state.sound = Sound.from({
-                url: state.songData.audioUrl,
-                preload: true,
-                loaded: (err: Error | null, loadedSound?: Sound) => { // Use imported Sound type
-                    if (err) {
-                        console.error('@pixi/sound error loading sound:', err);
-                        setPhase('loading');
-                        return;
-                    }
-                    if (!loadedSound) {
-                        console.error('@pixi/sound loaded callback: sound resource is null or undefined');
-                        setPhase('loading');
-                        return;
-                    }
-                    state.sound = loadedSound;
-                    // Set initial volume based on store values
-                    state.sound.volume = get(masterVolume) * get(musicVolume);
-                    console.log('@pixi/sound: Audio loaded. Duration:', state.sound.duration, 's');
-                    if (state.phase === 'loading') {
-                        setPhase('countdown');
-                        startCountdown();
-                    }
-                }
-            });
 
             // Subscribe to volume changes
             const unsubscribeMaster = masterVolume.subscribe(value => {
-                if (state.sound) {
-                    state.sound.volume = value * get(musicVolume);
+                if (sound) {
+                    sound.volume = value * get(musicVolume);
                 }
             });
 
             const unsubscribeMusic = musicVolume.subscribe(value => {
-                if (state.sound) {
-                    state.sound.volume = get(masterVolume) * value;
+                if (sound) {
+                    sound.volume = get(masterVolume) * value;
                 }
             });
 
             // Clean up subscriptions when the game is cleaned up
-            state.cleanupSubscriptions = () => {
+            cleanupSubscriptions = () => {
                 unsubscribeMaster();
                 unsubscribeMusic();
             };
@@ -395,42 +331,42 @@ export function createGame(
 
     function startCountdown() {
         setPhase('countdown');
-        state.countdownValue = 3;
-        state.callbacks.onCountdownUpdate(state.countdownValue);
+        countdownValue = 3;
+        callbacks.onCountdownUpdate(countdownValue);
 
-        if (state.countdownIntervalId) clearInterval(state.countdownIntervalId);
-        state.countdownIntervalId = setInterval(() => {
-            state.countdownValue--;
-            state.callbacks.onCountdownUpdate(state.countdownValue);
-            if (state.countdownValue <= 0) {
-                clearInterval(state.countdownIntervalId);
-                state.countdownIntervalId = null;
-                if (state.sound && state.sound.isLoaded && state.phase === 'countdown') {
+        if (countdownIntervalId) clearInterval(countdownIntervalId);
+        countdownIntervalId = setInterval(() => {
+            countdownValue--;
+            callbacks.onCountdownUpdate(countdownValue);
+            if (countdownValue <= 0) {
+                clearInterval(countdownIntervalId as ReturnType<typeof setInterval>);
+                countdownIntervalId = null;
+                if (sound && sound.isLoaded && phase === 'countdown') {
                     try {
                         // play() might return an instance or a Promise for an instance
-                        const instanceOrPromise = state.sound.play();
+                        const instanceOrPromise = sound.play();
                         Promise.resolve(instanceOrPromise).then((instance: IMediaInstance) => { // Use imported IMediaInstance
                             if (!instance) {
                                 console.error("@pixi/sound.play did not yield a valid instance.");
                                 setPhase('loading');
                                 return;
                             }
-                            state.soundInstance = instance;
-                            state.soundInstance.on('end', () => {
+                            soundInstance = instance;
+                            soundInstance.on('end', () => {
                                 console.log('@pixi/sound: Audio instance ended');
-                                if (state.phase === 'playing') {
+                                if (phase === 'playing') {
                                     setPhase('finished');
-                                    state.callbacks.onSongEnd();
-                                    if (state.finishAnimationTimerId) clearTimeout(state.finishAnimationTimerId);
-                                    state.finishAnimationTimerId = setTimeout(() => {
+                                    callbacks.onSongEnd();
+                                    if (finishAnimationTimerId) clearTimeout(finishAnimationTimerId);
+                                    finishAnimationTimerId = setTimeout(() => {
                                         setPhase('summary');
                                     }, 2000);
                                 }
                             });
-                            // state.soundInstance.on('progress', (progress: number) => {});
+                            // soundInstance.on('progress', (progress: number) => {});
 
-                            state.gameTimeStartMs = performance.now();
-                            state.currentSongTimeMs = 0;
+                            gameTimeStartMs = performance.now();
+                            currentSongTimeMs = 0;
                             setPhase('playing');
 
                         }).catch(err => {
@@ -441,7 +377,7 @@ export function createGame(
                         console.error("Error playing sound with @pixi/sound:", e);
                         setPhase('loading');
                     }
-                } else if (state.phase === 'countdown') {
+                } else if (phase === 'countdown') {
                     console.warn('In countdown, but sound not ready or not in correct phase to play.');
                 }
             }
@@ -449,77 +385,60 @@ export function createGame(
     }
 
     function processNotes() {
-        state.notes = chartData.notes.map((note: any) => ({ ...note })).sort((a: any, b: any) => a.time - b.time);
-        state.upcomingNoteIndex = 0;
-        state.notes.forEach(note => {
-            note.isHit = false;
-            note.isMissed = false;
-        });
+        // Ensure notes are sorted by time for correct processing order
+        notes = [...chartData.hitObjects] // Changed from .notes
+            .sort((a, b) => a.time - b.time)
+            .map((note, index) => ({
+                ...note,
+                isHit: false,
+                isMissed: false,
+            }));
+        upcomingNoteIndex = 0;
+        console.log(`Processed ${notes.length} notes.`);
     }
 
     const MISS_WINDOW_MS = 150; // Default miss window after note time (aligned with Meh window)
 
     function updateGameLoop(ticker: Ticker) {
-        if (!state.pixiApp || state.phase === 'loading') return;
+        if (!pixiApp || phase === 'loading') return;
 
-        const currentPhase = state.callbacks.getGamePhase();
-        const isPaused = state.callbacks.getIsPaused();
+        const currentTimeSystem = performance.now();
+        if (!isPaused) {
+            currentSongTimeMs = currentTimeSystem - gameTimeStartMs;
+        }
 
-        if (currentPhase === 'playing' && !isPaused) {
-            if (state.sound && state.soundInstance && state.sound.isLoaded) {
-                const progress = state.soundInstance.progress;
-                const duration = state.sound.duration;
-                if (typeof progress === 'number' && typeof duration === 'number' && duration > 0) {
-                    state.currentSongTimeMs = progress * duration * 1000;
-                } else if (state.gameTimeStartMs > 0) { // Fallback if progress/duration not valid yet
-                    state.currentSongTimeMs = performance.now() - state.gameTimeStartMs;
-                }
-            } else if (state.gameTimeStartMs > 0 && state.phase === 'playing') {
-                state.currentSongTimeMs = performance.now() - state.gameTimeStartMs;
+        if (callbacks.onTimeUpdate) {
+            callbacks.onTimeUpdate(currentSongTimeMs);
+        }
+
+
+
+        _renderLoopContent(currentSongTimeMs);
+
+        while (
+            upcomingNoteIndex < notes.length &&
+            currentSongTimeMs > notes[upcomingNoteIndex].time + MISS_WINDOW_MS
+        ) {
+            const missedNote = notes[upcomingNoteIndex];
+            if (!missedNote.isHit && !missedNote.isMissed) {
+                _processNoteMiss(missedNote);
             }
-
-            if (state.callbacks.onTimeUpdate) {
-                state.callbacks.onTimeUpdate(state.currentSongTimeMs);
-            }
-
-            let currentBpm = state.lastKnownBpm;
-            const currentTimingPoint = state.chartData.timing.bpms.findLast(
-                (bpmInfo) => state.currentSongTimeMs >= bpmInfo.time
-            );
-            if (currentTimingPoint) {
-                currentBpm = currentTimingPoint.bpm;
-                state.lastKnownBpm = currentBpm;
-            }
-
-            _renderLoopContent(state.currentSongTimeMs, currentBpm);
-
-            while (
-                state.upcomingNoteIndex < state.notes.length &&
-                state.currentSongTimeMs > state.notes[state.upcomingNoteIndex].time + MISS_WINDOW_MS
-            ) {
-                const missedNote = state.notes[state.upcomingNoteIndex];
-                if (!missedNote.isHit && !missedNote.isMissed) {
-                    _processNoteMiss(missedNote);
-                }
-                state.upcomingNoteIndex++;
-            }
-        } else if (currentPhase === 'countdown' && !isPaused) {
-            _renderLoopContent(0, state.lastKnownBpm);
+            upcomingNoteIndex++;
         }
     }
 
     function _processNoteHit(key: string, laneIndex: number) {
-        if (!state.pixiApp) return;
+        if (!pixiApp) return;
         const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 30;
         const EXCELLENT_WINDOW_MS = Preferences.prefs.gameplay.excellentWindowMs ?? 60;
         const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 90;
         const MEH_WINDOW_MS = Preferences.prefs.gameplay.mehWindowMs ?? 150; // Changed from okWindowMs
 
-        for (let i = state.notes.length - 1; i >= state.upcomingNoteIndex; i--) {
-            const note = state.notes[i];
+        for (let i = notes.length - 1; i >= upcomingNoteIndex; i--) {
+            const note = notes[i];
             if (note.lane !== laneIndex || note.isHit || note.isMissed) continue;
 
-            const timeDifference = note.time - state.currentSongTimeMs; // Negative if late, positive if early
+            const timeDifference = note.time - currentSongTimeMs; // Negative if late, positive if early
             const absTimeDifference = Math.abs(timeDifference);
 
             if (absTimeDifference <= MEH_WINDOW_MS) { // Check if within the widest judgment window (Meh)
@@ -542,118 +461,103 @@ export function createGame(
 
                 note.isHit = true;
                 note.isMissed = false; // Explicitly set isMissed to false on a hit
-                state.currentCombo++;
-                state.currentScore += score;
-                if (state.currentCombo > state.maxComboSoFar) {
-                    state.maxComboSoFar = state.currentCombo;
+                currentCombo++;
+                currentScore += score;
+                if (currentCombo > maxCombo) {
+                    maxCombo = currentCombo;
                 }
-                state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
-                state.callbacks.onNoteHit(note, judgment, Colors.LANE_COLORS[laneIndex]);
+                callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+                callbacks.onNoteHit(note, judgment, Colors.LANE_COLORS[laneIndex]);
                 _spawnVisualJudgment(note, judgment);
-                if (state.receptorGraphics && state.receptorGraphics.receptors[laneIndex]) {
-                    state.receptorGraphics.receptors[laneIndex].flash();
+                if (receptorGraphics && receptorGraphics.receptors[laneIndex]) {
+                    receptorGraphics.receptors[laneIndex].flash();
                 }
                 return; // Note processed
             }
         }
     }
 
-    function _processNoteMiss(note: Note) {
-        state.currentCombo = 0;
+    function _processNoteMiss(note: GameplayNote) {
+        currentCombo = 0;
         note.isMissed = true;
         note.isHit = false; // Explicitly set isHit to false on a miss
-        state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
-        state.callbacks.onNoteMiss(note);
+        callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
+        callbacks.onNoteMiss(note);
         _spawnVisualJudgment(note, 'Miss');
     }
 
     // --- Public API / Instance Methods ---
 
-    async function initialize(canvasElement: HTMLCanvasElement) {
-        console.log('Initializing game instance...');
-        await _setupPixiApp(canvasElement);
-        processNotes();
-        if (state.pixiApp) {
-            state.pixiApp.ticker.add(updateGameLoop);
-            state.pixiApp.ticker.stop();
-        } else {
-            console.error("PixiApp not initialized, cannot add ticker.");
-        }
-        console.log("Game instance initialized. Call beginGameplaySequence() to start.");
-    }
 
     // This replaces the old 'startSong' and the implicit call to loadAudio in setup
     function beginGameplaySequence() {
         console.log('Beginning gameplay sequence...');
-        if (state.phase === 'loading' || state.phase === 'summary' || state.phase === 'finished') {
-            state.currentScore = 0;
-            state.currentCombo = 0;
-            state.maxComboSoFar = 0;
-            state.currentSongTimeMs = 0;
-            state.isPaused = false;
+        if (phase === 'loading' || phase === 'summary' || phase === 'finished') {
+            currentScore = 0;
+            currentCombo = 0;
+            maxCombo = 0;
+            currentSongTimeMs = 0;
+            isPaused = false;
             // Clear old judgment texts by lane
-            Object.values(state.judgmentTextsByLane).forEach(jt => {
+            Object.values(judgmentTextsByLane).forEach(jt => {
                 if (jt) jt.destroy();
             });
-            state.judgmentTextsByLane = {}; // Reset the record
+            judgmentTextsByLane = {}; // Reset the record
 
             processNotes();
-            state.callbacks.onScoreUpdate(state.currentScore, state.currentCombo, state.maxComboSoFar);
+            callbacks.onScoreUpdate(currentScore, currentCombo, maxCombo);
             setPhase('loading');
             loadAudio();
         } else {
-            console.warn(`Cannot begin gameplay sequence from phase: ${state.phase}`);
+            console.warn(`Cannot begin gameplay sequence from phase: ${phase}`);
         }
     }
 
     return {
-        initialize,
         beginGameplaySequence,
         pauseGame: () => {
-            if ((state.phase === 'playing' || state.phase === 'countdown') && !state.isPaused) {
-                state.isPaused = true;
-                if (state.soundInstance) state.soundInstance.paused = true;
-                state.pixiApp?.ticker.stop();
+            if ((phase === 'playing' || phase === 'countdown') && !isPaused) {
+                isPaused = true;
+                if (soundInstance) soundInstance.paused = true;
+                pixiApp?.ticker.stop();
                 console.log("Game paused");
             }
         },
         resumeGame: () => {
-            if (state.isPaused && (state.phase === 'playing' || state.phase === 'countdown')) {
-                state.isPaused = false;
-                if (state.phase === 'playing' && state.sound && state.sound.isLoaded) {
-                    if (state.soundInstance) state.soundInstance.paused = false;
+            if (isPaused && (phase === 'playing' || phase === 'countdown')) {
+                isPaused = false;
+                if (phase === 'playing' && sound && sound.isLoaded) {
+                    if (soundInstance) soundInstance.paused = false;
                 }
-                state.pixiApp?.ticker.start();
+                pixiApp?.ticker.start();
                 console.log("Game resumed");
             }
         },
         handleKeyPress: (key: string, event: KeyboardEvent) => {
-            if (state.isPaused || state.phase !== 'playing') return;
+            if (isPaused || phase !== 'playing') return;
 
             const lane = Preferences.prefs.gameplay.keybindings.findIndex(
                 (k) => k === key.toLowerCase()
             );
-            if (lane !== -1 && !state.keyStates[key.toLowerCase()]) {
-                state.keyStates[key.toLowerCase()] = true;
+            if (lane !== -1 && !keyStates[key.toLowerCase()]) {
+                keyStates[key.toLowerCase()] = true;
                 _processNoteHit(key.toLowerCase(), lane); // Internal game logic for hit
-                if (state.receptorGraphics) state.receptorGraphics.receptors[lane]?.press();
+                if (receptorGraphics) receptorGraphics.receptors[lane]?.press();
             }
         },
         handleKeyRelease: (key: string, event: KeyboardEvent) => {
-            if (state.phase === 'summary' || state.phase === 'finished') return;
+            if (phase === 'summary' || phase === 'finished') return;
 
             const lane = Preferences.prefs.gameplay.keybindings.findIndex(
                 (k) => k === key.toLowerCase()
             );
             if (lane !== -1) {
-                state.keyStates[key.toLowerCase()] = false;
-                if (state.receptorGraphics) state.receptorGraphics.receptors[lane]?.release();
+                keyStates[key.toLowerCase()] = false;
+                if (receptorGraphics) receptorGraphics.receptors[lane]?.release();
             }
         },
         handleResize: () => {
-            if (!state.pixiApp || !state.canvasElementRef) return;
-
-            const container = state.canvasElementRef.parentElement;
+            const container = pixiApp.canvas.parentElement;
             let newWidth = 800; // Fallback
             let newHeight = 600; // Fallback
             if (container) {
@@ -662,62 +566,49 @@ export function createGame(
             }
 
             // Get new sizing based on actual container dimensions
-            const sizing = GameplaySizing.getGameplaySizing(newWidth, newHeight);
+            const sizing = getGameplaySizing(newWidth, newHeight);
 
-            state.pixiApp.renderer.resize(sizing.width, sizing.height);
+            pixiApp.renderer.resize(sizing.width, sizing.height);
 
             // Recalculate metrics based on the new size
-            const highwayMetrics = GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
-            const receptorPositions = GameplaySizing.getReceptorPositions(highwayMetrics, sizing.width, sizing.height);
-            const receptorSize = GameplaySizing.getReceptorSize(sizing.width, sizing.height);
 
-            if (state.highwayGraphics) state.highwayGraphics.redraw(highwayMetrics);
-            if (state.receptorGraphics) state.receptorGraphics.redraw(receptorPositions, receptorSize);
-            if (state.keyPressEffectGraphics) state.keyPressEffectGraphics.redraw(receptorPositions, receptorSize);
+            highwayGraphics.redraw();
+            receptorGraphics.redraw();
+            keyPressEffectGraphics.redraw();
             // Beatlines and notes will be redrawn on next _renderLoopContent call.
         },
         cleanup: () => {
             console.log('Cleaning up game instance...');
-            if (state.countdownIntervalId) clearInterval(state.countdownIntervalId);
-            if (state.finishAnimationTimerId) clearTimeout(state.finishAnimationTimerId);
-            if (state.soundInstance) {
-                state.soundInstance.destroy();
-                state.soundInstance = null;
+            if (countdownIntervalId) clearInterval(countdownIntervalId);
+            if (finishAnimationTimerId) clearTimeout(finishAnimationTimerId);
+            if (soundInstance) {
+                soundInstance.destroy();
+                soundInstance = null;
             }
-            if (state.sound) {
-                state.sound.destroy();
-                state.sound = null;
+            if (sound) {
+                sound.destroy();
             }
-            if (state.cleanupSubscriptions) {
-                state.cleanupSubscriptions();
+            if (cleanupSubscriptions) {
+                cleanupSubscriptions();
             }
-            if (state.pixiApp) {
-                state.pixiApp.ticker.stop();
-                state.mainContainer?.destroy({ children: true, texture: true });
-                state.pixiApp.destroy(true, { children: true, texture: true });
-                state.pixiApp = null;
+            if (pixiApp) {
+                pixiApp.ticker.stop();
+                mainContainer?.destroy({ children: true, texture: true });
+                pixiApp.destroy(true, { children: true, texture: true });
             }
         },
-        getCurrentPhase: () => state.phase,
-        isPaused: () => state.isPaused,
+        getCurrentPhase: () => phase,
+        isPaused: () => isPaused,
         getHighwayMetrics: () => {
-            if (!state.pixiApp || !state.canvasElementRef) return null;
-            const container = state.canvasElementRef.parentElement;
-            let width = state.pixiApp.screen.width;
-            let height = state.pixiApp.screen.height;
+            const container = pixiApp.canvas.parentElement;
+            let width = pixiApp.screen.width;
+            let height = pixiApp.screen.height;
             if (container) {
                 width = container.clientWidth;
                 height = container.clientHeight;
             }
-            const sizing = GameplaySizing.getGameplaySizing(width, height);
-            return GameplaySizing.getHighwayMetrics(state.chartData.numLanes, sizing.width, sizing.height);
+            const sizing = getGameplaySizing(width, height);
+            return getHighwayMetrics(chartData.lanes, sizing.width, sizing.height);
         }
     };
 }
-
-// Add `Application` to PIXI imports if not already there.
-// Ensure GameplaySizing, Colors, and rendering functions are correctly imported and available.
-// Note: Preferences import might be needed if used for keybindings etc.
-// The GameCallbacks getGamePhase, getIsPaused, getCountdownValue will require +page.svelte to pass functions that read its stores.
-
-// ... rest of the file remains unchanged ... 

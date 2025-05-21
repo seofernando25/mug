@@ -12,7 +12,7 @@ if (!S3_ENDPOINT || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY || !S3_REGION || 
 	throw new Error("S3 environment variables are missing");
 }
 
-const s3 = new S3Client({
+const s3Client = new S3Client({
 	endpoint: S3_ENDPOINT,
 	accessKeyId: S3_ACCESS_KEY_ID,
 	secretAccessKey: S3_SECRET_ACCESS_KEY,
@@ -20,4 +20,4 @@ const s3 = new S3Client({
 	bucket: S3_BUCKET,
 });
 
-export default s3;
+export default s3Client;

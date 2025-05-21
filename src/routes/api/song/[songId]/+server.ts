@@ -1,13 +1,12 @@
 // src/routes/api/song/[songId]/+server.ts
 import db from '$lib/server/db'; // Your Drizzle DB instance
 import { chartHitObject, song } from '$lib/server/db/music-schema.js'; // Your Drizzle schema tables
-import s3 from '$lib/server/s3'; // Your S3 client instance (Bun's S3Client)
+import s3Client from '$lib/server/s3'; // Your S3 client instance (Bun's S3Client)
 import { error, json } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm'; // Drizzle's equality comparator
+import type { RequestHandler } from './$types';
 
-
-
-export async function GET({ params }) {
+export const GET: RequestHandler = async ({ params }) => {
 	const songId = params.songId;
 
 	if (!songId) {
@@ -16,7 +15,7 @@ export async function GET({ params }) {
 
 	try {
 		// Query the database to get the song and all its related charts and hit objects
-		const songData = await db.query.song.findFirst({
+		const songDataFromDb = await db.query.song.findFirst({
 			where: eq(song.id, songId),
 			with: {
 				charts: {
@@ -32,7 +31,7 @@ export async function GET({ params }) {
 			},
 		});
 
-		if (!songData) {
+		if (!songDataFromDb) {
 			throw error(404, { message: 'Song not found.' });
 		}
 
@@ -41,51 +40,57 @@ export async function GET({ params }) {
 		// Consider making this configurable. 1 hour = 3600 seconds. Maybe longer for gameplay.
 		const urlExpirySeconds = 60 * 60 * 24; // 24 hours expiry for gameplay assets
 
-		const audioUrl = await s3.file(songData.audioS3Key).presign({
+		const audioUrl = await s3Client.file(songDataFromDb.audioS3Key).presign({
 			expiresIn: urlExpirySeconds,
 			// You might set ACL to public-read if the assets are meant to be public anyway
 			// acl: 'public-read',
 		});
 
-		let imageUrl: string | null = null;
-		if (songData.imageS3Key) {
+		let imageUrl: string | undefined = undefined;
+		if (songDataFromDb.imageS3Key) {
 			try {
-				imageUrl = await s3.file(songData.imageS3Key).presign({
+				imageUrl = await s3Client.file(songDataFromDb.imageS3Key).presign({
 					expiresIn: urlExpirySeconds,
 					// acl: 'public-read',
 				});
 			} catch (imgErr) {
-				console.warn(`Failed to presign image URL for key ${songData.imageS3Key}:`, imgErr);
+				console.warn(`Failed to presign image URL for key ${songDataFromDb.imageS3Key}:`, imgErr);
 				// Continue without image if presigning fails
-				imageUrl = null;
+				imageUrl = undefined;
 			}
 		}
 
+		// Map DB charts to ClientChart structure
+		const clientCharts = songDataFromDb.charts.map(c => ({
+			id: c.id,
+			difficultyName: c.difficultyName,
+			lanes: c.lanes,
+			noteScrollSpeed: c.noteScrollSpeed,
+			// TODO: Add lyrics to the response
+			lyrics: null,
+			hitObjects: c.hitObjects.map(ho => ({
+				time: ho.time,
+				lane: ho.lane,
+				type: ho.note_type,
+				duration: ho.duration,
+			})),
+		}));
+
 		// Structure the response payload
 		const responsePayload = {
-			id: songData.id,
-			title: songData.title,
-			artist: songData.artist,
-			bpm: songData.bpm, // Initial BPM
-			previewStartTime: songData.previewStartTime,
-			audioUrl: audioUrl, // S3 presigned URL
-			imageUrl: imageUrl, // S3 presigned URL or null
-			uploadDate: songData.uploadDate, // Might be useful metadata on client
-
-			charts: songData.charts.map(c => ({
-				id: c.id, // Chart UUID
-				difficultyName: c.difficultyName,
-				lanes: c.lanes,
-				noteScrollSpeed: c.noteScrollSpeed,
-				lyrics: c.lyrics, // JSONB lyrics
-				// Hit objects are embedded directly in the chart object for client consumption
-				hitObjects: c.hitObjects.map(ho => ({
-					time: ho.time,
-					lane: ho.lane,
-					type: ho.type,
-					duration: ho.duration,
-				})),
-			})),
+			...songDataFromDb, // Spread all properties from the base song query
+			audioS3Key: songDataFromDb.audioS3Key, // Ensure all Song properties are present
+			imageS3Key: songDataFromDb.imageS3Key, // Can be null
+			uploaderId: songDataFromDb.uploaderId,
+			audioFilename: songDataFromDb.audioFilename,
+			// Overwrite/add specific fields for SongDetail
+			audioUrl: audioUrl,
+			imageUrl: imageUrl,
+			charts: clientCharts,
+			// Ensure uploadDate is a string if SongDetail expects string, or Date if it expects Date.
+			// Drizzle timestamp typically returns Date objects, so if SongDetail.uploadDate is string, conversion is needed.
+			// For now, assuming Song.uploadDate (from $inferSelect) is Date and SongDetail also expects Date.
+			// uploadDate: songDataFromDb.uploadDate.toISOString(), // Example if string is needed
 		};
 
 		return json(responsePayload);
@@ -99,4 +104,4 @@ export async function GET({ params }) {
 		// Otherwise, return a generic 500 error
 		throw error(500, { message: 'Internal server error fetching song data.' });
 	}
-}
+};

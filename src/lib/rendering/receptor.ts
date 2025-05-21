@@ -1,20 +1,20 @@
 import { Graphics, Container, Application } from 'pixi.js';
 import { Colors } from '$lib/game'; // Adjusted path
-import type { ReceptorGraphics } from './types';
+import { get, type Readable } from 'svelte/store';
 
 export function drawReceptor(
-    app: Application, // app is unused
     parentContainer: Container,
-    positions: { x: number; y: number }[],
-    size: { width: number; height: number }
-): ReceptorGraphics {
+    positions: Readable<{ x: number; y: number }[]>,
+    size: Readable<{ width: number; height: number }>
+) {
+
     const receptorContainer = new Container();
     parentContainer.addChild(receptorContainer);
-    const individualReceptors: ReceptorGraphics['receptors'] = [];
+    const individualReceptors: { graphics: Graphics; flash: () => void; press: () => void; release: () => void }[] = [];
 
-    positions.forEach((pos, index) => {
+    get(positions).forEach((pos, index) => {
         const graphics = new Graphics();
-        graphics.rect(-size.width / 2, -size.height / 2, size.width, size.height)
+        graphics.rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
             .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
         graphics.x = pos.x;
         graphics.y = pos.y;
@@ -26,24 +26,24 @@ export function drawReceptor(
         };
         const press = () => {
             graphics.clear()
-                .rect(-size.width / 2, -size.height / 2, size.width, size.height)
+                .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
                 .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.9 });
         };
         const release = () => {
             graphics.clear()
-                .rect(-size.width / 2, -size.height / 2, size.width, size.height)
+                .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
                 .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
         };
 
         individualReceptors.push({ graphics, flash, press, release });
     });
 
-    const redraw = (newPositions: { x: number; y: number }[], newSize: { width: number; height: number }) => {
+    const redraw = () => {
         individualReceptors.forEach((receptor, index) => {
-            receptor.graphics.x = newPositions[index].x;
-            receptor.graphics.y = newPositions[index].y;
+            receptor.graphics.x = get(positions)[index].x;
+            receptor.graphics.y = get(positions)[index].y;
             receptor.graphics.clear()
-                .rect(-newSize.width / 2, -newSize.height / 2, newSize.width, newSize.height)
+                .rect(-get(size).width / 2, -get(size).height / 2, get(size).width, get(size).height)
                 .fill({ color: Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length], alpha: 0.3 });
         });
     };

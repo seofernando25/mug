@@ -1,24 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { type ChartData, type GamePhase, type Note, type SongData } from '$lib/game';
-	import { onMount } from 'svelte';
-
 	import ComboMeter from '$lib/components/ComboMeter.svelte';
 	import CountdownOverlay from '$lib/components/CountdownOverlay.svelte';
 	import FinishOverlay from '$lib/components/FinishOverlay.svelte';
-	import PauseScreen from '$lib/components/PauseScreen.svelte';
-	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
-	import ScreenPulse from '$lib/components/ScreenPulse.svelte';
 	import LevitatingTextOverlay from '$lib/components/LevitatingTextOverlay.svelte';
-	import { createGame, type GameInstance } from '$lib/game';
+	import PauseScreen from '$lib/components/PauseScreen.svelte';
+	import ScreenPulse from '$lib/components/ScreenPulse.svelte';
+	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
+	import { createGame, type GamePhase } from '$lib/game';
+	import { onMount } from 'svelte';
 
-	// Data from +page.ts load function, already transformed
-	const { data } = $props<{ data: { songId: string; songData: SongData; chartData: ChartData } }>();
-	const { songId, songData, chartData } = data;
-	// songData is GameSongData, chartData is GameChartData
+	const { data } = $props();
 
-	// For display purposes on SummaryScreen, etc.
-	const metadataDisplay = { title: songData.title, artist: songData.artist };
+	const metadataDisplay = { title: data.songData.title, artist: data.songData.artist };
 
 	let gamePhaseStore = $state<GamePhase>('loading');
 	let countdownValueStore = $state<number>(3);
@@ -32,7 +26,7 @@
 	let canvasElementContainer: HTMLDivElement;
 	let screenPulseComponent: ScreenPulse;
 
-	let gameInstance: GameInstance | null = null;
+	let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
 
 	// --- UI derived states ---
 	let showCountdownOverlay = $derived(gamePhaseStore === 'countdown');
@@ -49,42 +43,35 @@
 	// --- Svelte Lifecycle ---
 	onMount(() => {
 		let cleanupCalled = false;
-		let localGameInstance: GameInstance | null = null;
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
 				if (isPausedStore) {
-					localGameInstance?.resumeGame();
+					gameInstance?.resumeGame();
 					isPausedStore = false;
 				} else if (gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') {
-					localGameInstance?.pauseGame();
+					gameInstance?.pauseGame();
 					isPausedStore = true;
 				}
 				event.preventDefault();
 				return;
 			}
-			if (!localGameInstance || isPausedStore || gamePhaseStore !== 'playing') return;
-			localGameInstance.handleKeyPress(event.key.toLowerCase(), event);
+			if (!gameInstance || isPausedStore || gamePhaseStore !== 'playing') return;
+			gameInstance.handleKeyPress(event.key.toLowerCase(), event);
 		};
 
 		const handleKeyUp = (event: KeyboardEvent) => {
-			if (!localGameInstance) return;
+			if (!gameInstance) return;
 			if (gamePhaseStore === 'summary' || gamePhaseStore === 'finished') return;
-			localGameInstance.handleKeyRelease(event.key.toLowerCase(), event);
+			gameInstance.handleKeyRelease(event.key.toLowerCase(), event);
 		};
 
 		const handleResize = () => {
-			localGameInstance?.handleResize();
+			gameInstance?.handleResize();
 		};
 
 		const initializeGame = async () => {
-			if (!canvasElement || !canvasElementContainer) {
-				alert('Canvas element or container not found on mount.');
-				console.error('Canvas element or container not found on mount.');
-				return;
-			}
-
-			localGameInstance = createGame(songData, chartData, {
+			gameInstance = await createGame(data.songData, data.chartData, canvasElement, {
 				onPhaseChange: (phase: GamePhase) => {
 					gamePhaseStore = phase;
 					if (!(phase === 'playing' || phase === 'countdown')) {
@@ -98,7 +85,7 @@
 					currentComboStore = combo;
 					maxComboSoFarStore = maxCombo;
 				},
-				onNoteHit: (note: Note, judgment: string, color?: number) => {
+				onNoteHit: (note, judgment, color) => {
 					if (color && screenPulseComponent) {
 						const canvasRect = canvasElement.getBoundingClientRect();
 						// Get the highway metrics from the game instance
@@ -116,7 +103,7 @@
 						screenPulseComponent.triggerPulse(laneX, laneY, color, 0.3, 50, 300);
 					}
 				},
-				onNoteMiss: (note: Note) => {},
+				onNoteMiss: () => {},
 				getGamePhase: () => gamePhaseStore,
 				getIsPaused: () => isPausedStore,
 				getCountdownValue: () => countdownValueStore,
@@ -124,11 +111,9 @@
 					currentSongTimeMsStore = timeMs;
 				}
 			});
-			gameInstance = localGameInstance;
 
 			try {
-				await localGameInstance.initialize(canvasElement);
-				localGameInstance.beginGameplaySequence();
+				gameInstance.beginGameplaySequence();
 
 				window.addEventListener('keydown', handleKeyDown);
 				window.addEventListener('keyup', handleKeyUp);
@@ -136,9 +121,9 @@
 			} catch (err) {
 				console.error('Error during game initialization or event listener setup:', err);
 				alert('Failed to initialize the game. Please check the console for errors.');
-				if (localGameInstance) {
-					localGameInstance.cleanup();
-					localGameInstance = null;
+				if (gameInstance) {
+					gameInstance.cleanup();
+					gameInstance = null;
 					gameInstance = null;
 				}
 			}
@@ -156,7 +141,7 @@
 			window.removeEventListener('keyup', handleKeyUp);
 			window.removeEventListener('resize', handleResize);
 
-			localGameInstance?.cleanup();
+			gameInstance?.cleanup();
 			gameInstance = null;
 		};
 	});
@@ -181,7 +166,7 @@
 			maxCombo={maxComboSoFarStore}
 			songTitle={metadataDisplay.title}
 			artist={metadataDisplay.artist}
-			difficultyName={chartData.difficultyName}
+			difficultyName={data.chartData.difficultyName}
 			onRetry={() => {
 				console.log('Retry clicked on SummaryScreen');
 				currentScoreStore = 0;
@@ -227,9 +212,9 @@
 		<LevitatingTextOverlay
 			title={metadataDisplay.title}
 			artist={metadataDisplay.artist}
-			difficultyName={chartData.difficultyName}
+			difficultyName={data.chartData.difficultyName}
 			songTimeMs={currentSongTimeMsStore}
-			bpm={songData.bpm > 0 ? songData.bpm : 120}
+			bpm={data.songData.bpm > 0 ? data.songData.bpm : 120}
 		/>
 	{/if}
 
@@ -254,7 +239,7 @@
 		justify-content: center;
 		align-items: center;
 		position: relative;
-		background-color: #1a1a1a;
+		background-color: red;
 	}
 
 	canvas {

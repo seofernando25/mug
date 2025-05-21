@@ -1,79 +1,64 @@
-<!-- src/lib/components/songlist/SongDetailPanel.svelte -->
 <script lang="ts">
-	import type { SongDetail } from '$lib/client/api';
 	import { fade } from 'svelte/transition';
+	import type { SongListItem } from './types';
 
-	export let song: SongDetail | null = null; // Full song details
+	const {
+		song
+	}: {
+		song: SongListItem;
+	} = $props();
 
-	// Placeholder for leaderboard data and structure
-	interface ScoreEntry {
-		rank: number;
-		playerName: string;
-		score: number;
-		accuracy: number;
-		mods?: string[]; // e.g. ['HD', 'DT']
-		avatarUrl?: string;
-		timeAgo: string;
-	}
-
-	// Dummy leaderboard data - replace with actual data fetching based on selected song/difficulty
-	let leaderboard: ScoreEntry[] = [
+	// Dummy leaderboard data - replace with actual data fetching
+	// The structure should now align with LeaderboardEntry from $lib/types
+	let leaderboard = [
 		{
 			rank: 1,
-			playerName: 'Mikayla',
+			user: {
+				id: '1',
+				username: 'Mikayla',
+				displayUsername: 'Mikayla',
+				image: 'https://placekitten.com/32/32?image=1'
+			},
 			score: 1293803,
 			accuracy: 99.1,
-			avatarUrl: 'https://placekitten.com/32/32?image=1',
-			timeAgo: '2yrs'
+			maxCombo: 668, // Example value
+			playDate: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000) // Approx 2 years ago
 		},
 		{
 			rank: 2,
-			playerName: 'Haxwell',
+			user: {
+				id: '2',
+				username: 'Haxwell',
+				displayUsername: 'Haxwell',
+				image: 'https://placekitten.com/32/32?image=2'
+			},
 			score: 1270072,
 			accuracy: 98.52,
-			avatarUrl: 'https://placekitten.com/32/32?image=2',
-			timeAgo: '7yrs'
-		},
-		{
-			rank: 3,
-			playerName: 'anthonz2003',
-			score: 1204395,
-			accuracy: 98.12,
-			avatarUrl: 'https://placekitten.com/32/32?image=3',
-			timeAgo: '1yr'
-		},
-		{
-			rank: 4,
-			playerName: 'RESU',
-			score: 1187889,
-			accuracy: 100.0,
-			avatarUrl: 'https://placekitten.com/32/32?image=4',
-			timeAgo: '2mos'
-		},
-		{
-			rank: 5,
-			playerName: 'Jeby',
-			score: 1187397,
-			accuracy: 99.5,
-			avatarUrl: 'https://placekitten.com/32/32?image=5',
-			timeAgo: '7yrs'
-		} // Example with SS
-		// ... more scores
+			maxCombo: 667,
+			playDate: new Date(Date.now() - 7 * 365 * 24 * 60 * 60 * 1000)
+		}
+		// ... Add more entries matching LeaderboardEntry structure
 	];
 
-	let personalBest: ScoreEntry | null = {
+	let personalBest = {
 		rank: 130000,
-		playerName: 'SeoFernando',
+		user: {
+			id: 'currentUser',
+			username: 'SeoFernando',
+			displayUsername: 'SeoFernando',
+			image: 'https://placekitten.com/32/32?image=6'
+		},
 		score: 726168,
 		accuracy: 96.38,
-		avatarUrl: 'https://placekitten.com/32/32?image=6',
-		timeAgo: '5yrs'
+		maxCombo: 342,
+		playDate: new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)
 	};
 </script>
 
 {#if song}
 	<div class="p-6 bg-gray-850 text-white h-full flex flex-col" transition:fade={{ duration: 300 }}>
 		<!-- Top section with song details -->
+
 		<div
 			class="relative p-6 rounded-lg mb-6 shadow-xl bg-gray-800"
 			style:background-image={song.imageUrl
@@ -93,13 +78,6 @@
 						<span class="font-semibold text-gray-400">Uploaded:</span>
 						{new Date(song.uploadDate).toLocaleDateString()}
 					</p>
-					<!-- Add more song metadata here if needed -->
-					<p>
-						<span class="font-semibold text-gray-400">Star Rating:</span>
-						<span class="text-yellow-400">★★★★☆</span>
-						{song.charts[0]?.difficultyName || 'N/A'}
-					</p>
-					<!-- Example, needs actual star rating logic -->
 				</div>
 
 				<!-- Placeholder for Circle Size, Accuracy, HP Drain, Approach Rate -->
@@ -151,14 +129,14 @@
 				{#each leaderboard as entry (entry.rank)}
 					<li class="flex items-center p-2 bg-gray-750 rounded hover:bg-gray-700 transition-colors">
 						<span class="w-8 text-sm text-gray-400">{entry.rank}</span>
-						<img
-							src={entry.avatarUrl || 'https://placekitten.com/32/32'}
-							alt="{entry.playerName} avatar"
+						<!-- <img
+							src={entry.user.image || 'https://placekitten.com/32/32'}
+							alt="{entry.user.displayUsername || entry.user.username}'s avatar"
 							class="w-8 h-8 rounded-full mr-3"
-						/>
+						/> -->
 						<div class="flex-grow">
-							<span class="text-white">{entry.playerName}</span>
-							<p class="text-xs text-gray-400">{entry.timeAgo}</p>
+							<span class="text-white">{entry.user.displayUsername || entry.user.username}</span>
+							<p class="text-xs text-gray-400">{new Date(entry.playDate).toLocaleDateString()}</p>
 						</div>
 						<div class="text-right">
 							<span class="text-lg font-semibold text-purple-300"
@@ -175,14 +153,18 @@
 					<h4 class="text-lg font-semibold mb-2 text-purple-400">Your Personal Best</h4>
 					<li class="flex items-center p-2 bg-gray-750 rounded">
 						<span class="w-8 text-sm text-gray-400">{personalBest.rank.toLocaleString()}</span>
-						<img
-							src={personalBest.avatarUrl || 'https://placekitten.com/32/32'}
-							alt="{personalBest.playerName} avatar"
+						<!-- <img
+							src={personalBest.user.image || 'https://placekitten.com/32/32'}
+							alt="{personalBest.user.displayUsername || personalBest.user.username}'s avatar"
 							class="w-8 h-8 rounded-full mr-3"
-						/>
+						/> -->
 						<div class="flex-grow">
-							<span class="text-white">{personalBest.playerName}</span>
-							<p class="text-xs text-gray-400">{personalBest.timeAgo}</p>
+							<span class="text-white"
+								>{personalBest.user.displayUsername || personalBest.user.username}</span
+							>
+							<p class="text-xs text-gray-400">
+								{new Date(personalBest.playDate).toLocaleDateString()}
+							</p>
 						</div>
 						<div class="text-right">
 							<span class="text-lg font-semibold text-purple-300"

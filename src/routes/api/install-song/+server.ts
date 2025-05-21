@@ -1,7 +1,7 @@
 import { auth } from '$lib/server/auth.js';
 import db from '$lib/server/db';
 import { song, chart, chartHitObject } from '$lib/server/db/music-schema.js';
-import s3 from '$lib/server/s3/index.js';
+import s3Client from '$lib/server/s3/index.js';
 import { error, json } from '@sveltejs/kit';
 import { randomUUIDv7 } from 'bun';
 import { processFileAndExtractData, type ProcessedSongData, type ConvertedHitObject } from '$lib/server/conversion';
@@ -59,7 +59,7 @@ export async function POST({ request, locals }) {
         else if (imageFilename.toLowerCase().endsWith('.gif')) imageContentType = 'image/gif';
 
         try {
-            await s3.write(imageS3Key, processedData.imageContent, { type: imageContentType });
+            await s3Client.write(imageS3Key, processedData.imageContent, { type: imageContentType });
         } catch (s3Err: any) {
             console.error(`Warning: Failed to upload image ${imageS3Key} to S3:`, s3Err);
             imageS3Key = null;
@@ -67,7 +67,7 @@ export async function POST({ request, locals }) {
     }
 
     try {
-        await s3.write(audioS3Key, audioContent, { type: audioContentType });
+        await s3Client.write(audioS3Key, audioContent, { type: audioContentType });
     } catch (s3Err: any) {
         console.error(`Fatal Error: Failed to upload audio ${audioS3Key} to S3:`, s3Err);
         throw error(500, { message: `Failed to upload audio file to storage: ${s3Err.message || 'Unknown S3 error'}` });
@@ -102,7 +102,6 @@ export async function POST({ request, locals }) {
             for (let i = 0; i < processedData.charts.length; i++) {
                 const chartData = processedData.charts[i];
                 const hitObjectsForChart = processedData.hitObjects[i];
-                const chartUUID = randomUUIDv7();
 
                 const chartValidationResult = chartInsertSchema({
                     songId: newSongId,
@@ -113,9 +112,9 @@ export async function POST({ request, locals }) {
                 });
 
                 if (chartValidationResult instanceof type.errors) {
-                    console.error(`Chart ${i} schema validation failed:`, chartValidationResult.issues);
+                    console.error(`Chart ${i} schema validation failed:`, chartValidationResult.summary);
                     tx.rollback();
-                    throw new Error(`Processed chart data for chart ${i} is invalid: ${chartValidationResult.issues.map(i => i.message).join(', ')}`);
+                    throw new Error(`Processed chart data for chart ${i} is invalid: ${chartValidationResult.summary}`);
                 }
                 const validatedChartData = chartValidationResult;
 
@@ -128,7 +127,7 @@ export async function POST({ request, locals }) {
                             chartId: newChartId,
                             time: ho.time,
                             lane: ho.lane,
-                            type: ho.type,
+                            note_type: ho.type,
                             duration: ho.duration ?? null,
                         });
 

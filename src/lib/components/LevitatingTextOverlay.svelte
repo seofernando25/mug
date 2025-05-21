@@ -1,14 +1,7 @@
 <script lang="ts">
-	import { v8_0_0 } from 'pixi.js';
 	import type { Action } from 'svelte/action';
 
-	let {
-		songTimeMs = 0 as number,
-		bpm = 120 as number,
-		title = '' as string,
-		artist = '' as string,
-		difficultyName = '' as string
-	} = $props();
+	let { songTimeMs = 0, bpm = 120, title = '', artist = '', difficultyName = '' } = $props();
 
 	// Svelte Action for levitating text effect
 	const levitateText: Action<HTMLElement> = (node) => {

@@ -1,30 +1,33 @@
 <!-- src/lib/components/songlist/SongSearchSort.svelte -->
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
-	export let searchTerm = '';
-	// Add other props for sort/filter if needed later
-
-	const dispatch = createEventDispatcher();
+	let {
+		search,
+		sort,
+		searchTerm = $bindable('')
+	}: {
+		search: (searchTerm: string) => void;
+		sort: (sort: string) => void;
+		searchTerm: string;
+	} = $props();
 
 	function updateSearchTerm(event: Event) {
 		const target = event.target as HTMLInputElement;
-		searchTerm = target.value;
-		dispatch('search', searchTerm);
+		searchTerm = target.value as string;
+		search(searchTerm);
 	}
 
 	// Placeholder functions for other controls
 	function sortByTitle() {
 		console.log('Sort by Title');
-		dispatch('sort', 'title');
+		sort('title');
 	}
 	function sortByArtist() {
 		console.log('Sort by Artist');
-		dispatch('sort', 'artist');
+		sort('artist');
 	}
 	function sortByBPM() {
 		console.log('Sort by BPM');
-		dispatch('sort', 'bpm');
+		sort('bpm');
 	}
 	// ... other sort/filter functions
 </script>
@@ -33,15 +36,15 @@
 	<input
 		type="text"
 		bind:value={searchTerm}
-		on:input={updateSearchTerm}
+		oninput={updateSearchTerm}
 		placeholder="Type to search..."
 		class="w-full p-2 rounded bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
 	/>
 	<div class="mt-3 flex space-x-2 text-sm">
 		<span class="text-gray-400">Sort by:</span>
-		<button on:click={sortByTitle} class="hover:text-purple-300 transition-colors">Title</button>
-		<button on:click={sortByArtist} class="hover:text-purple-300 transition-colors">Artist</button>
-		<button on:click={sortByBPM} class="hover:text-purple-300 transition-colors">BPM</button>
+		<button onclick={sortByTitle} class="hover:text-purple-300 transition-colors">Title</button>
+		<button onclick={sortByArtist} class="hover:text-purple-300 transition-colors">Artist</button>
+		<button onclick={sortByBPM} class="hover:text-purple-300 transition-colors">BPM</button>
 		<!-- Add more buttons for Date Submitted, Date Added, Date Ranked, Last Played, Difficulty -->
 		<button class="hover:text-purple-300 transition-colors">Date Submitted</button>
 		<button class="hover:text-purple-300 transition-colors">Date Added</button>

@@ -1,5 +1,15 @@
 import JSZip from 'jszip';
 
+
+export interface OsuDifficulty {
+	overallDifficulty: number;
+	approachRate: number;
+	circleSize: number;
+	hpDrain: number;
+	sliderMultiplier: number;
+	sliderTickRate: number;
+}
+
 export interface OsuHitObject {
 	x: number;
 	y: number;
@@ -66,14 +76,50 @@ function parseOsuFileInternal(content: string) {
 		hitObjects.push(obj);
 	});
 
-	return { metadata, timingPoints, hitObjects };
+	const difficulty: OsuDifficulty = {
+		overallDifficulty: 0,
+		approachRate: 0,
+		circleSize: 0,
+		hpDrain: 0,
+		sliderMultiplier: 0,
+		sliderTickRate: 0
+	};
+
+
+
+	sections['Difficulty']?.forEach((line) => {
+		const [key, value] = line.split(':').map((s) => s.trim());
+		if (key && value) {
+			switch (key) {
+				case 'HPDrainRate':
+					difficulty.hpDrain = Number(value);
+					break;
+				case 'CircleSize':
+					difficulty.circleSize = Number(value);
+					break;
+				case 'OverallDifficulty':
+					difficulty.overallDifficulty = Number(value);
+					break;
+				case 'ApproachRate':
+					difficulty.approachRate = Number(value);
+					break;
+				case 'SliderMultiplier':
+					difficulty.sliderMultiplier = Number(value);
+					break;
+				case 'SliderTickRate':
+					difficulty.sliderTickRate = Number(value);
+					break;
+				default:
+					console.warn(`Unknown difficulty key: ${key}`);
+					break;
+			}
+		}
+	});
+
+	return { metadata, timingPoints, hitObjects, difficulty };
 }
 
-function convertToMugFormatInternal(osuData: {
-	metadata: { [key: string]: string };
-	timingPoints: OsuTimingPoint[];
-	hitObjects: OsuHitObject[];
-}) {
+function convertToMugFormatInternal(osuData: ReturnType<typeof parseOsuFileInternal>) {
 	const bpm = osuData.timingPoints[0] ? Math.round(60000 / osuData.timingPoints[0].beatLength) : 120;
 	const hitObjects = osuData.hitObjects.map((obj) => {
 		const lane = Math.min(3, Math.max(0, Math.floor((obj.x / 512) * 4)));
@@ -96,7 +142,7 @@ function convertToMugFormatInternal(osuData: {
 		charts: [{
 			difficultyName: osuData.metadata['Version'] || 'Normal',
 			lanes: 4,
-			noteScrollSpeed: 1.0,
+			noteScrollSpeed: osuData.difficulty.approachRate,
 			lyrics: [],
 			hitObjects,
 			mockLeaderboard: [

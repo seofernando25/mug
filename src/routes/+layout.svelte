@@ -6,7 +6,7 @@
 	import { isPaused } from '$lib/stores/settingsStore';
 	import '../app.css';
 
-	let { children, data } = $props();
+	let { children } = $props();
 
 	let sessionData = $state(authClient.useSession());
 
