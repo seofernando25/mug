@@ -99,6 +99,7 @@ export async function createGame(
     let keyStates: Record<string, boolean> = {};
     let currentSpeedMultiplier = 1.0;
     let pauseStartTimeMs = 0; // Added to track when pause began
+    let authoritativeAudioTimeMs: number = -1; // Time reported by audio engine, in MS
 
     let cleanupSubscriptions: (() => void) | null = null;
 
@@ -195,6 +196,14 @@ export async function createGame(
                                 return;
                             }
                             soundInstance = instance;
+                            authoritativeAudioTimeMs = 0; // Audio playback starts, set authoritative time to 0
+
+                            soundInstance.on('progress', (progress: number, duration: number) => {
+                                if (duration > 0) {
+                                    authoritativeAudioTimeMs = progress * duration * 1000;
+                                }
+                            });
+
                             soundInstance.on('end', () => {
                                 console.log('@pixi/sound: Audio instance ended');
                                 if (phase === 'playing') {
@@ -451,10 +460,28 @@ export async function createGame(
     function updateGameLoop(ticker: Ticker) {
         if (!pixiApp || phase === 'loading') return;
 
-        const currentTimeSystem = performance.now();
+        const systemTime = performance.now();
+
         if (!isPaused) {
-            currentSongTimeMs = currentTimeSystem - gameTimeStartMs;
+            // Calculate time based on system clock and gameTimeStartMs (which accounts for pauses)
+            currentSongTimeMs = systemTime - gameTimeStartMs;
+
+            // If authoritative audio time is available and sound is playing, apply smoothing
+            if (authoritativeAudioTimeMs >= 0 && phase === 'playing') {
+                const discrepancy = authoritativeAudioTimeMs - currentSongTimeMs;
+
+                const SMOOTHING_RATE_PER_SECOND = 0.8; // Adjust for smoother/quicker sync (e.g., 0.2 for slower, 0.8 for faster)
+                const correction = discrepancy * SMOOTHING_RATE_PER_SECOND * (ticker.deltaMS / 1000);
+
+                currentSongTimeMs += correction;
+
+                // IMPORTANT: After correcting currentSongTimeMs, update gameTimeStartMs
+                // so that the next frame's `systemTime - gameTimeStartMs` starts from this corrected point.
+                gameTimeStartMs = systemTime - currentSongTimeMs;
+            }
         }
+        // else if (isPaused), currentSongTimeMs remains unchanged. gameTimeStartMs is adjusted on resume.
+
 
         if (callbacks.onTimeUpdate) {
             callbacks.onTimeUpdate(currentSongTimeMs);
@@ -521,19 +548,23 @@ export async function createGame(
 
     function _processNoteHit(key: string, laneIndex: number) {
         if (!pixiApp) return;
-        const PERFECT_WINDOW_MS = Preferences.prefs.gameplay.perfectWindowMs ?? 30;
-        const EXCELLENT_WINDOW_MS = Preferences.prefs.gameplay.excellentWindowMs ?? 60;
-        const GOOD_WINDOW_MS = Preferences.prefs.gameplay.goodWindowMs ?? 90;
-        const MEH_WINDOW_MS = Preferences.prefs.gameplay.mehWindowMs ?? 150; // Changed from okWindowMs
+        // Timing windows are sourced from Preferences and available in this scope:
+        // PERFECT_WINDOW_MS, EXCELLENT_WINDOW_MS, GOOD_WINDOW_MS, MEH_WINDOW_MS
 
-        for (let i = notes.length - 1; i >= upcomingNoteIndex; i--) {
+        // Iterate forward from the upcomingNoteIndex
+        for (let i = upcomingNoteIndex; i < notes.length; i++) {
             const note = notes[i];
-            if (note.lane !== laneIndex || note.isHit || note.isMissed) continue;
+
+            // Skip if not in the correct lane or already judged
+            if (note.lane !== laneIndex || note.isHit || note.isMissed) {
+                continue;
+            }
 
             const timeDifference = note.time - currentSongTimeMs; // Negative if late, positive if early
             const absTimeDifference = Math.abs(timeDifference);
 
-            if (absTimeDifference <= MEH_WINDOW_MS) { // Check if within the widest judgment window (Meh)
+            // Check if the note is within the widest hittable window (Meh)
+            if (absTimeDifference <= MEH_WINDOW_MS) {
                 let judgment = '';
                 let score = 0;
 
@@ -570,8 +601,23 @@ export async function createGame(
                 if (receptorGraphics && receptorGraphics.receptors[laneIndex]) {
                     receptorGraphics.receptors[laneIndex].flash();
                 }
-                return; // Note processed
+
+                // CRUCIAL: A note has been hit and processed. Exit the function
+                // to ensure only this one note is hit for this key press.
+                return;
             }
+
+            // Optimization: If this note is too far in the future (player is too early for it),
+            // and notes are sorted by time, then all subsequent notes in this lane
+            // will also be too early. So, we can stop searching in this lane for this key press.
+            if (timeDifference > MEH_WINDOW_MS) {
+                break; // Exit the loop for this lane
+            }
+            // If timeDifference is negative and absTimeDifference > MEH_WINDOW_MS,
+            // this note is too late (player pressed too late for it).
+            // The `upcomingNoteIndex` advance logic in `updateGameLoop` should ideally
+            // handle marking such notes as missed. We continue checking subsequent notes
+            // in case upcomingNoteIndex hasn't caught up, though this note itself is not hittable.
         }
     }
 
@@ -613,6 +659,7 @@ export async function createGame(
             currentCombo = 0;
             maxCombo = 0;
             currentSongTimeMs = 0;
+            authoritativeAudioTimeMs = -1; // Reset authoritative audio time
             isPaused = false;
             // Clear old judgment texts by lane
             Object.values(judgmentTextsByLane).forEach(jt => {
