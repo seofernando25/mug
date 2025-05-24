@@ -16,7 +16,7 @@ export const checkUsernameProcedure = routerBaseContext
 			const users = await db
 				.select({ id: userSchema.id })
 				.from(userSchema)
-				.where(eq(userSchema.username, input.username))
+				.where(eq(userSchema.username, input.username.toLowerCase()))
 				.limit(1)
 				.execute();
 

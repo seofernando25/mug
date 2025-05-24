@@ -3,8 +3,9 @@
 	import { browser } from '$app/environment';
 
 	// Import types, but not the actual implementation that might rely on browser APIs during SSR
-	import type { GameInstance, GameCallbacks, GamePhase } from '$lib/game/game.client';
-	import type { SongData, ChartData, Note } from '$lib/game/types';
+	import type { GamePhase } from '$lib/game/game.client';
+	// Corrected import path and aliased types
+	import type { ClientSong as SongData, ClientChart as ChartData, ChartHitObject as Note } from '$lib/types';
 
 	// Assume we will get song and chart data as props
 	// You will need to pass these down from the parent page.
@@ -12,7 +13,8 @@
 
 	let pixiCanvas: HTMLCanvasElement;
 
-	let gameInstance: GameInstance | null = null;
+	// Infer the type of gameInstance from the resolved value of createGame
+	let gameInstance: Awaited<ReturnType<typeof import('$lib/game/game.client').createGame>> | null = null;
 
 	// Define the async initialization function
 	async function initializeGame() {
@@ -22,7 +24,7 @@
 		const { createGame } = await import('$lib/game/game.client');
 
 		// Define the callbacks needed for createGame, explicitly typing them
-		const gameCallbacks: GameCallbacks = {
+		const gameCallbacks = {
 			onPhaseChange: (phase: GamePhase) => { console.log('Phase Change:', phase); },
 			onCountdownUpdate: (value: number) => { console.log('Countdown:', value); },
 			onSongEnd: () => { console.log('Song End'); },
@@ -35,14 +37,9 @@
 			onTimeUpdate: (currentTimeMs: number) => { /* console.log('Time:', currentTimeMs); */ }, // Correctly typed placeholder
 		};
 
-		// Create the game instance
-		gameInstance = createGame(songData, chartData, gameCallbacks);
-
-		// Initialize the game with the canvas element
-		await gameInstance.initialize(pixiCanvas);
-
-		// Optionally begin the gameplay sequence or other setup
-		// gameInstance.beginGameplaySequence();
+		// Create the game instance (awaiting the promise)
+		const instance = await createGame(songData, chartData, pixiCanvas, gameCallbacks); // Added pixiCanvas and awaited
+		gameInstance = instance; // Assign the resolved instance
 	}
 
 	// Use an effect to call the async function when dependencies are ready

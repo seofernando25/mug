@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Waves from '../home/Waves.svelte';
 	import ImportLevel from '$lib/components/ImportLevel.svelte';
+	import { goto } from '$app/navigation';
 </script>
 
 <svelte:head>
@@ -19,6 +20,7 @@
 			<!-- Create Custom Level Button -->
 			<button
 				class="group block bg-gradient-to-r from-purple-600 to-indigo-600 p-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out hover:-translate-y-2"
+				on:click={() => goto('/level-creator/create')}
 			>
 				<h2
 					class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center"
