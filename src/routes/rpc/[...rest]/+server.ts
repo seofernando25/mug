@@ -1,11 +1,7 @@
-import { error, type RequestHandler } from '@sveltejs/kit'
-import { RPCHandler } from '@orpc/server/fetch'
-import { router } from '$lib/server/rpc/router'
-
-const handler = new RPCHandler(router)
+import { handler } from '$lib/server/rpc/router'
+import { type RequestHandler } from '@sveltejs/kit'
 
 const handle: RequestHandler = async ({ request }) => {
-	// console.log('Request headers:', request.headers);
 	const { response } = await handler.handle(request, {
 		prefix: '/rpc',
 		context: { headers: request.headers }
