@@ -1,0 +1,21 @@
+{
+  "name": "db",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/",
+  "scripts": {
+    "push": "bunx drizzle-kit push",
+    "studio": "bunx drizzle-kit studio",
+    "gen-auth": "bunx --bun  @better-auth/cli generate  --config ./src/index.ts  --output ./src/auth-schema.ts -y"
+  },
+  "devDependencies": {
+    "@better-auth/cli": "^1.2.8",
+    "@types/bun": "latest",
+    "better-auth": "^1.2.8",
+    "drizzle-orm": "^0.43.1",
+    "typescript": "^5"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
