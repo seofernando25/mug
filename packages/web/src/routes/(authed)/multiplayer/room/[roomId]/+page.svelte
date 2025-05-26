@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { orpcClient } from '$lib/rpc-client';
+	import { onMount } from 'svelte';
 
 	let roomId = $state<number | null>(null);
 	let roomDetails = $state<any | null>(null);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 
-	let isPlayerVisible = false;
+	let isPlayerVisible = $state(false);
 	// Placeholder for actual track data later
 	let trackName = 'Eternal Bliss';
 	let artistName = 'Emiru no Aishita Tsukiyo ni Dai San Gensou Kyoku wo';
@@ -42,7 +42,7 @@
 
 <div class="relative">
 	<button
-		on:click={togglePlayer}
+		onclick={togglePlayer}
 		class="p-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
 		aria-label="Toggle music player"
 	>

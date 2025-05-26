@@ -1,95 +1,92 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import gsap from 'gsap';
+	import { onMount } from 'svelte';
+	import gsap from 'gsap';
 
-  let svgElement: SVGElement | null = null;
+	let svgElement: SVGElement | null = null;
 
-  // The original top-level `const tl = gsap.timeline();` from the user's script was unused here.
-  // The Line function creates its own local timelines.
+	const Line = (el: Element) => {
+		const paths = el.querySelectorAll('.path');
 
-  const Line = ($el: Element) => {
-    const $paths = $el.querySelectorAll('.path');
-    // if ($paths.length === 0) {
-    //   // No paths found in this .g element, animation might not apply as expected.
-    //   // console.warn('No .path elements found in', $el);
-    //   // return; 
-    // }
+		const tl = gsap.timeline();
+		const duration = gsap.utils.random(40, 80);
+		const y = gsap.utils.random(-250, 250);
+		const rotate = gsap.utils.random(-20, 20);
+		const scaleXFrom = gsap.utils.random(2, 2.5);
+		const scaleXTo = gsap.utils.random(1.5, 1.75);
+		const scaleYFrom = gsap.utils.random(1.5, 2);
+		const scaleYTo = gsap.utils.random(0.6, 0.7);
+		const opacityFrom = gsap.utils.random(0.75, 0.8);
+		const opacityTo = gsap.utils.random(0.85, 1);
+		const ease = gsap.utils.random(['power2.inOut', 'power3.inOut', 'power4.inOut', 'sine.inOut']);
 
-    const tl = gsap.timeline();
-    const duration = gsap.utils.random(40, 80);
-    const y = gsap.utils.random(-250, 250);
-    const rotate = gsap.utils.random(-20, 20);
-    const scaleXFrom = gsap.utils.random(2, 2.5);
-    const scaleXTo = gsap.utils.random(1.5, 1.75);
-    const scaleYFrom = gsap.utils.random(1.5, 2);
-    const scaleYTo = gsap.utils.random(0.6, 0.7);
-    const opacityFrom = gsap.utils.random(0.75, 0.8);
-    const opacityTo = gsap.utils.random(0.85, 1);
-    const ease = gsap.utils.random(['power2.inOut', 'power3.inOut', 'power4.inOut', 'sine.inOut']);
+		tl.to(paths, {
+			xPercent: -100,
+			duration: duration,
+			ease: 'none',
+			repeat: -1
+		});
 
-    tl.to($paths, {
-      xPercent: -100,
-      duration: duration,
-      ease: 'none',
-      repeat: -1
-    });
+		tl.fromTo(
+			el,
+			{
+				y,
+				opacity: opacityFrom,
+				rotate,
+				scaleY: scaleYFrom,
+				scaleX: scaleXFrom,
+				transformOrigin: '50% 50%'
+			},
+			{
+				y: y * -1,
+				opacity: opacityTo,
+				rotate: rotate * -1,
+				scaleY: scaleYTo,
+				scaleX: scaleXTo,
+				repeat: -1,
+				yoyo: true,
+				yoyoEase: ease as string, // GSAP types might need this assertion
+				duration: duration * 0.25,
+				ease: ease as string, // GSAP types might need this assertion
+				transformOrigin: '50% 50%'
+			},
+			0
+		);
 
-    tl.fromTo(
-      $el,
-      {
-        y,
-        opacity: opacityFrom,
-        rotate,
-        scaleY: scaleYFrom,
-        scaleX: scaleXFrom,
-        transformOrigin: '50% 50%'
-      },
-      {
-        y: y * -1,
-        opacity: opacityTo,
-        rotate: rotate * -1,
-        scaleY: scaleYTo,
-        scaleX: scaleXTo,
-        repeat: -1,
-        yoyo: true,
-        yoyoEase: ease as string, // GSAP types might need this assertion
-        duration: duration * 0.25,
-        ease: ease as string, // GSAP types might need this assertion
-        transformOrigin: '50% 50%'
-      },
-      0
-    );
+		tl.seek(gsap.utils.random(10, 20));
+	};
 
-    tl.seek(gsap.utils.random(10, 20));
-  };
+	onMount(() => {
+		if (svgElement) {
+			const gElements = svgElement.querySelectorAll('.g');
+			// gsap.utils.toArray correctly handles NodeListOf<Element>
+			gsap.utils.toArray(gElements).forEach((el) => {
+				if (el instanceof Element) {
+					Line(el);
+				}
+			});
 
-  onMount(() => {
-    if (svgElement) {
-      const gElements = svgElement.querySelectorAll('.g');
-      // gsap.utils.toArray correctly handles NodeListOf<Element>
-      gsap.utils.toArray(gElements).forEach((el) => {
-        if (el instanceof Element) {
-          Line(el);
-        }
-      });
+			// The SVG's initial opacity is set to 0 by the style block.
+			// This will animate it to 1.
+			gsap.to(svgElement, { opacity: 1, duration: 1 });
+		}
 
-      // The SVG's initial opacity is set to 0 by the style block.
-      // This will animate it to 1.
-      gsap.to(svgElement, { opacity: 1, duration: 1 });
-    }
-
-    return () => {
-      // Cleanup GSAP animations when the component is destroyed
-      if (svgElement) {
-        const gElements = svgElement.querySelectorAll('.g');
-        gsap.killTweensOf(gElements);
-        gsap.killTweensOf(svgElement);
-      }
-    };
-  });
+		return () => {
+			// Cleanup GSAP animations when the component is destroyed
+			if (svgElement) {
+				const gElements = svgElement.querySelectorAll('.g');
+				gsap.killTweensOf(gElements);
+				gsap.killTweensOf(svgElement);
+			}
+		};
+	});
 </script>
 
-<svg bind:this={svgElement} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+<svg
+	bind:this={svgElement}
+	xmlns="http://www.w3.org/2000/svg"
+	viewBox="0 0 1920 1080"
+	preserveAspectRatio="none"
+>
 	<defs />
 	<linearGradient
 		id="SVGID_1_"
@@ -111,7 +108,7 @@
 		y2="170.6"
 		gradientUnits="userSpaceOnUse"
 	>
-		<stop offset="0" stop-color="#007bff" /> 
+		<stop offset="0" stop-color="#007bff" />
 		<stop offset="1" stop-color="#0056b3" />
 	</linearGradient>
 
@@ -180,13 +177,11 @@
 </svg>
 
 <style>
-svg {
-    background: radial-gradient(circle, rgb(0, 0, 0) 0%,rgb(27, 33, 51) 100%);
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-}
-
+	svg {
+		background: radial-gradient(circle, rgb(0, 0, 0) 0%, rgb(27, 33, 51) 100%);
+		position: absolute;
+		width: 100%;
+		height: 100%;
+		opacity: 0;
+	}
 </style>
-

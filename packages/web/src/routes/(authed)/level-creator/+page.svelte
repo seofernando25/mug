@@ -20,7 +20,7 @@
 			<!-- Create Custom Level Button -->
 			<button
 				class="group block bg-gradient-to-r from-purple-600 to-indigo-600 p-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out hover:-translate-y-2"
-				on:click={() => goto('/level-creator/create')}
+				onclick={() => goto('/level-creator/create')}
 			>
 				<h2
 					class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center"

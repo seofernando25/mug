@@ -1,1 +1,0 @@
-Routes that require a session to not be present.

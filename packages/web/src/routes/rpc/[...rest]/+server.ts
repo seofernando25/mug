@@ -1,5 +1,5 @@
-import { handler } from '$lib/server/rpc/router'
 import { type RequestHandler } from '@sveltejs/kit'
+import { handler } from 'api/src/router'
 
 const handle: RequestHandler = async ({ request }) => {
 	const { response } = await handler.handle(request, {

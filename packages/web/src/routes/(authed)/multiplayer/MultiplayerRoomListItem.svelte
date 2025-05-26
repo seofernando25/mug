@@ -7,13 +7,6 @@
 
 	const { room }: { room: RoomListItem } = $props();
 
-	// TODO: Later, more sophisticated status/game mode icons or colors
-	const getStatusColor = (status: string | undefined | null) => {
-		if (status === 'Playing') return 'bg-red-500';
-		if (status === 'Freestyle') return 'bg-blue-500';
-		return 'bg-green-500'; // Open
-	};
-
 	const isPasswordProtected = $derived(room.isPasswordProtected);
 	const coverUrl = $derived(room.currentChart?.coverUrl);
 	const beatmapName = $derived(room.currentChart?.name ?? 'No beatmap selected');

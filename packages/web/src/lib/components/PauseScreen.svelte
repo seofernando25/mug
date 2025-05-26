@@ -1,4 +1,3 @@
-<!-- Placeholder for PauseScreen component -->
 <script lang="ts">
 	import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
 

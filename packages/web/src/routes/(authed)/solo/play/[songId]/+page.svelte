@@ -9,7 +9,7 @@
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
 	import ScoreDisplay from '$lib/components/ScoreDisplay.svelte';
 	import { onMount } from 'svelte';
-	import { createGame, type GamePhase } from '$lib/game/game.js';
+	import { createGameEngine, type GameEngineInstance, type GamePhase } from '$lib/game/game-engine.js';
 
 	const { data } = $props();
 
@@ -23,18 +23,17 @@
 	let isPausedStore = $state<boolean>(false);
 	let currentSongTimeMsStore = $state<number>(0); // New store for current song time
 
-	let canvasElement: HTMLCanvasElement;
 	let canvasElementContainer: HTMLDivElement;
 	let screenPulseComponent: ScreenPulse;
 
-	let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
+	let gameInstance: GameEngineInstance | null = null;
 
 	// --- UI derived states ---
 	let showCountdownOverlay = $derived(gamePhaseStore === 'countdown');
 	let showFinishOverlay = $derived(gamePhaseStore === 'finished');
-	let showSummaryScreen = $derived(gamePhaseStore === 'summary');
+	let showSummaryScreen = $derived(gamePhaseStore === 'finished');
 	let showPauseScreen = $derived(
-		isPausedStore && gamePhaseStore !== 'summary' && gamePhaseStore !== 'finished'
+		isPausedStore && gamePhaseStore !== 'finished'
 	);
 	let showLevitatingTextOverlay = $derived(
 		gamePhaseStore === 'playing' || gamePhaseStore === 'countdown'
@@ -65,12 +64,12 @@
 
 		const handleKeyUp = (event: KeyboardEvent) => {
 			if (!gameInstance) return;
-			if (gamePhaseStore === 'summary' || gamePhaseStore === 'finished') return;
+			if (gamePhaseStore === 'finished') return;
 			gameInstance.handleKeyRelease(event.key.toLowerCase(), event);
 		};
 
 		const handleResize = () => {
-			gameInstance?.handleResize();
+			gameInstance?.handleResize?.();
 		};
 
 		const handlePageFocusChange = () => {
@@ -101,7 +100,7 @@
 		};
 
 		const initializeGame = async () => {
-			gameInstance = await createGame(data.songData, data.chartData, canvasElement, {
+			gameInstance = await createGameEngine(data.songData, data.chartData, {
 				onPhaseChange: (phase: GamePhase) => {
 					gamePhaseStore = phase;
 					if (!(phase === 'playing' || phase === 'countdown')) {
@@ -115,35 +114,29 @@
 					currentComboStore = combo;
 					maxComboSoFarStore = maxCombo;
 				},
-				onNoteHit: (note, judgment, color) => {
-					if (color && screenPulseComponent) {
-						const canvasRect = canvasElement.getBoundingClientRect();
-						// Get the highway metrics from the game instance
-						const highwayMetrics = gameInstance?.getHighwayMetrics();
-						if (!highwayMetrics) return;
-
-						// Calculate the exact position in the lane
-						const laneX =
-							canvasRect.left +
-							highwayMetrics.x +
-							highwayMetrics.laneWidth * note.lane +
-							highwayMetrics.laneWidth / 2;
-						const laneY = canvasRect.top + highwayMetrics.judgmentLineYPosition;
-
+				onNoteHit: (noteId, judgment, score, lane) => {
+					if (lane !== undefined && screenPulseComponent) {
+						const containerRect = canvasElementContainer.getBoundingClientRect();
+						// Estimate lane position based on container width and lane count
+						const laneWidth = containerRect.width / data.chartData.lanes;
+						const laneX = containerRect.left + laneWidth * lane + laneWidth / 2;
+						const laneY = containerRect.top + containerRect.height * 0.8; // Estimate receptor position
+						
+						// Use a default color based on lane
+						const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+						const color = colors[lane % colors.length];
+						
 						screenPulseComponent.triggerPulse(laneX, laneY, color, 0.3, 50, 300);
 					}
 				},
 				onNoteMiss: () => {},
-				getGamePhase: () => gamePhaseStore,
-				getIsPaused: () => isPausedStore,
-				getCountdownValue: () => countdownValueStore,
 				onTimeUpdate: (timeMs: number) => {
 					currentSongTimeMsStore = timeMs;
 				}
 			});
 
 			try {
-				gameInstance.beginGameplaySequence();
+				gameInstance.startGameplay();
 
 				window.addEventListener('keydown', handleKeyDown);
 				window.addEventListener('keyup', handleKeyUp);
@@ -155,7 +148,6 @@
 				alert('Failed to initialize the game. Please check the console for errors.');
 				if (gameInstance) {
 					gameInstance.cleanup();
-					gameInstance = null;
 					gameInstance = null;
 				}
 			}
@@ -190,7 +182,7 @@
 	bind:this={canvasElementContainer}
 	style="--bg-url: url('{data.songData.imageUrl}');"
 >
-	<canvas bind:this={canvasElement}></canvas>
+	<!-- Canvas is now managed by the game engine -->
 	<ScreenPulse bind:this={screenPulseComponent} />
 	{#if showCountdownOverlay}
 		<CountdownOverlay countdownValue={countdownValueStore} />
@@ -211,7 +203,7 @@
 				currentComboStore = 0;
 				maxComboSoFarStore = 0;
 				isPausedStore = false;
-				gameInstance?.beginGameplaySequence();
+				gameInstance?.startGameplay();
 			}}
 			onExit={() => {
 				if (gameInstance) {
@@ -234,7 +226,7 @@
 				currentComboStore = 0;
 				maxComboSoFarStore = 0;
 				isPausedStore = false;
-				gameInstance?.beginGameplaySequence();
+				gameInstance?.startGameplay();
 			}}
 			onExit={() => {
 				if (gameInstance) {
@@ -298,9 +290,5 @@
 		pointer-events: none;
 	}
 
-	canvas {
-		width: 100%;
-		height: 100%;
-		display: block;
-	}
+
 </style>
