@@ -33,6 +33,7 @@ export class StatsRenderer {
 
 	constructor(initialConfig: StatsRendererConfig, screenWidth: number, screenHeight: number) {
 		this.container = new PIXI.Container();
+		this.container.label = "StatsRenderer";
 		this.config = {
 			initialScore: 0,
 			initialCombo: 0,

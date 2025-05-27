@@ -5,6 +5,8 @@ import { PlayfieldRenderer, type PlayfieldRendererConfig } from './PlayfieldRend
 import { JudgmentRenderer, type JudgmentStyle, type JudgmentAnimationConfig } from './JudgmentRenderer';
 import { EffectsRenderer, type HitEffectConfig } from './EffectsRenderer';
 import { StatsRenderer, type StatsRendererConfig } from './StatsRenderer';
+import { ProgressBarRenderer, type ProgressBarConfig } from '../ui/ProgressBarRenderer';
+import { BackgroundRenderer, type BackgroundConfig } from './BackgroundRenderer';
 
 export interface MainGameRendererConfig {
 	playfieldSizing: PlayfieldSizingParams;
@@ -12,6 +14,8 @@ export interface MainGameRendererConfig {
 	judgmentStyles?: Map<NoteJudgment['type'], JudgmentStyle>;
 	judgmentAnimation?: JudgmentAnimationConfig;
 	stats?: StatsRendererConfig;
+	progressBar?: ProgressBarConfig;
+	background?: BackgroundConfig;
 	screenWidth: number;
 	screenHeight: number;
 	numLanes: number;
@@ -19,10 +23,12 @@ export interface MainGameRendererConfig {
 
 export class MainGameRenderer {
 	private app: PIXI.Application;
+	private backgroundRenderer?: BackgroundRenderer;
 	private playfieldRenderer: PlayfieldRenderer;
 	private judgmentRenderer: JudgmentRenderer;
 	private effectsRenderer: EffectsRenderer;
 	private statsRenderer?: StatsRenderer;
+	private progressBarRenderer?: ProgressBarRenderer;
 
 	private config: MainGameRendererConfig;
 	private currentPlayfieldLayout: PlayfieldLayout | null = null;
@@ -30,6 +36,12 @@ export class MainGameRenderer {
 	constructor(app: PIXI.Application, initialConfig: MainGameRendererConfig) {
 		this.app = app;
 		this.config = initialConfig;
+
+		// Background renderer should be added first (bottom layer)
+		if (initialConfig.background) {
+			this.backgroundRenderer = new BackgroundRenderer(initialConfig.background);
+			this.app.stage.addChild(this.backgroundRenderer.container);
+		}
 
 		this.playfieldRenderer = new PlayfieldRenderer(this.app.stage, initialConfig.playfield);
 
@@ -42,6 +54,11 @@ export class MainGameRenderer {
 		if (initialConfig.stats) {
 			this.statsRenderer = new StatsRenderer(initialConfig.stats, initialConfig.screenWidth, initialConfig.screenHeight);
 			this.app.stage.addChild(this.statsRenderer.container);
+		}
+
+		if (initialConfig.progressBar) {
+			this.progressBarRenderer = new ProgressBarRenderer(initialConfig.progressBar);
+			this.app.stage.addChild(this.progressBarRenderer.container);
 		}
 
 		this.draw(initialConfig);
@@ -58,14 +75,13 @@ export class MainGameRenderer {
 			return;
 		}
 
-		const playfieldConfig: PlayfieldRendererConfig = {
+		this.playfieldRenderer.onResize({
 			...this.config.playfield,
 			x: this.currentPlayfieldLayout.position.x,
 			y: this.currentPlayfieldLayout.position.y,
 			scale: this.currentPlayfieldLayout.scale,
 			numLanes: this.config.numLanes,
-		};
-		this.playfieldRenderer.onResize(playfieldConfig);
+		});
 
 		// Judgment and effects are typically positioned absolutely or relative to hits,
 		// but their containers might need repositioning if they are meant to be globally centered
@@ -77,14 +93,13 @@ export class MainGameRenderer {
 		this.calculateAndApplyLayout(config.screenWidth, config.screenHeight);
 
 		if (this.currentPlayfieldLayout) {
-			const currentPlayfieldFullConfig: PlayfieldRendererConfig = {
+			this.playfieldRenderer.draw({
 				...this.config.playfield,
 				x: this.currentPlayfieldLayout.position.x,
 				y: this.currentPlayfieldLayout.position.y,
 				scale: this.currentPlayfieldLayout.scale,
 				numLanes: this.config.numLanes,
-			};
-			this.playfieldRenderer.draw(currentPlayfieldFullConfig);
+			});
 		} else {
 			this.playfieldRenderer.draw(this.config.playfield);
 		}
@@ -105,8 +120,14 @@ export class MainGameRenderer {
 		this.config.screenWidth = screenWidth;
 		this.config.screenHeight = screenHeight;
 		this.calculateAndApplyLayout(screenWidth, screenHeight);
+		if (this.backgroundRenderer) {
+			this.backgroundRenderer.onResize(screenWidth, screenHeight);
+		}
 		if (this.statsRenderer) {
 			this.statsRenderer.onResize(screenWidth, screenHeight);
+		}
+		if (this.progressBarRenderer) {
+			this.progressBarRenderer.onResize(screenWidth, screenHeight);
 		}
 	}
 
@@ -157,21 +178,51 @@ export class MainGameRenderer {
 		}
 	}
 
+	public updateProgress(progress: number): void {
+		if (this.progressBarRenderer) {
+			this.progressBarRenderer.updateProgress(progress);
+		}
+	}
+
+	public updateProgressBarConfig(config: ProgressBarConfig): void {
+		if (this.progressBarRenderer) {
+			this.progressBarRenderer.updateConfig(config);
+		}
+	}
+
+	public updateBackgroundConfig(config: BackgroundConfig): void {
+		if (this.backgroundRenderer) {
+			this.backgroundRenderer.updateConfig(config);
+		}
+	}
+
 	public setVisibility(visible: boolean): void {
+		if (this.backgroundRenderer) {
+			this.backgroundRenderer.setVisibility(visible);
+		}
 		this.playfieldRenderer.setVisibility(visible);
 		this.judgmentRenderer.setVisibility(visible);
 		this.effectsRenderer.setVisibility(visible);
 		if (this.statsRenderer) {
 			this.statsRenderer.setVisibility(visible);
 		}
+		if (this.progressBarRenderer) {
+			this.progressBarRenderer.setVisibility(visible);
+		}
 	}
 
 	public destroy(): void {
+		if (this.backgroundRenderer) {
+			this.backgroundRenderer.destroy();
+		}
 		this.playfieldRenderer.destroy();
 		this.judgmentRenderer.destroy();
 		this.effectsRenderer.destroy();
 		if (this.statsRenderer) {
 			this.statsRenderer.destroy();
+		}
+		if (this.progressBarRenderer) {
+			this.progressBarRenderer.destroy();
 		}
 	}
 } 

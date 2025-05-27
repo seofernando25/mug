@@ -17,6 +17,11 @@ export interface PlayfieldSizingParams {
 	referenceWidth?: number;
 	minMargin?: number;
 	maxUpscaleRatio?: number;
+	// osu!mania specific parameters
+	portraitBaseScale?: number; // Default 1.25 for mobile playability
+	portraitSideGap?: number; // Default 0.9 (90% width usage)
+	landscapeTargetWidth?: number; // Default 1024
+	landscapeTargetHeight?: number; // Default 768
 }
 
 interface PlayfieldDesign {
@@ -25,18 +30,10 @@ interface PlayfieldDesign {
 }
 
 export class PlayfieldSizer {
-	// Constants adapted from the osu!mania example for portrait mode
-	private static readonly PORTRAIT_DEFAULT_TARGET_ASPECT_RATIO = 4 / 3;
-	private static readonly PORTRAIT_DEFAULT_MIN_MARGIN = 0.05;
-	private static readonly PORTRAIT_DEFAULT_MAX_UPSCALE_RATIO = 1.5;
-	private static readonly PORTRAIT_BASE_UPSCALE = 1.25;
-	private static readonly PORTRAIT_REFERENCE_HEIGHT_FOR_CALC = 768.0;
-	private static readonly PORTRAIT_HORIZONTAL_MARGIN_FACTOR = 0.90;
-
-	// Constants for landscape mode reference
-	private static readonly LANDSCAPE_DEFAULT_REFERENCE_WIDTH = 1024;
-	private static readonly LANDSCAPE_TARGET_DESIGN_WIDTH = 1024.0;
-	private static readonly LANDSCAPE_TARGET_DESIGN_HEIGHT = 768.0;
+	// osu!mania inspired constants
+	private static readonly OSU_PORTRAIT_BASE_SCALE = 1.25;
+	private static readonly OSU_PORTRAIT_SIDE_GAP = 0.9;
+	private static readonly OSU_LANDSCAPE_TARGET_WIDTH = 1024;
 
 	public static calculateLayout(
 		screenWidth: number,
@@ -47,6 +44,9 @@ export class PlayfieldSizer {
 		const isPortrait = aspectRatio < 1.0;
 
 		let scaleValue: number;
+		let targetWidth: number;
+		let targetHeight: number;
+
 		const debugInfo: PlayfieldLayout['debug'] = {
 			aspectRatio,
 			isPortrait,
@@ -57,41 +57,77 @@ export class PlayfieldSizer {
 			height: params.playfieldDesignHeight,
 		};
 
+		console.log('PlayfieldSizer:', {
+			screenWidth,
+			screenHeight,
+			aspectRatio,
+			isPortrait,
+			playfieldDesign
+		});
+
 		if (isPortrait) {
-			debugInfo.strategy = 'Portrait Mode (Fit to Adjusted Target with Margins and Upscaling)';
+			debugInfo.strategy = 'Portrait Mode (osu!mania Maximum Strategy)';
 
-			const targetAspectRatio = params.targetAspectRatio || this.PORTRAIT_DEFAULT_TARGET_ASPECT_RATIO;
-			const minMargin = params.minMargin || this.PORTRAIT_DEFAULT_MIN_MARGIN;
-			const maxUpscaleRatio = params.maxUpscaleRatio || this.PORTRAIT_DEFAULT_MAX_UPSCALE_RATIO;
+			// osu!mania portrait strategy:
+			// Scale playfield up by 25% to become playable on mobile devices,
+			// and leave a 10% horizontal gap if the playfield is scaled down due to being too wide.
+			const baseScale = params.portraitBaseScale || this.OSU_PORTRAIT_BASE_SCALE;
+			const baseWidth = 768 / baseScale; // 768 / 1.25 = 614.4
+			const sideGap = params.portraitSideGap || this.OSU_PORTRAIT_SIDE_GAP;
 
-			const availableWidth = screenWidth * (1 - (minMargin * 2));
-			const availableHeight = screenHeight * (1 - (minMargin * 2));
+			// Calculate target dimensions using Maximum strategy
+			const stageWidth = playfieldDesign.width;
+			targetWidth = params.landscapeTargetWidth || this.OSU_LANDSCAPE_TARGET_WIDTH; // 1024
+			targetHeight = baseWidth * Math.max(stageWidth / aspectRatio / (baseWidth * sideGap), 1.0);
 
-			let scaleToFitWidth = availableWidth / playfieldDesign.width;
-			let scaleToFitHeight = availableHeight / playfieldDesign.height;
+			// Calculate scale to fit target dimensions within screen
+			const scaleToFitWidth = screenWidth / targetWidth;
+			const scaleToFitHeight = screenHeight / targetHeight;
+			scaleValue = Math.max(scaleToFitWidth, scaleToFitHeight); // Maximum strategy
 
-			scaleValue = Math.min(scaleToFitWidth, scaleToFitHeight);
-			scaleValue = Math.min(scaleValue, maxUpscaleRatio);
-
-			debugInfo.targetWidth = playfieldDesign.width * scaleValue;
-			debugInfo.targetHeight = playfieldDesign.height * scaleValue;
+			debugInfo.targetWidth = targetWidth * scaleValue;
+			debugInfo.targetHeight = targetHeight * scaleValue;
 
 		} else {
-			debugInfo.strategy = 'Landscape Mode (Cover Reference Design)';
-			const referenceWidth = params.referenceWidth || this.LANDSCAPE_DEFAULT_REFERENCE_WIDTH;
+			debugInfo.strategy = 'Landscape Mode (Full Height with Progress Bar Space)';
 
-			const scaleToCoverRefWidth = this.LANDSCAPE_TARGET_DESIGN_WIDTH / playfieldDesign.width;
-			const scaleToCoverRefHeight = this.LANDSCAPE_TARGET_DESIGN_HEIGHT / playfieldDesign.height;
-			scaleValue = Math.max(scaleToCoverRefWidth, scaleToCoverRefHeight);
+			// In landscape mode, use full window height but leave 10% at bottom for progress bar
+			const progressBarReservedSpace = 0.1; // 10% of screen height
+			const availableHeight = screenHeight * (1 - progressBarReservedSpace);
+
+			// Use the playfield design aspect ratio to calculate appropriate width
+			const playfieldAspectRatio = playfieldDesign.width / playfieldDesign.height;
+
+			// Calculate target dimensions to fill available height
+			targetHeight = availableHeight;
+			targetWidth = targetHeight * playfieldAspectRatio;
+
+			// If the calculated width exceeds screen width, scale down proportionally
+			if (targetWidth > screenWidth) {
+				const widthScale = screenWidth / targetWidth;
+				targetWidth = screenWidth;
+				targetHeight = targetHeight * widthScale;
+			}
+
+			// Scale is 1:1 since we calculated target dimensions to fit exactly
+			scaleValue = 1.0;
+
+			debugInfo.targetWidth = targetWidth;
+			debugInfo.targetHeight = targetHeight;
 		}
 
 		const positionX = screenWidth / 2;
-		const positionY = screenHeight / 2;
+		let positionY: number;
 
-		return {
+
+		positionY = screenHeight / 2;
+		const result = {
 			scale: scaleValue,
 			position: { x: positionX, y: positionY },
 			debug: debugInfo,
 		};
+
+		console.log('PlayfieldSizer result:', result);
+		return result;
 	}
 } 

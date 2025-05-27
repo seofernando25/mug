@@ -22,6 +22,7 @@ export class NoteRenderer {
 
 	constructor(stage: PIXI.Container, initialConfig: NoteRendererConfig) {
 		this.container = new PIXI.Container();
+		this.container.label = "NoteRenderer";
 		this.config = initialConfig;
 		// Pass the NoteRenderConfig part of initialConfig to NotePool
 		this.notePool = new NotePool(this.container, {
@@ -35,6 +36,7 @@ export class NoteRenderer {
 	public addNote(noteData: GameplayNote): void {
 		if (!this.config) return;
 		const note = this.notePool.getNote(noteData, noteData.id);
+
 		note.show();
 		// Initial position update
 		note.updatePosition(
@@ -58,7 +60,7 @@ export class NoteRenderer {
 
 	public updateNotes(songTimeMs: number): void {
 		if (!this.config) return;
-		for (const [id, note] of this.activeNotes) {
+		for (const [_id, note] of this.activeNotes) {
 			note.updatePosition(
 				songTimeMs,
 				this.config.hitZoneY,

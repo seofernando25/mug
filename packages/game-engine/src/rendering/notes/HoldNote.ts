@@ -18,13 +18,16 @@ export class HoldNote extends GameNote {
 		const noteColor = this.config.laneColors[this.noteData.lane] || 0xffffff;
 		const noteWidth = this.config.canvasWidth * this.config.noteWidthRatio;
 
-		this.bodySprite.beginFill(noteColor, 0.7);
-		this.bodySprite.drawRect(0, 0, noteWidth, 50);
-		this.bodySprite.endFill();
 
-		this.tailSprite.beginFill(noteColor);
-		this.tailSprite.drawRect(0, 0, noteWidth, 10);
-		this.tailSprite.endFill();
+		this.bodySprite.clear();
+		this.bodySprite.fill({ color: noteColor, alpha: 0.7 });
+		this.bodySprite.rect(0, 0, noteWidth, 50);
+		this.bodySprite.fill();
+
+		this.tailSprite.clear();
+		this.tailSprite.fill({ color: noteColor });
+		this.tailSprite.rect(0, 0, noteWidth, 10);
+		this.tailSprite.fill();
 	}
 
 	override addToStage(stage: PIXI.Container): void {

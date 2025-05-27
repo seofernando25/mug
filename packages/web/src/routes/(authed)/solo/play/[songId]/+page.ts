@@ -33,6 +33,7 @@ export const load = async ({ params, fetch, url }) => {
 		throw error(404, { message: "Selected difficulty chart not found" });
 	}
 
+
 	return {
 		songId,
 		songData,

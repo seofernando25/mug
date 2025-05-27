@@ -1,0 +1,51 @@
+---
+description: Terminal Command Restrictions
+globs: 
+alwaysApply: false
+---
+# Cursor Rules for MUG Project
+
+## Terminal Command Restrictions
+
+**NEVER** run the following commands:
+- `bun run dev` or any development server commands
+- `npm start`, `yarn dev`, or similar development commands
+- Any commands that start long-running processes or servers
+- Only the USER can run the application
+
+## Allowed TypeScript Checking Commands
+
+For the **web project** (packages/web):
+- `bun check` - to check TypeScript errors
+
+For **other projects** (packages/game-engine, packages/api, packages/db):
+- `tsc --noEmit` - to check TypeScript errors without emitting files
+
+## Example Usage
+
+Check web project:
+```bash
+cd packages/web && bun check
+```
+
+Check game engine:
+```bash
+cd packages/game-engine && tsc --noEmit
+```
+
+Check API:
+```bash
+cd packages/api && tsc --noEmit
+```
+
+Check database:
+```bash
+cd packages/db && tsc --noEmit
+```
+
+## Project Structure Notes
+
+- This is a monorepo with multiple packages
+- Each package has its own TypeScript configuration
+- Use the appropriate checking command for each package type
+- Always verify TypeScript compilation before suggesting changes are complete 

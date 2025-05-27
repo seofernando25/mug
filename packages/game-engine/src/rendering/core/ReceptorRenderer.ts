@@ -10,6 +10,10 @@ export interface ReceptorConfig {
 	activeColor?: number;
 	outlineColor?: number;
 	outlineThickness?: number;
+	cornerRadius?: number; // Custom corner radius override
+	glowEffect?: boolean; // Enable/disable inner glow on active receptors
+	baseAlpha?: number; // Alpha for inactive receptors
+	activeAlpha?: number; // Alpha for active receptors
 }
 
 interface ReceptorVisual {
@@ -25,6 +29,7 @@ export class ReceptorRenderer {
 
 	constructor() {
 		this.container = new PIXI.Container();
+		this.container.label = "ReceptorRenderer";
 	}
 
 	public draw(config: ReceptorConfig): void {
@@ -50,12 +55,58 @@ export class ReceptorRenderer {
 
 	private _drawReceptor(receptor: ReceptorVisual, color: number, config: ReceptorConfig): void {
 		receptor.graphics.clear();
+
+		// Add some padding for better visual separation
+		const padding = 4;
+		const actualWidth = config.laneWidth - padding * 2;
+		const actualHeight = config.receptorHeight - padding;
+		const x = padding;
+		const y = padding / 2;
+
+		// Use custom corner radius or calculate based on receptor size
+		const cornerRadius = config.cornerRadius ?? Math.min(12, actualWidth / 6, actualHeight / 3);
+
+		// Get alpha values from config or use defaults
+		const baseAlpha = config.baseAlpha ?? 0.7;
+		const activeAlpha = config.activeAlpha ?? 0.9;
+
+		// Draw the main receptor body with rounded corners
+		receptor.graphics
+			.roundRect(x, y, actualWidth, actualHeight, cornerRadius)
+			.fill({
+				color: color,
+				alpha: receptor.isActive ? activeAlpha : baseAlpha
+			});
+
+		// Add outline/border if configured
 		if (config.outlineColor !== undefined && config.outlineThickness !== undefined) {
-			receptor.graphics.lineStyle(config.outlineThickness, config.outlineColor, 1);
+			receptor.graphics
+				.roundRect(x, y, actualWidth, actualHeight, cornerRadius)
+				.stroke({
+					width: config.outlineThickness,
+					color: config.outlineColor,
+					alpha: receptor.isActive ? 1.0 : 0.8
+				});
 		}
-		receptor.graphics.beginFill(color);
-		receptor.graphics.drawRect(0, 0, config.laneWidth, config.receptorHeight);
-		receptor.graphics.endFill();
+
+		// Add a subtle inner glow effect when active (if enabled)
+		const glowEnabled = config.glowEffect ?? true; // Default to true
+		if (receptor.isActive && glowEnabled) {
+			const glowPadding = 2;
+			const innerRadius = Math.max(0, cornerRadius - 2);
+			receptor.graphics
+				.roundRect(
+					x + glowPadding,
+					y + glowPadding,
+					actualWidth - glowPadding * 2,
+					actualHeight - glowPadding * 2,
+					innerRadius
+				)
+				.fill({
+					color: 0xffffff,
+					alpha: 0.3
+				});
+		}
 	}
 
 	public activateReceptor(lane: number): void {

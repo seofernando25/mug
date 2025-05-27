@@ -28,6 +28,7 @@ export class EffectsRenderer {
 
 	constructor() {
 		this.container = new PIXI.Container();
+		this.container.label = "EffectsRenderer";
 		this.ticker = new PIXI.Ticker();
 		this.ticker.add(this._updateParticles.bind(this));
 		this.ticker.start();
@@ -47,9 +48,9 @@ export class EffectsRenderer {
 				particleSprite.anchor.set(0.5);
 			} else {
 				particleSprite = new PIXI.Graphics();
-				(particleSprite as PIXI.Graphics).beginFill(config.color || 0xffffff);
-				(particleSprite as PIXI.Graphics).drawCircle(0, 0, size / 2);
-				(particleSprite as PIXI.Graphics).endFill();
+				(particleSprite).fill({ color: config.color || 0xffffff });
+				(particleSprite).circle(0, 0, size / 2);
+				(particleSprite).fill();
 			}
 
 			particleSprite.x = config.position.x;

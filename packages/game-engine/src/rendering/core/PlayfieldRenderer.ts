@@ -21,10 +21,17 @@ export class PlayfieldRenderer {
 	private receptorRenderer: ReceptorRenderer;
 	private noteRenderer: NoteRenderer; // NoteRenderer takes the stage in its constructor
 
-	private config: PlayfieldRendererConfig | null = null;
+
 
 	constructor(stage: PIXI.Container, initialConfig: PlayfieldRendererConfig) {
 		this.container = new PIXI.Container();
+		this.container.label = "PlayfieldRenderer";
+
+		// Set pivot to center so positioning works from center instead of top-left
+		const playfieldWidth = initialConfig.highway.highwayWidth;
+		const playfieldHeight = initialConfig.highway.highwayHeight;
+		this.container.pivot.set(playfieldWidth / 2, playfieldHeight / 2);
+
 		if (initialConfig.x) this.container.x = initialConfig.x;
 		if (initialConfig.y) this.container.y = initialConfig.y;
 		if (initialConfig.scale) this.container.scale.set(initialConfig.scale);
@@ -51,7 +58,10 @@ export class PlayfieldRenderer {
 	}
 
 	public draw(config: PlayfieldRendererConfig): void {
-		this.config = config;
+		// Update pivot to center for proper positioning
+		const playfieldWidth = config.highway.highwayWidth;
+		const playfieldHeight = config.highway.highwayHeight;
+		this.container.pivot.set(playfieldWidth / 2, playfieldHeight / 2);
 
 		if (config.x !== undefined) this.container.x = config.x;
 		if (config.y !== undefined) this.container.y = config.y;
@@ -100,11 +110,14 @@ export class PlayfieldRenderer {
 
 	public onResize(newConfig: PlayfieldRendererConfig): void {
 		// Update own container properties
+		// Update pivot to center for proper positioning
+		const playfieldWidth = newConfig.highway.highwayWidth;
+		const playfieldHeight = newConfig.highway.highwayHeight;
+		this.container.pivot.set(playfieldWidth / 2, playfieldHeight / 2);
+
 		if (newConfig.x !== undefined) this.container.x = newConfig.x;
 		if (newConfig.y !== undefined) this.container.y = newConfig.y;
 		if (newConfig.scale !== undefined) this.container.scale.set(newConfig.scale);
-
-		this.config = newConfig; // Store the new config
 
 		const fullHighwayConfig: HighwayConfig = {
 			...newConfig.highway,

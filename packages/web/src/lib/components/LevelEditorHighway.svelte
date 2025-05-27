@@ -6,13 +6,12 @@
 
 	let { containerWidth, containerHeight, songData, chartData } = $props();
 
-	// Canvas is now managed by the game engine
-
+	let canvasElement: HTMLCanvasElement;
 	let gameInstance: GameEngineInstance | null = null;
 
 	// Define the async initialization function
 	async function initializeGame() {
-		if (!browser || !songData || !chartData) return;
+		if (!browser || !songData || !chartData || !canvasElement) return;
 
 		// Dynamically import the game creation logic from the client-side file
 
@@ -42,7 +41,7 @@
 		};
 
 		// Create the game instance (awaiting the promise)
-		const instance = await createGameEngine(songData, chartData, gameCallbacks); // Updated to use new game engine
+		const instance = await createGameEngine(songData, chartData, canvasElement, gameCallbacks); // Updated to use new game engine
 		gameInstance = instance; // Assign the resolved instance
 	}
 
@@ -52,9 +51,11 @@
 			'Effect triggered. songData:',
 			!!songData,
 			'chartData:',
-			!!chartData
+			!!chartData,
+			'canvasElement:',
+			!!canvasElement
 		);
-		if (browser && songData && chartData) {
+		if (browser && songData && chartData && canvasElement) {
 			console.log('Dependencies met, initializing game...');
 			initializeGame();
 		}
@@ -73,4 +74,4 @@
 	// export function handleKeyRelease(key: string, event: KeyboardEvent) { gameInstance?.handleKeyRelease(key, event); }
 </script>
 
-<!-- Canvas is now managed by the game engine -->
+<canvas bind:this={canvasElement} style="width: {containerWidth}px; height: {containerHeight}px;"></canvas>

@@ -40,7 +40,6 @@ export interface GameEngineCallbacks {
 }
 
 export class GameEngine {
-	private config: GameConfig;
 	private eventQueue: EventQueue;
 	private gameStateManager: GameStateManager; // Manages gameplay-related state and phase
 	private callbacks: GameEngineCallbacks;
@@ -60,17 +59,15 @@ export class GameEngine {
 
 	private engineCorePhase: GameEngineCorePhase = 'idle';
 	private isRunningGameplayLoop: boolean = false; // Controls the game logic update pump
-	private lastSystemTime: number = 0; // For calculating delta in the main loop
 
 	constructor(config: GameConfig, callbacks: GameEngineCallbacks = {}) {
-		this.config = config;
 		this.callbacks = callbacks;
 
 		this.eventQueue = new EventQueue();
 		this.gameStateManager = new GameStateManager(); // Gameplay state and phase (e.g. playing, paused, summary)
 
 		const gameplayCallbacks: GameplayCallbacks = {
-			onNoteHit: this.callbacks.onNoteHit ? (noteId, judgment, score, playerId) => {
+			onNoteHit: this.callbacks.onNoteHit ? (noteId, judgment, score, _playerId) => {
 				// The judgment object from GameplayManager has type and timingOffset
 				this.callbacks.onNoteHit!(noteId, judgment.type, score);
 			} : undefined,
@@ -147,7 +144,7 @@ export class GameEngine {
 				singleInstance: true, // Important for typical music tracks
 			});
 
-			await new Promise<void>((resolve, reject) => {
+			await new Promise<void>((resolve, _reject) => {
 				if (this.sound!.isLoaded) {
 					resolve();
 					return;
@@ -199,8 +196,6 @@ export class GameEngine {
 
 	// Main game loop update method
 	public update(systemCurrentTime: number): void {
-		const delta = systemCurrentTime - (this.lastSystemTime || systemCurrentTime);
-		this.lastSystemTime = systemCurrentTime;
 
 		if (!this.isRunningGameplayLoop && this.engineCorePhase !== 'audio_playing' && this.engineCorePhase !== 'audio_paused') {
 			// If not actively playing/paused, only minimal updates
@@ -256,7 +251,6 @@ export class GameEngine {
 		this.authoritativeAudioTimeMs = 0;
 		this.internalCurrentSongTimeMs = 0; // Reset time when playback starts
 		this.systemTimeAtLastAudioUpdate = performance.now();
-		this.lastSystemTime = performance.now(); // Initialize for delta calculation in update()
 		this.isRunningGameplayLoop = true; // Start the main game loop updates
 		this.setEngineCorePhase('audio_playing');
 		this.callbacks.onAudioPlaybackStarted?.();
@@ -291,7 +285,6 @@ export class GameEngine {
 		if (this.engineCorePhase === 'audio_paused' && this.sound) {
 			this.sound.resume();
 			this.isRunningGameplayLoop = true; // Resume pumping gameplay updates
-			this.lastSystemTime = performance.now(); // Reset lastSystemTime to avoid large jump
 			this.systemTimeAtLastAudioUpdate = performance.now(); // Also reset for audio sync
 			this.setEngineCorePhase('audio_playing');
 			console.log("Audio resumed");

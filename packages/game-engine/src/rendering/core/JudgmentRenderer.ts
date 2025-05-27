@@ -26,6 +26,7 @@ export class JudgmentRenderer {
 
 	constructor(defaultStyles?: Map<NoteJudgment['type'], JudgmentStyle>) {
 		this.container = new PIXI.Container();
+		this.container.label = "JudgmentRenderer";
 		this.judgmentStyleMap = defaultStyles || new Map([
 			['perfect', { text: 'Perfect', fill: '#FFD700', fontSize: 48, fontFamily: 'Arial' }],
 			['excellent', { text: 'Excellent', fill: '#00FF00', fontSize: 44, fontFamily: 'Arial' }],

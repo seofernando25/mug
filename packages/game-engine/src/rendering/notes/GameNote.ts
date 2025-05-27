@@ -25,9 +25,20 @@ export class GameNote {
 
 	private draw(): void {
 		const noteColor = this.config.laneColors[this.noteData.lane] || 0xffffff;
-		this.sprite.beginFill(noteColor);
-		this.sprite.drawRect(0, 0, this.config.canvasWidth * this.config.noteWidthRatio, 10);
-		this.sprite.endFill();
+		// this.sprite.beginFill(noteColor);
+		// this.sprite.drawRect(0, 0, this.config.canvasWidth * this.config.noteWidthRatio, 10);
+		// this.sprite.endFill();
+
+
+		// (method) Graphics.drawRect(x: number, y: number, w: number, h: number): PIXI.Graphics
+		// @deprecated — since 8.0.0 Use Graphics#rect instead
+
+
+
+		this.sprite.fill({
+			color: noteColor,
+		})
+		this.sprite.rect(0, 0, this.config.canvasWidth * this.config.noteWidthRatio, 10);
 	}
 
 	addToStage(stage: PIXI.Container) {
@@ -50,7 +61,7 @@ export class GameNote {
 		this.sprite.visible = false;
 	}
 
-	updatePosition(songTimeMs: number, hitZoneY: number, receptorYPosition: number, scrollSpeed: number, canvasHeight: number, highwayX: number) {
+	updatePosition(songTimeMs: number, _hitZoneY: number, receptorYPosition: number, scrollSpeed: number, canvasHeight: number, highwayX: number) {
 		const idealHeadY = getNoteYPosition(
 			songTimeMs,
 			this.noteData.timeMs,
