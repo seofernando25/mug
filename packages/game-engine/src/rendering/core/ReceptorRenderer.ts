@@ -10,7 +10,6 @@ export interface ReceptorConfig {
 	activeColor?: number;
 	outlineColor?: number;
 	outlineThickness?: number;
-	cornerRadius?: number; // Custom corner radius override
 	glowEffect?: boolean; // Enable/disable inner glow on active receptors
 	baseAlpha?: number; // Alpha for inactive receptors
 	activeAlpha?: number; // Alpha for active receptors
@@ -59,12 +58,12 @@ export class ReceptorRenderer {
 		// Add some padding for better visual separation
 		const padding = 4;
 		const actualWidth = config.laneWidth - padding * 2;
-		const actualHeight = config.receptorHeight - padding;
+		const actualHeight = config.receptorHeight;
 		const x = padding;
 		const y = padding / 2;
 
 		// Use custom corner radius or calculate based on receptor size
-		const cornerRadius = config.cornerRadius ?? Math.min(12, actualWidth / 6, actualHeight / 3);
+		const cornerRadius = Math.min(12, actualWidth / 6, actualHeight / 3);
 
 		// Get alpha values from config or use defaults
 		const baseAlpha = config.baseAlpha ?? 0.7;

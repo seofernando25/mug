@@ -26,7 +26,7 @@ export class NoteRenderer {
 		this.config = initialConfig;
 		// Pass the NoteRenderConfig part of initialConfig to NotePool
 		this.notePool = new NotePool(this.container, {
-			canvasWidth: initialConfig.canvasWidth,
+			laneWidth: initialConfig.laneWidth,
 			noteWidthRatio: initialConfig.noteWidthRatio,
 			laneColors: initialConfig.laneColors,
 		});
@@ -69,12 +69,6 @@ export class NoteRenderer {
 				this.config.canvasHeight,
 				this.config.highwayX
 			);
-			// Basic off-screen culling (can be made more sophisticated)
-			// Note: GameNote itself doesn't have an isOffscreen method currently.
-			// This logic would need to be added or handled here.
-			// Example: if (note.sprite.y > this.config.canvasHeight + someBuffer) {
-			//    this.removeNote(id);
-			// }
 		}
 	}
 
@@ -82,7 +76,7 @@ export class NoteRenderer {
 		this.config = newConfig;
 		// Pass the NoteRenderConfig part of newConfig to NotePool
 		this.notePool.updateNoteRenderConfig({
-			canvasWidth: newConfig.canvasWidth,
+			laneWidth: newConfig.laneWidth,
 			noteWidthRatio: newConfig.noteWidthRatio,
 			laneColors: newConfig.laneColors,
 		});

@@ -3,10 +3,10 @@ export function getNoteYPosition(
 	currentTime: number,
 	receptorY: number,
 	scrollSpeed: number,
-	canvasHeight: number
+	_canvasHeight: number
 ): number {
 	const timeDifference = noteTime - currentTime;
-	const scrollPixelsPerSecond = canvasHeight * 0.6 * scrollSpeed;
-	const pixelOffset = (timeDifference / 1000) * scrollPixelsPerSecond;
+	// Simplify the scroll speed calculation - scrollSpeed should be pixels per second
+	const pixelOffset = (timeDifference / 1000) * scrollSpeed;
 	return receptorY - pixelOffset;
 } 

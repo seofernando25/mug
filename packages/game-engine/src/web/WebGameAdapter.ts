@@ -2,6 +2,8 @@ import { GameEngine, type GameEngineCallbacks, type GameEngineCorePhase } from '
 import { DEFAULT_CONFIG, type GameConfig } from '../config/GameConfig';
 import type { GameplaySong } from '../types/ChartTypes';
 import type { GamePhase } from '../core/GameState';
+import type { MainGameRenderer } from '../rendering/core/MainGameRenderer';
+import type { GameplayNote } from '../types';
 
 export interface WebGameCallbacks {
 	onPhaseChange?: (phase: GamePhase) => void;
@@ -19,6 +21,8 @@ export interface WebGameCallbacks {
 export interface WebGameConfig {
 	gameConfig?: Partial<GameConfig>;
 	playerIds?: string[];
+	renderer?: MainGameRenderer; // Optional renderer for integrated rendering
+	songDurationMs?: number; // For progress bar calculation
 }
 
 export class WebGameAdapter {
@@ -26,9 +30,14 @@ export class WebGameAdapter {
 	private callbacks: WebGameCallbacks;
 	private isInitialized: boolean = false;
 	private animationFrameId: number | null = null;
+	private renderer?: MainGameRenderer;
+	private addedNotes = new Set<number>();
+	private songDurationMs?: number;
 
 	constructor(callbacks: WebGameCallbacks = {}, config: WebGameConfig = {}) {
 		this.callbacks = callbacks;
+		this.renderer = config.renderer;
+		this.songDurationMs = config.songDurationMs;
 
 		// Merge provided config with defaults
 		const gameConfig: GameConfig = {
@@ -134,12 +143,67 @@ export class WebGameAdapter {
 		return this.gameEngine.isPaused();
 	}
 
+	// Integrated rendering update method
+	private updateRenderer(): void {
+		if (!this.renderer) return;
+
+		const currentTime = this.getCurrentSongTimeMs();
+		const notesToRender = this.getNotesForRendering();
+
+		// Filter notes that should be visible on screen
+		const lookAheadTime = 3000; // Show notes 3 seconds before they need to be hit
+		const lookBehindTime = 1000; // Keep showing notes 1 second after they should be hit
+
+		const visibleNotes = notesToRender.filter((note: GameplayNote) => {
+			const timeToNote = note.timeMs - currentTime;
+			return timeToNote <= lookAheadTime && timeToNote >= -lookBehindTime;
+		});
+
+		// Add visible notes to renderer
+		visibleNotes.forEach((note: GameplayNote) => {
+			if (!this.addedNotes.has(note.id)) {
+				console.log(`[WebGameAdapter] Adding note ${note.id} at time ${note.timeMs} (current: ${currentTime}, lane: ${note.lane})`);
+				this.renderer!.addNote(note);
+				this.addedNotes.add(note.id);
+			}
+		});
+
+		// Remove notes that are no longer visible
+		const expiredNotes = Array.from(this.addedNotes).filter(noteId => {
+			const note = notesToRender.find((n: GameplayNote) => n.id === noteId);
+			if (!note) return true; // Note doesn't exist anymore, remove it
+			const timeToNote = note.timeMs - currentTime;
+			return timeToNote < -lookBehindTime; // Note is too far in the past
+		});
+
+		expiredNotes.forEach(noteId => {
+			console.log(`[WebGameAdapter] Removing expired note ${noteId}`);
+			this.renderer!.removeNote(noteId);
+			this.addedNotes.delete(noteId);
+		});
+
+		// Update progress bar if song duration is available
+		if (this.songDurationMs) {
+			const progress = this.songDurationMs > 0 ? Math.min(currentTime / this.songDurationMs, 1) : 0;
+			this.renderer.updateProgress(progress);
+		}
+
+		// Update renderer with current time
+		this.renderer.update(currentTime);
+	}
+
 	// Game loop management
 	private startGameLoop(): void {
 		if (this.animationFrameId !== null) return; // Already running
 
 		const gameLoop = (timestamp: number) => {
 			this.gameEngine.update(timestamp);
+
+			// Update renderer if provided
+			if (this.renderer) {
+				this.updateRenderer();
+			}
+
 			this.animationFrameId = requestAnimationFrame(gameLoop);
 		};
 
@@ -157,6 +221,7 @@ export class WebGameAdapter {
 	public cleanup(): void {
 		this.stopGameLoop();
 		this.gameEngine.cleanup();
+		this.addedNotes.clear();
 		this.isInitialized = false;
 	}
 } 

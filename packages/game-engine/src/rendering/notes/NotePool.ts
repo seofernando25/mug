@@ -67,10 +67,6 @@ export class NotePool {
 
 	updateNoteRenderConfig(newConfig: Partial<NoteRenderConfig>): void {
 		this.noteRenderConfig = { ...this.noteRenderConfig, ...newConfig };
-		// Ensure canvasWidth is updated if present in newConfig
-		if (newConfig.canvasWidth !== undefined) {
-			this.noteRenderConfig.canvasWidth = newConfig.canvasWidth;
-		}
 
 		// Update config for all pooled notes so they use new config when reset
 		this.tapNotePool.forEach(note => {

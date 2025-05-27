@@ -3,7 +3,7 @@ import { getNoteYPosition } from '../utils/positionUtils';
 import * as PIXI from 'pixi.js';
 
 export interface NoteRenderConfig {
-	canvasWidth: number;
+	laneWidth: number;
 	noteWidthRatio: number;
 	laneColors: number[];
 	// Add other rendering-specific config as needed
@@ -24,21 +24,35 @@ export class GameNote {
 	}
 
 	private draw(): void {
+		this.sprite.clear(); // Clear any previous drawing
+
+
 		const noteColor = this.config.laneColors[this.noteData.lane] || 0xffffff;
-		// this.sprite.beginFill(noteColor);
-		// this.sprite.drawRect(0, 0, this.config.canvasWidth * this.config.noteWidthRatio, 10);
-		// this.sprite.endFill();
+
+		const padding = 4;
+		const noteWidth = this.config.laneWidth * this.config.noteWidthRatio - padding * 2;
+		const noteHeight = 50;
 
 
-		// (method) Graphics.drawRect(x: number, y: number, w: number, h: number): PIXI.Graphics
-		// @deprecated — since 8.0.0 Use Graphics#rect instead
+		// Calculate corner radius for rounded notes
+		const cornerRadius = Math.min(12, noteWidth / 6, noteHeight / 3);
 
+		// In PixiJS v8, build the shape first, then fill it
+		this.sprite
+			.roundRect(0, 0, noteWidth, noteHeight, cornerRadius)
+			.fill({
+				color: noteColor,
+				alpha: 0.9
+			});
 
-
-		this.sprite.fill({
-			color: noteColor,
-		})
-		this.sprite.rect(0, 0, this.config.canvasWidth * this.config.noteWidthRatio, 10);
+		// Add a subtle border for better visibility
+		this.sprite
+			.roundRect(0, 0, noteWidth, noteHeight, cornerRadius)
+			.stroke({
+				width: 1,
+				color: 0xffffff,
+				alpha: 0.3
+			});
 	}
 
 	addToStage(stage: PIXI.Container) {
@@ -63,17 +77,17 @@ export class GameNote {
 
 	updatePosition(songTimeMs: number, _hitZoneY: number, receptorYPosition: number, scrollSpeed: number, canvasHeight: number, highwayX: number) {
 		const idealHeadY = getNoteYPosition(
-			songTimeMs,
-			this.noteData.timeMs,
+			this.noteData.timeMs,  // noteTime - when the note should be hit
+			songTimeMs,            // currentTime - current song position
 			receptorYPosition,
 			scrollSpeed,
 			canvasHeight
 		);
 
-		const laneWidth = (this.config.canvasWidth / (this.config.laneColors.length || 4));
-		const laneCenterX = highwayX + (this.noteData.lane + 0.5) * laneWidth;
+		const laneCenterX = highwayX + (this.noteData.lane + 0.5) * this.config.laneWidth;
+		const noteWidth = this.config.laneWidth * this.config.noteWidthRatio;
 
-		this.sprite.x = laneCenterX - (this.config.canvasWidth * this.config.noteWidthRatio / 2);
+		this.sprite.x = laneCenterX - (noteWidth / 2);
 		this.sprite.y = idealHeadY;
 	}
 

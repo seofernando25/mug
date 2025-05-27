@@ -90,12 +90,11 @@ export async function createGameEngine(
 	const prefs = Preferences.prefs;
 
 	// Create the main game renderer with proper PlayfieldSizer integration
-	const playfieldDesignWidth = parentElementRect.width; // Design width for the playfield
-	const playfieldDesignHeight = parentElementRect.height * 0.925; // Design height for the playfield
+	const playfieldDesignWidth = parentElementRect.width;
+	const playfieldDesignHeight = parentElementRect.height * 0.925;
 	const laneWidth = 80;
-	const highwayHeight = playfieldDesignHeight; // 80% of design height for highway
-	const receptorY = highwayHeight * 0.775
-		; // Receptors at 80% down the highway
+	const highwayHeight = playfieldDesignHeight;
+	const receptorY = highwayHeight * 0.775;
 
 	const rendererConfig = {
 		playfieldSizing: {
@@ -133,7 +132,7 @@ export async function createGameEngine(
 				outlineThickness: 2,
 			},
 			notes: {
-				canvasWidth: playfieldDesignWidth,
+				laneWidth: laneWidth,
 				noteWidthRatio: 0.8,
 				laneColors: [0x00ff00, 0x0000ff, 0xff0000, 0xffff00, 0xff00ff, 0x00ffff],
 				hitZoneY: receptorY,
@@ -172,57 +171,10 @@ export async function createGameEngine(
 
 	const renderer = new MainGameRenderer(app, rendererConfig);
 
-	// Game loop for rendering updates
-	let animationFrameId: number | null = null;
-	let addedNotes = new Set<number>();
-
-	const startRenderLoop = () => {
-		if (animationFrameId !== null) return;
-
-		const renderLoop = () => {
-			const currentTime = gameAdapter.getCurrentSongTimeMs();
-
-			// Get notes that should be visible and add them to renderer
-			const notesToRender = gameAdapter.getNotesForRendering();
-			notesToRender.forEach((note: GameplayNote) => {
-				if (!addedNotes.has(note.id)) {
-					renderer.addNote(note);
-					addedNotes.add(note.id);
-				}
-			});
-
-			// Update progress bar based on song time
-			// Calculate progress as currentTime / songDuration
-			// We'll estimate song duration from the last note's time + some buffer
-			const lastNoteTime = Math.max(...hitObjects.map(ho => ho.timeMs), 0);
-			const songDuration = lastNoteTime + 2000; // Add 2 seconds buffer after last note
-			const progress = songDuration > 0 ? Math.min(currentTime / songDuration, 1) : 0;
-			renderer.updateProgress(progress);
-
-			renderer.update(currentTime);
-			animationFrameId = requestAnimationFrame(renderLoop);
-		};
-
-		animationFrameId = requestAnimationFrame(renderLoop);
-	};
-
-	const stopRenderLoop = () => {
-		if (animationFrameId !== null) {
-			cancelAnimationFrame(animationFrameId);
-			animationFrameId = null;
-		}
-	};
-
 	// Create the game adapter with configuration from preferences
 	const gameAdapter = new WebGameAdapter({
 		onPhaseChange: (phase) => {
 			callbacks.onPhaseChange(phase);
-			// Start/stop rendering based on phase
-			if (phase === 'playing' || phase === 'countdown') {
-				startRenderLoop();
-			} else {
-				stopRenderLoop();
-			}
 		},
 		onCountdownUpdate: callbacks.onCountdownUpdate,
 		onScoreUpdate: (playerId, score, combo, accuracy) => {
@@ -255,7 +207,6 @@ export async function createGameEngine(
 		},
 		onTimeUpdate: callbacks.onTimeUpdate,
 		onSongEnd: () => {
-			stopRenderLoop();
 			callbacks.onSongEnd();
 		},
 		onSongLoaded: () => {
@@ -276,7 +227,9 @@ export async function createGameEngine(
 				goodWindowMs: prefs.gameplay.goodWindowMs || 90,
 				mehWindowMs: prefs.gameplay.mehWindowMs || 150
 			}
-		}
+		},
+		renderer: renderer, // Pass the renderer to the game adapter
+		songDurationMs: Math.max(...hitObjects.map(ho => ho.timeMs), 0) + 2000 // Song duration for progress bar
 	});
 
 	// Initialize the game
@@ -306,7 +259,6 @@ export async function createGameEngine(
 		},
 
 		cleanup: () => {
-			stopRenderLoop();
 			gameAdapter.cleanup();
 			renderer.destroy();
 			app.destroy(false); // Don't remove canvas since it's managed by Svelte
