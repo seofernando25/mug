@@ -1,8 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { GameplayNote } from '../../types';
 import { NotePool } from '../notes/NotePool';
-import type { NoteRenderConfig } from '../notes/GameNote'; // Corrected import path
-import type { GameNote } from '../notes/GameNote'; // For type hinting
+import type { NoteRenderConfig, NoteComponent } from '../notes/NoteComponent';
 
 export interface NoteRendererConfig extends NoteRenderConfig { // Extends the one from notes
 	// Add any additional config specific to the overall NoteRenderer here if needed
@@ -17,7 +16,7 @@ export interface NoteRendererConfig extends NoteRenderConfig { // Extends the on
 export class NoteRenderer {
 	public container: PIXI.Container;
 	private notePool: NotePool;
-	private activeNotes: Map<number, GameNote> = new Map();
+	private activeNotes: Map<number, NoteComponent> = new Map();
 	private config: NoteRendererConfig;
 
 	constructor(stage: PIXI.Container, initialConfig: NoteRendererConfig) {

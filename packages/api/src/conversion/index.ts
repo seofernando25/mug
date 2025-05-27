@@ -76,7 +76,14 @@ function parseOsuFileContent(content: string): ParsedOsuData {
 		const [time, beatLength, meter, sampleSet, sampleIndex, volume, uninherited, effects] = line
 			.split(',')
 			.map(Number);
-		if (!time || !beatLength || !meter || !sampleSet || !sampleIndex || !volume || !uninherited || !effects) {
+		if (time === undefined ||
+			beatLength === undefined ||
+			meter === undefined ||
+			sampleSet === undefined ||
+			sampleIndex === undefined ||
+			volume === undefined ||
+			uninherited === undefined ||
+			effects === undefined) {
 			console.warn(`Invalid timing point: ${line}`);
 			return;
 		}

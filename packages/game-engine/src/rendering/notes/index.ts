@@ -1,3 +1,4 @@
-export { GameNote } from './GameNote';
-export { HoldNote } from './HoldNote';
+export { NoteComponent } from './NoteComponent';
+export { TapNoteComponent } from './TapNoteComponent';
+export { HoldNoteComponent } from './HoldNoteComponent';
 export { NotePool } from './NotePool'; 

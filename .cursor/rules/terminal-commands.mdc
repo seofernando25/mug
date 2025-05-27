@@ -1,7 +1,7 @@
 ---
-description: Terminal Command Restrictions
+description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # Cursor Rules for MUG Project
 
@@ -10,7 +10,7 @@ alwaysApply: false
 **NEVER** run the following commands:
 - `bun run dev` or any development server commands
 - `npm start`, `yarn dev`, or similar development commands
-- Any docker command
+- Any docker command (docker:rebuild, docker:destroy, etc)
 - Any commands that start long-running processes or servers
 - Only the USER can run the application
 

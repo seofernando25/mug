@@ -1,11 +1,12 @@
 import type { GameplayNote } from '../../types';
-import { GameNote, type NoteRenderConfig } from './GameNote';
-import { HoldNote } from './HoldNote';
+import { NoteComponent, type NoteRenderConfig } from './NoteComponent';
+import { TapNoteComponent } from './TapNoteComponent';
+import { HoldNoteComponent } from './HoldNoteComponent';
 import type * as PIXI from 'pixi.js';
 
 export class NotePool {
-	private tapNotePool: GameNote[] = [];
-	private holdNotePool: HoldNote[] = [];
+	private tapNotePool: TapNoteComponent[] = [];
+	private holdNotePool: HoldNoteComponent[] = [];
 	private stage: PIXI.Container;
 	private noteRenderConfig: NoteRenderConfig;
 
@@ -24,7 +25,7 @@ export class NotePool {
 				noteInfo: { type: 'tap' },
 				noteState: { noteType: 'tap', state: { type: 'waiting' } }
 			};
-			this.tapNotePool.push(new GameNote(dummyTapData, dummyTapData.id, this.noteRenderConfig));
+			this.tapNotePool.push(new TapNoteComponent(dummyTapData, dummyTapData.id, this.noteRenderConfig));
 
 			const dummyHoldData: GameplayNote = {
 				id: - (poolSize + i + 1), // Ensure unique negative IDs for dummies
@@ -33,27 +34,27 @@ export class NotePool {
 				noteInfo: { type: 'hold', durationMs: 100 },
 				noteState: { noteType: 'hold', state: { type: 'waiting' } }
 			};
-			this.holdNotePool.push(new HoldNote(dummyHoldData, dummyHoldData.id, this.noteRenderConfig));
+			this.holdNotePool.push(new HoldNoteComponent(dummyHoldData, dummyHoldData.id, this.noteRenderConfig));
 		}
 	}
 
-	getNote(noteData: GameplayNote, id: number): GameNote {
+	getNote(noteData: GameplayNote, id: number): NoteComponent {
 		if (noteData.noteInfo.type === 'hold') {
-			let note = this.holdNotePool.find(n => !n.sprite.visible);
+			let note = this.holdNotePool.find(n => !n.container.visible);
 			if (note) {
 				note.reset(noteData, id, this.noteRenderConfig);
 			} else {
-				note = new HoldNote(noteData, id, this.noteRenderConfig);
+				note = new HoldNoteComponent(noteData, id, this.noteRenderConfig);
 				this.holdNotePool.push(note);
 			}
 			note.addToStage(this.stage);
 			return note;
 		} else {
-			let note = this.tapNotePool.find(n => !n.sprite.visible);
+			let note = this.tapNotePool.find(n => !n.container.visible);
 			if (note) {
 				note.reset(noteData, id, this.noteRenderConfig);
 			} else {
-				note = new GameNote(noteData, id, this.noteRenderConfig);
+				note = new TapNoteComponent(noteData, id, this.noteRenderConfig);
 				this.tapNotePool.push(note);
 			}
 			note.addToStage(this.stage);
@@ -61,7 +62,7 @@ export class NotePool {
 		}
 	}
 
-	releaseNote(note: GameNote): void {
+	releaseNote(note: NoteComponent): void {
 		note.hide();
 	}
 
@@ -70,13 +71,13 @@ export class NotePool {
 
 		// Update config for all pooled notes so they use new config when reset
 		this.tapNotePool.forEach(note => {
-			// GameNote's reset method will now handle applying the new config when it's reused
-			if (note.sprite.visible) {
+			// Component's reset method will now handle applying the new config when it's reused
+			if (note.container.visible) {
 				// note.onResize(... pass relevant parameters from your main rendering loop ...);
 			}
 		});
 		this.holdNotePool.forEach(note => {
-			if (note.sprite.visible) {
+			if (note.container.visible) {
 				// note.onResize(... pass relevant parameters from your main rendering loop ...);
 			}
 		});
@@ -84,12 +85,12 @@ export class NotePool {
 
 	updateActiveNotesLayout(highwayX: number, songTimeMs: number, hitZoneY: number, receptorYPosition: number, scrollSpeed: number, canvasHeight: number) {
 		this.tapNotePool.forEach(note => {
-			if (note.sprite.visible) {
+			if (note.container.visible) {
 				note.onResize(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
 			}
 		});
 		this.holdNotePool.forEach(note => {
-			if (note.sprite.visible) {
+			if (note.container.visible) {
 				note.onResize(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
 			}
 		});
