@@ -5,41 +5,13 @@
 	const CONTACT_EMAIL = 'contact@mug.rocks';
 	const LAST_UPDATED = 'May 18, 2025';
 
-	let privacyContainer: HTMLDivElement | null = $state(null);
-
-	function downloadPrivacy() {
-		if (privacyContainer) {
-			const printWindow = window.open('', '_blank');
-			if (printWindow) {
-				printWindow.document.write(`
-					<html>
-						<head>
-							<title>${GAME_NAME} - Privacy Policy</title>
-							<style>
-								body { font-family: Arial, sans-serif; padding: 20px; }
-								h1 { font-size: 24px; margin-bottom: 20px; }
-								h2 { font-size: 20px; margin-top: 30px; }
-								p { margin-bottom: 15px; line-height: 1.5; }
-							</style>
-						</head>
-						<body>
-							${privacyContainer.innerHTML}
-						</body>
-					</html>
-				`);
-				printWindow.document.close();
-				printWindow.print();
-				printWindow.close();
-			}
-		}
-	}
 </script>
 
 <svelte:head>
 	<title>Privacy Policy - {GAME_NAME}</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 bg-white text-black" bind:this={privacyContainer}>
+<div class="container mx-auto px-4 py-8 bg-white text-black">
 	<h1 class="text-4xl font-bold mb-6 pt-4 text-gray-900">{GAME_NAME} - Privacy Policy</h1>
 
 	<p class="text-base leading-7 mb-4 text-gray-700">
@@ -375,13 +347,4 @@
 	<p class="text-base leading-7 mb-4 text-gray-700">
 		We will endeavor to respond to your inquiries and requests in a timely manner.
 	</p>
-</div>
-
-<div class="flex mt-8">
-	<button
-		class="ml-4 bg-purple-400 text-white px-4 py-2 rounded-md transition-all duration-300 hover:bg-purple-500"
-		onclick={downloadPrivacy}
-	>
-		Download Privacy Policy
-	</button>
 </div>
