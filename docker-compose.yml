@@ -1,40 +1,40 @@
 name: mug
 
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./src:/app/src
-      - ./static:/app/static
-      - ./.svelte-kit:/app/.svelte-kit
-      - ./package.json:/app/package.json
-      - ./bun.lockb:/app/bun.lockb
-      - ./.npmrc:/app/.npmrc
-      - ./svelte.config.js:/app/svelte.config.js
-      - ./vite.config.ts:/app/vite.config.ts
-      - ./tsconfig.json:/app/tsconfig.json
-    environment:
-      - HOST=0.0.0.0
-      - PORT=5173
-      - DATABASE_URL=postgresql://admin:password@db:5432/postgres
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY_ID=admin
-      - S3_SECRET_ACCESS_KEY=password
-      - S3_REGION=us-east-1
-      - S3_BUCKET=mug
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - ./src:/app/src
+  #     - ./static:/app/static
+  #     - ./.svelte-kit:/app/.svelte-kit
+  #     - ./package.json:/app/package.json
+  #     - ./bun.lockb:/app/bun.lockb
+  #     - ./.npmrc:/app/.npmrc
+  #     - ./svelte.config.js:/app/svelte.config.js
+  #     - ./vite.config.ts:/app/vite.config.ts
+  #     - ./tsconfig.json:/app/tsconfig.json
+  #   environment:
+  #     - HOST=0.0.0.0
+  #     - PORT=5173
+  #     - DATABASE_URL=postgresql://admin:password@db:5432/postgres
+  #     - S3_ENDPOINT=http://minio:9000
+  #     - S3_ACCESS_KEY_ID=admin
+  #     - S3_SECRET_ACCESS_KEY=password
+  #     - S3_REGION=us-east-1
+  #     - S3_BUCKET=mug
 
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        window: 5s
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   deploy:
+  #     restart_policy:
+  #       condition: on-failure
+  #       delay: 5s
+  #       window: 5s
 
   db:
     image: postgres

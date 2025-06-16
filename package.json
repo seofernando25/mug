@@ -8,6 +8,7 @@
 		"docker:destroy": "docker compose down -v",
 		"docker:rebuild": "docker compose down -v && docker compose up -d --build",
 		"docker:restart-frontend": "docker compose -p mug restart frontend",
+		"db:push": "docker compose exec db bunx drizzle-kit push",
 		"log:frontend": "docker compose -p mug logs -f --no-log-prefix frontend",
 		"log:db": "docker compose -p mug logs -f db",
 		"log:minio": "docker compose -p mug logs -f minio",
