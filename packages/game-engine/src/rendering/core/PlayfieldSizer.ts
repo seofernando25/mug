@@ -17,11 +17,10 @@ export interface PlayfieldSizingParams {
 	referenceWidth?: number;
 	minMargin?: number;
 	maxUpscaleRatio?: number;
-	// osu!mania specific parameters
-	portraitBaseScale?: number; // Default 1.25 for mobile playability
-	portraitSideGap?: number; // Default 0.9 (90% width usage)
-	landscapeTargetWidth?: number; // Default 1024
-	landscapeTargetHeight?: number; // Default 768
+	portraitBaseScale?: number;
+	portraitSideGap?: number;
+	landscapeTargetWidth?: number;
+	landscapeTargetHeight?: number;
 }
 
 interface PlayfieldDesign {
@@ -30,10 +29,9 @@ interface PlayfieldDesign {
 }
 
 export class PlayfieldSizer {
-	// osu!mania inspired constants
-	private static readonly OSU_PORTRAIT_BASE_SCALE = 1.25;
-	private static readonly OSU_PORTRAIT_SIDE_GAP = 0.9;
-	private static readonly OSU_LANDSCAPE_TARGET_WIDTH = 1024;
+	private static readonly PORTRAIT_BASE_SCALE = 1.25;
+	private static readonly PORTRAIT_SIDE_GAP = 0.9;
+	private static readonly LANDSCAPE_TARGET_WIDTH = 1024;
 
 	public static calculateLayout(
 		screenWidth: number,
@@ -66,18 +64,18 @@ export class PlayfieldSizer {
 		});
 
 		if (isPortrait) {
-			debugInfo.strategy = 'Portrait Mode (osu!mania Maximum Strategy)';
+			debugInfo.strategy = 'Portrait Mode (Maximum Strategy)';
 
-			// osu!mania portrait strategy:
+			// portrait strategy:
 			// Scale playfield up by 25% to become playable on mobile devices,
 			// and leave a 10% horizontal gap if the playfield is scaled down due to being too wide.
-			const baseScale = params.portraitBaseScale || this.OSU_PORTRAIT_BASE_SCALE;
+			const baseScale = params.portraitBaseScale || this.PORTRAIT_BASE_SCALE;
 			const baseWidth = 768 / baseScale; // 768 / 1.25 = 614.4
-			const sideGap = params.portraitSideGap || this.OSU_PORTRAIT_SIDE_GAP;
+			const sideGap = params.portraitSideGap || this.PORTRAIT_SIDE_GAP;
 
 			// Calculate target dimensions using Maximum strategy
 			const stageWidth = playfieldDesign.width;
-			targetWidth = params.landscapeTargetWidth || this.OSU_LANDSCAPE_TARGET_WIDTH; // 1024
+			targetWidth = params.landscapeTargetWidth || this.LANDSCAPE_TARGET_WIDTH; // 1024
 			targetHeight = baseWidth * Math.max(stageWidth / aspectRatio / (baseWidth * sideGap), 1.0);
 
 			// Calculate scale to fit target dimensions within screen

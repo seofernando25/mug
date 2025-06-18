@@ -7,43 +7,19 @@ export interface NoteRenderConfig {
 	laneColors: number[];
 }
 
-export abstract class NoteComponent {
-	public container: PIXI.Container;
+export abstract class NoteComponent extends PIXI.Container {
 	public noteData: GameplayNote;
 	public id: number;
-	protected config: NoteRenderConfig;
 
-	constructor(noteData: GameplayNote, id: number, config: NoteRenderConfig) {
+	constructor(noteData: GameplayNote, id: number) {
+		super();
 		this.noteData = noteData;
 		this.id = id;
-		this.config = config;
-		this.container = new PIXI.Container();
-		this.container.label = `Note-${noteData.noteInfo.type}-${id}`;
-		// Don't call draw() here - let subclasses handle initialization order
-	}
-
-	// Abstract methods that subclasses must implement
-	protected abstract draw(): void;
-
-	// Common lifecycle methods
-	public addToStage(stage: PIXI.Container): void {
-		if (!this.container.parent) {
-			stage.addChild(this.container);
-		}
+		this.label = `Note-${noteData.noteInfo.type}-${id}`;
 	}
 
 	public removeFromStage(): void {
-		if (this.container.parent) {
-			this.container.parent.removeChild(this.container);
-		}
-	}
-
-	public show(): void {
-		this.container.visible = true;
-	}
-
-	public hide(): void {
-		this.container.visible = false;
+		this.parent?.removeChild(this);
 	}
 
 	public abstract updatePosition(
@@ -55,28 +31,14 @@ export abstract class NoteComponent {
 		highwayX: number
 	): void;
 
-	public onResize(
-		highwayX: number,
-		songTimeMs: number,
-		hitZoneY: number,
-		receptorYPosition: number,
-		scrollSpeed: number,
-		canvasHeight: number
-	): void {
-		this.draw();
-		this.updatePosition(songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight, highwayX);
-	}
-
-	public reset(noteData: GameplayNote, id: number, config: NoteRenderConfig): void {
+	public reset(noteData: GameplayNote, id: number): void {
 		this.noteData = noteData;
 		this.id = id;
-		this.config = config;
-		this.container.label = `Note-${noteData.noteInfo.type}-${id}`;
-		this.draw();
-		this.hide();
+		this.label = `Note-${noteData.noteInfo.type}-${id}`;
+		this.visible = false;
 	}
 
 	public destroy(): void {
-		this.container.destroy({ children: true, texture: true });
+		super.destroy({ children: true, texture: true });
 	}
 } 

@@ -1,100 +1,82 @@
 import * as PIXI from 'pixi.js';
+import { atom, computed, effect, type Atom } from 'nanostores';
 
-export interface HighwayConfig {
-	numLanes: number;
-	laneWidth: number; // Calculated width of a single lane
-	highwayWidth: number; // Total width of all lanes
-	highwayHeight: number;
-	x: number; // Top-left X position of the highway
-	y: number; // Top-left Y position of the highway
-	fillColor?: number;
-	borderColor?: number;
-	borderThickness?: number;
-	laneSeparatorColor?: number;
-	laneSeparatorThickness?: number;
-}
 
-export class HighwayRenderer {
-	public container: PIXI.Container;
-	private graphics: PIXI.Graphics;
+export class HighwayRenderer extends PIXI.Graphics {
+	private cleanup: (() => void)[] = [];
+	numLanes = atom(4);
+	laneWidth = atom(75);
+	fillColor = atom(0x333333);
+	borderColor = atom(0x333333);
+	borderThickness = atom(2);
+	laneSeparatorColor = atom(0x333333);
 
-	constructor() {
-		this.container = new PIXI.Container();
-		this.container.label = "HighwayRenderer";
-		this.graphics = new PIXI.Graphics();
-		this.container.addChild(this.graphics);
-	}
+	laneCenterOffsets = computed([this.laneWidth, this.numLanes], (laneWidth, numLanes) => {
+		return Array.from({ length: numLanes }, (_, i) => i * laneWidth + laneWidth / 2);
+	});
+	
 
-	public draw(config: HighwayConfig): void {
-		this.graphics.clear();
+	constructor(
+		screenHeight: Atom<number>
+	) {
+		super();
+		this.label = "HighwayRenderer";
 
-		// Draw each lane individually as rounded rectangles
-		for (let lane = 0; lane < config.numLanes; lane++) {
-			// Calculate lane position and dimensions
-			const laneX = lane * config.laneWidth;
-			const laneY = 0;
-			const laneWidth = config.laneWidth;
-			const laneHeight = config.highwayHeight;
+		const cleanup: (() => void)[] = [];
 
-			// Add some padding between lanes for visual separation
-			const lanePadding = 2;
-			const actualLaneWidth = laneWidth - lanePadding * 2;
-			const actualLaneX = laneX + lanePadding;
+		const highwayHeight = computed([screenHeight], (h) => {
+			return h * 0.95;
+		});
 
-			// Set rounded corner radius
-			const cornerRadius = Math.min(8, actualLaneWidth / 4, laneHeight / 20);
+		// Rendering
+		cleanup.push(effect([screenHeight], (h) => {
+			this.clear();
 
-			// Draw the lane as a rounded rectangle
-			this.graphics
-				.roundRect(actualLaneX, laneY, actualLaneWidth, laneHeight, cornerRadius)
-				.fill({
-					color: config.fillColor !== undefined ? config.fillColor : 0x333333,
-					alpha: config.fillColor !== undefined ? 0.3 : 0.2
-				});
+			// Draw each lane individually as rounded rectangles
+			for (let lane = 0; lane < this.numLanes.get(); lane++) {
+				// Calculate lane position and dimensions
+				const laneX = lane * this.laneWidth.get();
+				const laneY = 0;
+				const laneWidth = this.laneWidth.get();
+				const laneHeight = highwayHeight.get();
 
-			// Add lane border if configured
-			if (config.borderColor !== undefined && config.borderThickness !== undefined) {
-				this.graphics
-					.roundRect(actualLaneX, laneY, actualLaneWidth, laneHeight, cornerRadius)
+				// Add some padding between lanes for visual separation
+				const lanePadding = 2;
+				const actualLaneWidth = laneWidth - lanePadding * 2;
+				const actualLaneX = laneX + lanePadding;
+
+				// Draw the lane as a rounded rectangle
+				this
+					.rect(actualLaneX, laneY, actualLaneWidth, laneHeight)
+					.fill({
+						color: this.fillColor.get(),
+						alpha: this.fillColor.get() !== undefined ? 0.3 : 0.2
+					})
 					.stroke({
-						width: config.borderThickness,
-						color: config.borderColor,
+						width: this.borderThickness.get(),
+						color: this.borderColor.get(),
 						alpha: 0.6
 					});
 			}
-		}
 
-		// Draw overall highway border if configured
-		// if (config.borderColor !== undefined && config.borderThickness !== undefined) {
-		// 	const outerCornerRadius = 12;
-		// 	this.graphics
-		// 		.roundRect(
-		// 			-config.borderThickness / 2,
-		// 			-config.borderThickness / 2,
-		// 			config.highwayWidth + config.borderThickness,
-		// 			config.highwayHeight + config.borderThickness,
-		// 			outerCornerRadius
-		// 		)
-		// 		.stroke({
-		// 			width: config.borderThickness,
-		// 			color: config.borderColor,
-		// 			alpha: 1
-		// 		});
-		// }
+			// Debug to show that lane center offsets are correct
+			// for (const laneCenterOffset of this.laneCenterOffsets.get()) {
+			// 	this.rect(laneCenterOffset, 0, 1, highwayHeight.get())
+			// 		.fill({
+			// 			color: "red",
+			// 			alpha: 0.6
+			// 		});
+			// }
 
-		this.container.x = config.x;
-		this.container.y = config.y;
-	}
-
-	public onResize(newConfig: HighwayConfig): void {
-		this.draw(newConfig);
-	}
-
-	public setVisibility(visible: boolean): void {
-		this.container.visible = visible;
+			this.pivot.set(this.width / 2, this.height / 2);
+		}));
 	}
 
 	public destroy(): void {
-		this.container.destroy({ children: true, texture: true });
+		super.destroy({ children: true, texture: true });
+
+		for (const cleanup of this.cleanup) {
+			cleanup();
+		}
 	}
 } 

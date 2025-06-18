@@ -61,13 +61,12 @@
 				event.preventDefault();
 				return;
 			}
-			if (!gameInstance || isPausedStore || gamePhaseStore !== 'playing') return;
+			if (!gameInstance || isPausedStore) return;
 			gameInstance.handleKeyPress(event.key.toLowerCase(), event);
 		};
 
 		const handleKeyUp = (event: KeyboardEvent) => {
 			if (!gameInstance) return;
-			if (gamePhaseStore === 'finished') return;
 			gameInstance.handleKeyRelease(event.key.toLowerCase(), event);
 		};
 
@@ -181,7 +180,6 @@
 <div
 	bind:this={canvasElementContainer}
 	class="gameplay-container"
-	style="--bg-url: url('{data.songData.imageUrl}');"
 >
 	<canvas bind:this={canvasElement}></canvas>
 	<ScreenPulse bind:this={screenPulseComponent} />
@@ -268,19 +266,7 @@
 		position: relative;
 		z-index: 0;
 	}
-	/* .gameplay-container::before {
-		content: '';
-		filter: blur(16px) brightness(0.5);
-		position: absolute;
-		inset: 0;
-		z-index: -1;
-		background-image: var(--bg-url);
-		background-size: cover;
-		background-position: center center;
-		background-repeat: no-repeat;
-		opacity: 1;
-		pointer-events: none;
-	} */
+	
 
 	canvas {
 		width: 100%;

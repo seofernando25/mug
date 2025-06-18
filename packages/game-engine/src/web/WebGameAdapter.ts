@@ -26,7 +26,7 @@ export interface WebGameConfig {
 }
 
 export class WebGameAdapter {
-	private gameEngine: GameEngine;
+	public gameEngine: GameEngine;
 	private callbacks: WebGameCallbacks;
 	private isInitialized: boolean = false;
 	private animationFrameId: number | null = null;

@@ -1,8 +1,10 @@
 import { Preferences } from '$lib/preferences';
 import type { orpcClient } from '$lib/rpc-client';
 import { initDevtools } from '@pixi/devtools';
-import { MainGameRenderer, WebGameAdapter, type GameplayNote, type GameplaySong, type HitObject } from 'game-engine';
+import { MainGameRenderer, WebGameAdapter, type GameplaySong, type HitObject } from 'game-engine';
 import * as PIXI from 'pixi.js';
+import { atom, computed } from 'nanostores';
+import { setReceptorActive } from 'game-engine/src/rendering/core/ReceptorRenderer';
 
 // Re-export the GamePhase from game-engine for compatibility
 export type { GamePhase } from 'game-engine';
@@ -47,12 +49,23 @@ export async function createGameEngine(
 	callbacks: GameEngineCallbacks
 ): Promise<GameEngineInstance> {
 
+	const cleanup: (() => void)[] = [];
+	
+	// Get the parent element and its bounding client rect
 	const parentElement = canvas.parentElement;
 	if (!parentElement) {
 		throw new Error('Canvas parent element not found');
 	}
 
-	const parentElementRect = parentElement.getBoundingClientRect();
+	const parentElementRect = atom(parentElement.getBoundingClientRect());
+
+	const resizeObserver = new ResizeObserver((entries) => {
+		entries.forEach((entry) => {
+			parentElementRect.set(entry.contentRect);
+		});
+	});
+	resizeObserver.observe(parentElement);
+	cleanup.push(() => resizeObserver.disconnect());
 
 	// Create PIXI Application with the provided canvas
 	const app = new PIXI.Application();
@@ -61,12 +74,15 @@ export async function createGameEngine(
 	}, 1000);
 	await app.init({
 		canvas: canvas,
-		width: parentElementRect.width,
-		height: parentElementRect.height,
+		width: parentElementRect.get().width,
+		height: parentElementRect.get().height,
 		backgroundColor: 0x000000,
 		antialias: true,
 		resolution: window.devicePixelRatio || 1,
 		autoDensity: true,
+	});
+	cleanup.push(() => {
+		app.destroy()
 	});
 
 	// Convert chart data to GameplaySong format
@@ -90,11 +106,11 @@ export async function createGameEngine(
 	const prefs = Preferences.prefs;
 
 	// Create the main game renderer with proper PlayfieldSizer integration
-	const playfieldDesignWidth = parentElementRect.width;
-	const playfieldDesignHeight = parentElementRect.height * 0.925;
-	const laneWidth = 80;
+	const playfieldDesignWidth = computed(parentElementRect, (el) => el.width);
+	const playfieldDesignHeight = computed(parentElementRect, (el) => el.height * 0.925);
+	const laneWidth = atom(80);
 	const highwayHeight = playfieldDesignHeight;
-	const receptorY = highwayHeight * 0.775;
+	const receptorY = computed(highwayHeight, (h) => h * 0.775);
 
 	const rendererConfig = {
 		playfieldSizing: {
@@ -111,7 +127,7 @@ export async function createGameEngine(
 			numLanes: chartData.lanes,
 			highway: {
 				laneWidth: laneWidth,
-				highwayWidth: laneWidth * chartData.lanes,
+				highwayWidth: computed(laneWidth, (laneWidth) => laneWidth * chartData.lanes),
 				highwayHeight: highwayHeight,
 				x: 0,
 				y: 0,
@@ -143,13 +159,13 @@ export async function createGameEngine(
 			},
 		},
 		progressBar: {
-			screenWidth: parentElementRect.width,
-			screenHeight: parentElementRect.height,
+			screenWidth: computed(parentElementRect, (el) => el.width),
+			screenHeight: computed(parentElementRect, (el) => el.height),
 			height: 6,
 			// Position progress bar in the bottom 10% area in landscape mode
-			yPosition: parentElementRect.width > parentElementRect.height
-				? parentElementRect.height * 0.9 // Landscape: start of bottom 10%
-				: undefined, // Portrait: use default (bottom of screen)
+			yPosition: computed(parentElementRect, (el) => el.width > el.height
+				? el.height * 0.9 // Landscape: start of bottom 10%
+				: undefined), // Portrait: use default (bottom of screen)
 			backgroundColor: 0x000000,
 			backgroundAlpha: 0.4,
 			progressColor: 0x00ff88,
@@ -158,18 +174,18 @@ export async function createGameEngine(
 			borderThickness: 1,
 		},
 		background: {
-			screenWidth: parentElementRect.width,
-			screenHeight: parentElementRect.height,
 			imageUrl: song.backgroundImageUrl,
 			dimAmount: 0.3,
 			backgroundColor: 0x111111, // Fallback color
 		},
-		screenWidth: parentElementRect.width,
-		screenHeight: parentElementRect.height,
+		screenWidth: computed(parentElementRect, (el) => el.width),
+		screenHeight: computed(parentElementRect, (el) => el.height),
 		numLanes: chartData.lanes,
 	};
 
-	const renderer = new MainGameRenderer(app, rendererConfig);
+	const screenWidth = computed(parentElementRect, (el) => el.width);
+	const screenHeight = computed(parentElementRect, (el) => el.height);
+	const renderer = new MainGameRenderer(app, screenWidth, screenHeight, song);
 
 	// Create the game adapter with configuration from preferences
 	const gameAdapter = new WebGameAdapter({
@@ -193,17 +209,15 @@ export async function createGameEngine(
 			// Update renderer
 			if (note) {
 				renderer.removeNote(noteId);
-				renderer.activateReceptor(note.lane);
+				setReceptorActive(note.lane, true);
 				// Deactivate receptor after a short delay
-				setTimeout(() => renderer.deactivateReceptor(note.lane), 100);
+				setTimeout(() => setReceptorActive(note.lane, false), 100);
 			}
 		},
 		onNoteMiss: (noteId) => {
 			// Find the note to get its lane for compatibility
 			const note = hitObjects.find(ho => ho.timeMs === noteId); // This is a temporary workaround
 			callbacks.onNoteMiss(noteId, note?.lane);
-			// Update renderer
-			renderer.removeNote(noteId);
 		},
 		onTimeUpdate: callbacks.onTimeUpdate,
 		onSongEnd: () => {
@@ -251,11 +265,34 @@ export async function createGameEngine(
 		},
 
 		handleKeyPress: (key: string, event: KeyboardEvent) => {
-			gameAdapter.handleKeyPress(key);
+			console.log(`[GameEngine] Handling key press for key: ${key}`);
+			// Get the lane from the core engine, which knows the keybindings.
+			const lane = gameAdapter.gameEngine.getLaneForKey(key);
+
+			// Visual feedback should always happen.
+			if (lane !== -1) {
+				setReceptorActive(lane, true);
+			}
+
+			// Gameplay logic should only happen if the game is in the 'playing' phase.
+			if (gameAdapter.getGameplayPhase() === 'playing') {
+				gameAdapter.handleKeyPress(key);
+			}
 		},
 
 		handleKeyRelease: (key: string, event: KeyboardEvent) => {
-			gameAdapter.handleKeyRelease(key);
+			// Get the lane from the core engine.
+			const lane = gameAdapter.gameEngine.getLaneForKey(key);
+
+			// Visual feedback should always happen.
+			if (lane !== -1) {
+				setReceptorActive(lane, false);
+			}
+
+			// Gameplay logic should only happen if the game is in the 'playing' phase.
+			if (gameAdapter.getGameplayPhase() === 'playing') {
+				gameAdapter.handleKeyRelease(key);
+			}
 		},
 
 		cleanup: () => {
@@ -291,40 +328,28 @@ export async function createGameEngine(
 
 		handleResize: () => {
 			const parentElementRect = parentElement.getBoundingClientRect();
-
-			// Resize PIXI application
 			app.renderer.resize(parentElementRect.width, parentElementRect.height);
 
-			// Update progress bar configuration for new screen size and orientation
-			const isLandscape = parentElementRect.width > parentElementRect.height;
-			const progressBarConfig = {
-				screenWidth: parentElementRect.width,
-				screenHeight: parentElementRect.height,
-				height: 6,
-				yPosition: isLandscape
-					? parentElementRect.height * 0.9 // Landscape: start of bottom 10%
-					: undefined, // Portrait: use default (bottom of screen)
-				backgroundColor: 0x000000,
-				backgroundAlpha: 0.4,
-				progressColor: 0x00ff88,
-				progressAlpha: 0.8,
-				borderColor: 0x666666,
-				borderThickness: 1,
-			};
+			// const isLandscape = parentElementRect.width > parentElementRect.height;
+			// const progressBarConfig = {
+			// 	screenWidth: parentElementRect.width,
+			// 	screenHeight: parentElementRect.height,
+			// 	height: 6,
+			// 	yPosition: isLandscape
+			// 		? parentElementRect.height * 0.9 // Landscape: start of bottom 10%
+			// 		: undefined, // Portrait: use default (bottom of screen)
+			// 	backgroundColor: 0x000000,
+			// 	backgroundAlpha: 0.4,
+			// 	progressColor: 0x00ff88,
+			// 	progressAlpha: 0.8,
+			// 	borderColor: 0x666666,
+			// 	borderThickness: 1,
+			// };
 
-			// Update background configuration for new screen size
-			const backgroundConfig = {
-				screenWidth: parentElementRect.width,
-				screenHeight: parentElementRect.height,
-				imageUrl: song.backgroundImageUrl,
-				dimAmount: 0.3,
-				backgroundColor: 0x111111,
-			};
+			
 
 			// Update renderer with new configurations
-			renderer.onResize(parentElementRect.width, parentElementRect.height);
-			renderer.updateProgressBarConfig(progressBarConfig);
-			renderer.updateBackgroundConfig(backgroundConfig);
+			// renderer.updateProgressBarConfig(progressBarConfig);
 		},
 
 		// Legacy compatibility methods

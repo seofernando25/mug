@@ -40,6 +40,10 @@ export interface GameEngineCallbacks {
 }
 
 export class GameEngine {
+	// --- Public members ---
+	public readonly config: GameConfig;
+
+	// --- Private members ---
 	private eventQueue: EventQueue;
 	private gameStateManager: GameStateManager; // Manages gameplay-related state and phase
 	private callbacks: GameEngineCallbacks;
@@ -60,7 +64,8 @@ export class GameEngine {
 	private engineCorePhase: GameEngineCorePhase = 'idle';
 	private isRunningGameplayLoop: boolean = false; // Controls the game logic update pump
 
-	constructor(config: GameConfig, callbacks: GameEngineCallbacks = {}) {
+	constructor(config: GameConfig, callbacks: GameEngineCallbacks) {
+		this.config = config;
 		this.callbacks = callbacks;
 
 		this.eventQueue = new EventQueue();
@@ -386,4 +391,8 @@ export class GameEngine {
 	// a combination of engineCorePhase changes and GameplayManager's internal logic and its callbacks.
 	// The old handleCountdown is now GameplayManager's responsibility, signaling through onGameplayCountdownUpdate.
 	// The old handleNoteHit, handleNoteMiss are direct pass-throughs from GameplayManager's callbacks.
+
+	public getLaneForKey(key: string): number {
+		return this.config.keybindings.indexOf(key.toLowerCase());
+	}
 } 

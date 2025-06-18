@@ -2,121 +2,30 @@ import type { GameplayNote } from '../../types';
 import * as PIXI from 'pixi.js';
 import { NoteComponent, type NoteRenderConfig } from './NoteComponent';
 import { getNoteYPosition } from '../utils/positionUtils';
+import { atom, computed, effect } from 'nanostores';
+import { Graphics } from 'pixi.js';
 
 export class HoldNoteComponent extends NoteComponent {
-	private headSprite: PIXI.Graphics;
-	private bodySprite: PIXI.Graphics;
-	private tailSprite: PIXI.Graphics;
+	private headSprite = new HoldNoteHead();
+	private bodySprite = new HoldNoteBody();
+	private tailSprite = new HoldNoteTail();
+	private cleanup: (() => void)[] = [];
 
-	constructor(noteData: GameplayNote, id: number, config: NoteRenderConfig) {
-		super(noteData, id, config);
+	noteWidthRatio = atom(1);
+	laneWidth = atom(1);
 
-		// Create and add all three sprites to the container
-		this.headSprite = new PIXI.Graphics();
-		this.headSprite.label = 'head';
-		this.bodySprite = new PIXI.Graphics();
-		this.bodySprite.label = 'body';
-		this.tailSprite = new PIXI.Graphics();
-		this.tailSprite.label = 'tail';
+	constructor(noteData: GameplayNote, id: number) {
+		super(noteData, id);
 
-		this.container.addChild(this.headSprite);
-		this.container.addChild(this.bodySprite);
-		this.container.addChild(this.tailSprite);
+		this.addChild(this.headSprite);
+		this.addChild(this.bodySprite);
+		this.addChild(this.tailSprite);
 
-		this.draw();
-
-		// Initially hide body and tail until updatePosition is called
-		this.bodySprite.visible = false;
-		this.tailSprite.visible = false;
-	}
-
-	protected draw(): void {
-		this.drawHead();
-		this.drawTail();
-		// Body is drawn dynamically in updatePosition
-	}
-
-	private drawHead(): void {
-		this.headSprite.clear();
-
-		const noteColor = this.config.laneColors[this.noteData.lane] || 0xffffff;
-		const padding = 4;
-		const noteWidth = this.config.laneWidth * this.config.noteWidthRatio - padding * 2;
-		const noteHeight = 50;
-
-		// Calculate corner radius for rounded notes
-		const cornerRadius = Math.min(12, noteWidth / 6, noteHeight / 3);
-
-		// Draw the head note (same as tap note)
-		this.headSprite
-			.roundRect(0, 0, noteWidth, noteHeight, cornerRadius)
-			.fill({
-				color: noteColor,
-				alpha: 0.9
-			});
-
-		// Add a subtle border for better visibility
-		this.headSprite
-			.roundRect(0, 0, noteWidth, noteHeight, cornerRadius)
-			.stroke({
-				width: 1,
-				color: 0xffffff,
-				alpha: 0.3
-			});
-	}
-
-	private drawTail(): void {
-		this.tailSprite.clear();
-
-		const noteColor = this.config.laneColors[this.noteData.lane] || 0xffffff;
-		const padding = 4;
-		const noteWidth = this.config.laneWidth * this.config.noteWidthRatio - padding * 2;
-		const tailHeight = 50;
-
-		// Calculate corner radius for rounded notes
-		const cornerRadius = Math.min(12, noteWidth / 6, tailHeight / 3);
-
-		// Draw the tail note (same style as head)
-		this.tailSprite
-			.roundRect(0, 0, noteWidth, tailHeight, cornerRadius)
-			.fill({
-				color: noteColor,
-				alpha: 0.9
-			});
-
-		// Add border to tail
-		this.tailSprite
-			.roundRect(0, 0, noteWidth, tailHeight, cornerRadius)
-			.stroke({
-				width: 1,
-				color: 0xffffff,
-				alpha: 0.3
-			});
-	}
-
-	private drawBody(height: number): void {
-		this.bodySprite.clear();
-
-		if (height <= 0) {
-			console.warn("HoldNoteComponent: Body height is less than 0");
-			return;
-		}
-
-		const padding = 4;
-		const noteColor = this.config.laneColors[this.noteData.lane] || 0xffffff;
-		const bodyWidth = this.config.laneWidth * this.config.noteWidthRatio - padding * 2;
-
-		const cornerRadius = Math.min(12, bodyWidth / 6, bodyWidth / 3);
-
-		// Simple rectangle connecting head to tail
-		this.bodySprite
-			.roundRect(0, 0, bodyWidth, height, cornerRadius)
-			.fill({
-				color: noteColor,
-				alpha: 0.9
-			});
-
-		// Add border to body
+		this.cleanup.push(() => {
+			this.headSprite.destroy();
+			this.bodySprite.destroy();
+			this.tailSprite.destroy();
+		});
 	}
 
 	public updatePosition(
@@ -149,10 +58,10 @@ export class HoldNoteComponent extends NoteComponent {
 		);
 
 		// Position the container
-		const laneCenterX = highwayX + (this.noteData.lane + 0.5) * this.config.laneWidth;
-		const noteWidth = this.config.laneWidth * this.config.noteWidthRatio;
-		this.container.x = laneCenterX - (noteWidth / 2);
-		this.container.y = idealHeadY;
+		const laneCenterX = highwayX + (this.noteData.lane + 0.5) * this.laneWidth.get();
+		const noteWidth = this.laneWidth.get() * this.noteWidthRatio.get();
+		this.x = laneCenterX - (noteWidth / 2);
+		this.y = idealHeadY;
 
 		// Position head sprite (relative to container)
 		this.headSprite.x = 0;
@@ -162,7 +71,7 @@ export class HoldNoteComponent extends NoteComponent {
 		const bodyHeight = Math.max(0, Math.abs(idealTailY - idealHeadY) + 50); // Distance between head and tail minus head height
 		this.bodySprite.x = 0; // Center the body
 		this.bodySprite.y = -bodyHeight + 50; // Start just below the head
-		this.drawBody(bodyHeight);
+		this.bodySprite.noteHeight.set(bodyHeight);
 
 		// Position tail sprite
 		this.tailSprite.x = 0;
@@ -174,12 +83,12 @@ export class HoldNoteComponent extends NoteComponent {
 
 		if (noteIsActive) {
 			// When active, the head stays at the hit zone, adjust container position
-			this.container.y = hitZoneY;
+			this.y = hitZoneY;
 
 			// Recalculate body and tail positions relative to new container position
 			const activeBodyHeight = Math.max(0, Math.abs(idealTailY - idealHeadY) + 50);
 			this.bodySprite.y = 50; // Start just below the head
-			this.drawBody(activeBodyHeight);
+			this.bodySprite.noteHeight.set(activeBodyHeight);
 			this.tailSprite.y = idealTailY - hitZoneY; // Relative to new container position
 
 			this.bodySprite.visible = true;
@@ -196,9 +105,144 @@ export class HoldNoteComponent extends NoteComponent {
 	}
 
 	public destroy(): void {
+		super.destroy();
 		this.headSprite.destroy();
 		this.bodySprite.destroy();
 		this.tailSprite.destroy();
-		super.destroy();
 	}
-} 
+}
+
+class HoldNoteHead extends Graphics {
+	private cleanup: (() => void)[] = [];
+
+	noteColor = atom(0xffffff);
+	noteWidthRatio = atom(1);
+	laneWidth = atom(1);
+	padding = atom(4);
+	noteHeight = atom(50);
+	noteWidth = computed([this.laneWidth, this.noteWidthRatio, this.padding], (laneWidth, noteWidthRatio, padding) => laneWidth * noteWidthRatio - padding * 2);
+	cornerRadius = computed([this.noteWidth, this.noteHeight], (noteWidth, noteHeight) => Math.min(12, noteWidth / 6, noteHeight / 3));
+
+	constructor() {
+		super();
+		
+		this.label = "HoldNoteHead";
+
+		this.cleanup.push(effect([this.noteColor, this.noteWidth, this.noteHeight, this.cornerRadius], (noteColor, noteWidth, noteHeight, cornerRadius) => {
+			this.clear();
+
+			// Draw the head note (same as tap note)
+			this
+				.roundRect(0, 0, this.noteWidth.get(), this.noteHeight.get(), this.cornerRadius.get())
+				.fill({
+					color: this.noteColor.get(),
+					alpha: 0.9
+				});
+
+			// Add a subtle border for better visibility
+			this
+				.roundRect(0, 0, this.noteWidth.get(), this.noteHeight.get(), this.cornerRadius.get())
+				.stroke({
+					width: 1,
+					color: 0xffffff,
+					alpha: 0.3
+				});
+		}))
+
+	}
+
+	destroy(options?: PIXI.DestroyOptions): void {
+		super.destroy(options);
+		this.cleanup.forEach(cleanup => cleanup());
+	}
+}
+
+class HoldNoteTail extends Graphics {
+	private cleanup: (() => void)[] = [];
+
+	noteColor = atom(0xffffff);
+	noteWidthRatio = atom(1);
+	laneWidth = atom(1);
+	padding = atom(4);
+	noteHeight = atom(50);
+	noteWidth = computed([this.laneWidth, this.noteWidthRatio, this.padding], (laneWidth, noteWidthRatio, padding) => laneWidth * noteWidthRatio - padding * 2);
+	cornerRadius = computed([this.noteWidth, this.noteHeight], (noteWidth, noteHeight) => Math.min(12, noteWidth / 6, noteHeight / 3));
+
+	constructor() {
+		super();
+
+		this.label = "HoldNoteTail";
+		
+		this.cleanup.push(effect([this.noteColor, this.noteWidth, this.noteHeight, this.cornerRadius], (noteColor, noteWidth, noteHeight, cornerRadius) => {
+			this.clear();
+
+			// Draw the tail note (same as head but with a different shape)
+			this
+				.roundRect(0, 0, this.noteWidth.get(), this.noteHeight.get(), this.cornerRadius.get())
+				.fill({
+					color: this.noteColor.get(),
+					alpha: 0.9
+				});
+
+			// Add a subtle border for better visibility
+			this
+				.roundRect(0, 0, this.noteWidth.get(), this.noteHeight.get(), this.cornerRadius.get())
+				.stroke({
+					width: 1,
+					color: 0xffffff,
+					alpha: 0.3
+				});
+		}));
+	}
+
+	destroy(options?: PIXI.DestroyOptions): void {
+		super.destroy(options);
+		this.cleanup.forEach(cleanup => cleanup());
+	}
+}
+
+class HoldNoteBody extends Graphics {
+	private cleanup: (() => void)[] = [];
+
+	noteColor = atom(0xffffff);
+	noteWidthRatio = atom(1);
+	laneWidth = atom(1);
+	padding = atom(4);
+	noteHeight = atom(0);
+
+	noteWidth = computed([this.laneWidth, this.noteWidthRatio, this.padding], (laneWidth, noteWidthRatio, padding) => laneWidth * noteWidthRatio - padding * 2);
+	cornerRadius = computed([this.noteWidth], (noteWidth) => Math.min(12, noteWidth / 6, noteWidth / 3));
+
+	constructor() {
+		super();
+
+		this.label = "HoldNoteBody";
+		
+		this.cleanup.push(effect([this.noteColor, this.noteWidth, this.noteHeight, this.cornerRadius], (noteColor, noteWidth, height, cornerRadius) => {
+			this.clear();
+			height = Math.max(0.1, height);
+
+			// Draw the body connecting head to tail
+			this
+				.roundRect(0, 0, noteWidth, height, cornerRadius)
+				.fill({
+					color: noteColor,
+					alpha: 0.9
+				});
+
+			// Add a subtle border for better visibility
+			this
+				.roundRect(0, 0, noteWidth, height, cornerRadius)
+				.stroke({
+					width: 1,
+					color: 0xffffff,
+					alpha: 0.3
+				});
+		}));
+	}
+
+	destroy(options?: PIXI.DestroyOptions): void {
+		super.destroy(options);
+		this.cleanup.forEach(cleanup => cleanup());
+	}
+}

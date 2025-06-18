@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import type { GameplayNote } from '../../types';
 import { NotePool } from '../notes/NotePool';
 import type { NoteRenderConfig, NoteComponent } from '../notes/NoteComponent';
+import { atom } from 'nanostores';
 
 export interface NoteRendererConfig extends NoteRenderConfig { // Extends the one from notes
 	// Add any additional config specific to the overall NoteRenderer here if needed
@@ -13,38 +14,36 @@ export interface NoteRendererConfig extends NoteRenderConfig { // Extends the on
 	highwayX: number; // Starting X of the highway area for positioning notes within lanes
 }
 
-export class NoteRenderer {
-	public container: PIXI.Container;
-	private notePool: NotePool;
+// TODO: Fix this class!!!!
+export class NoteRenderer extends PIXI.Container {
+	private notePool = new NotePool(this);
 	private activeNotes: Map<number, NoteComponent> = new Map();
-	private config: NoteRendererConfig;
 
-	constructor(stage: PIXI.Container, initialConfig: NoteRendererConfig) {
-		this.container = new PIXI.Container();
-		this.container.label = "NoteRenderer";
-		this.config = initialConfig;
-		// Pass the NoteRenderConfig part of initialConfig to NotePool
-		this.notePool = new NotePool(this.container, {
-			laneWidth: initialConfig.laneWidth,
-			noteWidthRatio: initialConfig.noteWidthRatio,
-			laneColors: initialConfig.laneColors,
-		});
-		stage.addChild(this.container);
+	laneWidth = atom(0);
+	noteWidthRatio = atom(1);
+	laneColors = atom<number[]>([]);
+	highwayX = atom(0);
+	hitZoneY = atom(0);
+	receptorYPosition = atom(0);
+	scrollSpeed = atom(1);
+	canvasHeight = atom(0);
+
+	constructor() {
+		super();
+		this.label = "NoteRenderer";
 	}
 
 	public addNote(noteData: GameplayNote): void {
-		if (!this.config) return;
 		const note = this.notePool.getNote(noteData, noteData.id);
-
-		note.show();
+		note.visible = true;
 		// Initial position update
 		note.updatePosition(
 			0, // Assuming songTimeMs is 0 at the point of adding, or pass current game time
-			this.config.hitZoneY,
-			this.config.receptorYPosition,
-			this.config.scrollSpeed,
-			this.config.canvasHeight,
-			this.config.highwayX
+			this.hitZoneY.get(),
+			this.receptorYPosition.get(),
+			this.scrollSpeed.get(),
+			this.canvasHeight.get(),
+			this.highwayX.get()
 		);
 		this.activeNotes.set(noteData.id, note);
 	}
@@ -58,45 +57,66 @@ export class NoteRenderer {
 	}
 
 	public updateNotes(songTimeMs: number): void {
-		if (!this.config) return;
 		for (const [_id, note] of this.activeNotes) {
 			note.updatePosition(
 				songTimeMs,
-				this.config.hitZoneY,
-				this.config.receptorYPosition,
-				this.config.scrollSpeed,
-				this.config.canvasHeight,
-				this.config.highwayX
+				this.hitZoneY.get(),
+				this.receptorYPosition.get(),
+				this.scrollSpeed.get(),
+				this.canvasHeight.get(),
+				this.highwayX.get()
 			);
 		}
 	}
 
-	public onResize(newConfig: NoteRendererConfig): void {
-		this.config = newConfig;
-		// Pass the NoteRenderConfig part of newConfig to NotePool
+	public updateConfig({
+		laneWidth,
+		noteWidthRatio,
+		laneColors,
+		highwayX,
+		hitZoneY,
+		receptorYPosition,
+		scrollSpeed,
+		canvasHeight
+	}: {
+		laneWidth: number,
+		noteWidthRatio: number,
+		laneColors: number[],
+		highwayX: number,
+		hitZoneY: number,
+		receptorYPosition: number,
+		scrollSpeed: number,
+		canvasHeight: number
+	}) {
+		this.laneWidth.set(laneWidth);
+		this.noteWidthRatio.set(noteWidthRatio);
+		this.laneColors.set(laneColors);
+		this.highwayX.set(highwayX);
+		this.hitZoneY.set(hitZoneY);
+		this.receptorYPosition.set(receptorYPosition);
+		this.scrollSpeed.set(scrollSpeed);
+		this.canvasHeight.set(canvasHeight);
+
+		// Pass the NoteRenderConfig part to NotePool
 		this.notePool.updateNoteRenderConfig({
-			laneWidth: newConfig.laneWidth,
-			noteWidthRatio: newConfig.noteWidthRatio,
-			laneColors: newConfig.laneColors,
+			laneWidth,
+			noteWidthRatio,
+			laneColors,
 		});
 		// Also tell the pool to update any active notes based on new highway/layout params
 		this.notePool.updateActiveNotesLayout(
-			newConfig.highwayX,
+			highwayX,
 			0, // Ideally, pass current songTimeMs here if available during resize
-			newConfig.hitZoneY,
-			newConfig.receptorYPosition,
-			newConfig.scrollSpeed,
-			newConfig.canvasHeight
+			hitZoneY,
+			receptorYPosition,
+			scrollSpeed,
+			canvasHeight
 		);
 	}
 
-	public setVisibility(visible: boolean): void {
-		this.container.visible = visible;
-	}
-
 	public destroy(): void {
+		super.destroy({ children: true, texture: true });
 		this.notePool.clearAll();
-		this.container.destroy({ children: true, texture: true });
 		this.activeNotes.clear();
 	}
 } 

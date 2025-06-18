@@ -1,100 +1,127 @@
 import * as PIXI from 'pixi.js';
+import { atom, effect, type Atom } from 'nanostores';
 
-export interface ReceptorConfig {
-	numLanes: number;
-	laneWidth: number;
-	receptorHeight: number;
-	yPosition: number; // Y position of the top of the receptors
-	highwayX: number; // Starting X position of the highway, for lane alignment
-	baseColor?: number;
-	activeColor?: number;
-	outlineColor?: number;
-	outlineThickness?: number;
-	glowEffect?: boolean; // Enable/disable inner glow on active receptors
-	baseAlpha?: number; // Alpha for inactive receptors
-	activeAlpha?: number; // Alpha for active receptors
+// Shared configuration store for receptors
+export const receptorConfig = {
+	laneWidth: atom(75),
+	receptorHeight: atom(50),
+	baseColor: atom(0x333333),
+	activeColor: atom(0xffffff),
+	outlineColor: atom(0x333333),
+	outlineThickness: atom(2),
+	baseAlpha: atom(0.7),
+	activeAlpha: atom(0.9),
+};
+
+// Shared state store for receptor activation
+export const receptorActiveLanes = atom<Set<number>>(new Set());
+
+export function setReceptorActive(lane: number, active: boolean) {
+	const current = receptorActiveLanes.get();
+	const next = new Set(current);
+	if (active) {
+		next.add(lane);
+	} else {
+		next.delete(lane);
+	}
+	receptorActiveLanes.set(next);
 }
 
 interface ReceptorVisual {
 	lane: number;
-	graphics: PIXI.Graphics;
-	isActive: boolean;
+	receptor: Receptor;
 }
 
-export class ReceptorRenderer {
-	public container: PIXI.Container;
+export class ReceptorRenderer extends PIXI.Container {
 	private receptors: ReceptorVisual[] = [];
-	private config: ReceptorConfig | null = null;
+	private cleanup: (() => void)[] = [];
 
-	constructor() {
-		this.container = new PIXI.Container();
-		this.container.label = "ReceptorRenderer";
-	}
+	numLanes = atom(4);
 
-	public draw(config: ReceptorConfig): void {
-		this.config = config;
-		this.receptors.forEach(r => r.graphics.destroy());
-		this.receptors = [];
-		this.container.removeChildren();
+	constructor(screenHeight: Atom<number>) {
+		super();
+		this.label = "ReceptorRenderer";
 
-		for (let i = 0; i < config.numLanes; i++) {
-			const graphics = new PIXI.Graphics();
-			const receptor: ReceptorVisual = { lane: i, graphics, isActive: false };
-			this._drawReceptor(receptor, config.baseColor || 0x444444, config); // Default inactive color
-
-			graphics.x = i * config.laneWidth;
-			graphics.y = 0; // Positioned relative to the container
-
-			this.receptors.push(receptor);
-			this.container.addChild(graphics);
-		}
-		this.container.x = config.highwayX;
-		this.container.y = config.yPosition;
-	}
-
-	private _drawReceptor(receptor: ReceptorVisual, color: number, config: ReceptorConfig): void {
-		receptor.graphics.clear();
-
-		// Add some padding for better visual separation
-		const padding = 4;
-		const actualWidth = config.laneWidth - padding * 2;
-		const actualHeight = config.receptorHeight;
-		const x = padding;
-		const y = padding / 2;
-
-		// Use custom corner radius or calculate based on receptor size
-		const cornerRadius = Math.min(12, actualWidth / 6, actualHeight / 3);
-
-		// Get alpha values from config or use defaults
-		const baseAlpha = config.baseAlpha ?? 0.7;
-		const activeAlpha = config.activeAlpha ?? 0.9;
-
-		// Draw the main receptor body with rounded corners
-		receptor.graphics
-			.roundRect(x, y, actualWidth, actualHeight, cornerRadius)
-			.fill({
-				color: color,
-				alpha: receptor.isActive ? activeAlpha : baseAlpha
+		// Reactively (re)create receptors when config changes
+		this.cleanup.push(effect([
+			receptorConfig.laneWidth,
+			receptorConfig.receptorHeight,
+			receptorConfig.baseColor,
+			receptorConfig.activeColor,
+			receptorConfig.outlineColor,
+			receptorConfig.outlineThickness,
+			receptorConfig.baseAlpha,
+			receptorConfig.activeAlpha
+		], () => {
+			// Cleanup old receptors
+			this.receptors.forEach(r => {
+				r.receptor.destroy();
 			});
+			this.receptors = [];
+			this.removeChildren();
+		
+			for (let i = 0; i < this.numLanes.get(); i++) { 
+				const receptor = new Receptor(i);
+				receptor.x = (i - this.numLanes.get() / 2) * receptorConfig.laneWidth.get();
+				receptor.y = screenHeight.get() * (0.5 * 0.85);
+				this.receptors.push({ lane: i, receptor });
+				this.addChild(receptor);
+			}
+		}));
+	}
 
-		// Add outline/border if configured
-		if (config.outlineColor !== undefined && config.outlineThickness !== undefined) {
-			receptor.graphics
-				.roundRect(x, y, actualWidth, actualHeight, cornerRadius)
-				.stroke({
-					width: config.outlineThickness,
-					color: config.outlineColor,
-					alpha: receptor.isActive ? 1.0 : 0.8
+	public destroy(): void {
+		super.destroy({ children: true, texture: true });
+		this.receptors.forEach(r => {
+			r.receptor.destroy();
+		});
+		this.receptors = [];
+		this.cleanup.forEach(fn => fn());
+	}
+}
+
+class Receptor extends PIXI.Graphics {
+	public cleanup: (() => void)[] = [];
+	private lane: number;
+	
+	constructor(lane: number) {
+		super();
+		this.lane = lane;
+		// React to shared receptorActiveLanes
+		this.cleanup.push(effect([
+			receptorActiveLanes,
+			receptorConfig.laneWidth,
+			receptorConfig.receptorHeight,
+			receptorConfig.baseColor,
+			receptorConfig.activeColor,
+			receptorConfig.outlineColor,
+			receptorConfig.outlineThickness,
+			receptorConfig.baseAlpha,
+			receptorConfig.activeAlpha
+		], (activeLanes, laneWidth, receptorHeight, baseColor, activeColor, outlineColor, outlineThickness, baseAlpha, activeAlpha) => {
+			this.clear();
+			const isActive = activeLanes.has(this.lane);
+			const padding = 4;
+			const actualWidth = laneWidth - padding * 2;
+			const actualHeight = receptorHeight;
+			const x = padding;
+			const y = -padding * 5;
+			const cornerRadius = Math.min(12, actualWidth / 6, actualHeight / 3);
+			this.roundRect(x, y, actualWidth, receptorHeight, cornerRadius)
+				.fill({
+					color: isActive ? activeColor : baseColor,
+					alpha: isActive ? activeAlpha : baseAlpha
 				});
-		}
-
-		// Add a subtle inner glow effect when active (if enabled)
-		const glowEnabled = config.glowEffect ?? true; // Default to true
-		if (receptor.isActive && glowEnabled) {
-			const glowPadding = 2;
-			const innerRadius = Math.max(0, cornerRadius - 2);
-			receptor.graphics
-				.roundRect(
+			this.roundRect(x, y, actualWidth, receptorHeight, cornerRadius)
+				.stroke({
+					width: outlineThickness,
+					color: outlineColor,
+					alpha: isActive ? 1.0 : 0.8
+				});
+			if (isActive) {
+				const glowPadding = 2;
+				const innerRadius = Math.max(0, cornerRadius - 2);
+				this.roundRect(
 					x + glowPadding,
 					y + glowPadding,
 					actualWidth - glowPadding * 2,
@@ -105,36 +132,12 @@ export class ReceptorRenderer {
 					color: 0xffffff,
 					alpha: 0.3
 				});
-		}
-	}
-
-	public activateReceptor(lane: number): void {
-		if (!this.config) return;
-		const receptor = this.receptors[lane];
-		if (receptor && !receptor.isActive) {
-			this._drawReceptor(receptor, this.config.activeColor || 0xffffff, this.config);
-			receptor.isActive = true;
-		}
-	}
-
-	public deactivateReceptor(lane: number): void {
-		if (!this.config) return;
-		const receptor = this.receptors[lane];
-		if (receptor && receptor.isActive) {
-			this._drawReceptor(receptor, this.config.baseColor || 0x444444, this.config);
-			receptor.isActive = false;
-		}
-	}
-
-	public onResize(newConfig: ReceptorConfig): void {
-		this.draw(newConfig);
-	}
-
-	public setVisibility(visible: boolean): void {
-		this.container.visible = visible;
+			}
+		}));
 	}
 
 	public destroy(): void {
-		this.container.destroy({ children: true, texture: true });
+		this.cleanup.forEach(fn => fn());
+		super.destroy({ children: true, texture: true });
 	}
-} 
+}
