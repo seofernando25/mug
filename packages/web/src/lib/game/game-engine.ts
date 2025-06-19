@@ -61,6 +61,7 @@ export async function createGameEngine(
 
 	const resizeObserver = new ResizeObserver((entries) => {
 		entries.forEach((entry) => {
+			console.log("ResizeObserver", entry.contentRect);
 			parentElementRect.set(entry.contentRect);
 		});
 	});

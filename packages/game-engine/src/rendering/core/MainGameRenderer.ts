@@ -1,4 +1,4 @@
-import { type Atom } from 'nanostores';
+import { effect, type Atom } from 'nanostores';
 import * as PIXI from 'pixi.js';
 import type { GameplayNote, GameplaySong, NoteJudgment } from '../../types';
 import { ProgressBarRenderer, type ProgressBarConfig } from '../ui/ProgressBarRenderer';
@@ -49,7 +49,19 @@ export class MainGameRenderer {
 		this.playfieldRenderer = new PlayfieldRenderer(screenWidth, screenHeight);
 		this.app.stage.addChild(this.playfieldRenderer);
 
-	
+
+		effect([screenWidth, screenHeight], (w, h) => {
+			const baseWidth = 1024;
+			const baseHeight = 768;
+
+			let scale = Math.min(w / baseWidth, h / baseHeight);			
+
+			this.playfieldRenderer.scale.set(scale, scale);
+
+			this.playfieldRenderer.x = (w - baseWidth * scale) / 2;
+			this.playfieldRenderer.y = (h - baseHeight * scale) / 2;
+		});
+
 		// this.judgmentRenderer = new JudgmentRenderer(config.judgmentStyles);
 		// this.app.stage.addChild(this.judgmentRenderer.container);
 

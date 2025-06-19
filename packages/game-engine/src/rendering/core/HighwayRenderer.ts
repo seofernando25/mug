@@ -17,59 +17,41 @@ export class HighwayRenderer extends PIXI.Graphics {
 	
 
 	constructor(
-		screenHeight: Atom<number>
 	) {
 		super();
+		const virtualScreenWidth = 1024;
+		// const virtualScreenHeight = 768;
+		const vPadding = 16;
+		const lanePadding = 4;
+		const highwayHeight = 768 - vPadding * 2;
+		const laneWidth = 4 * 13;
 		this.label = "HighwayRenderer";
 
 		const cleanup: (() => void)[] = [];
 
-		const highwayHeight = computed([screenHeight], (h) => {
-			return h * 0.95;
-		});
+		this.clear();
 
-		// Rendering
-		cleanup.push(effect([screenHeight], (h) => {
-			this.clear();
 
-			// Draw each lane individually as rounded rectangles
-			for (let lane = 0; lane < this.numLanes.get(); lane++) {
-				// Calculate lane position and dimensions
-				const laneX = lane * this.laneWidth.get();
-				const laneY = 0;
-				const laneWidth = this.laneWidth.get();
-				const laneHeight = highwayHeight.get();
 
-				// Add some padding between lanes for visual separation
-				const lanePadding = 2;
-				const actualLaneWidth = laneWidth - lanePadding * 2;
-				const actualLaneX = laneX + lanePadding;
 
-				// Draw the lane as a rounded rectangle
-				this
-					.rect(actualLaneX, laneY, actualLaneWidth, laneHeight)
-					.fill({
-						color: this.fillColor.get(),
-						alpha: this.fillColor.get() !== undefined ? 0.3 : 0.2
-					})
-					.stroke({
-						width: this.borderThickness.get(),
-						color: this.borderColor.get(),
-						alpha: 0.6
-					});
-			}
+		const totalLanes = this.numLanes.get();
+		for (let laneIdx = 0; laneIdx < totalLanes; laneIdx++) {
+			const laneX = laneIdx * (laneWidth + lanePadding);
 
-			// Debug to show that lane center offsets are correct
-			// for (const laneCenterOffset of this.laneCenterOffsets.get()) {
-			// 	this.rect(laneCenterOffset, 0, 1, highwayHeight.get())
-			// 		.fill({
-			// 			color: "red",
-			// 			alpha: 0.6
-			// 		});
-			// }
+			this
+				.rect(laneX, 0, laneWidth, highwayHeight)
+				.fill({
+					color: this.fillColor.get(),
+					alpha: this.fillColor.get() !== undefined ? 0.3 : 0.2
+				});
+		}
 
-			this.pivot.set(this.width / 2, this.height / 2);
-		}));
+		// center on 1024 wide screen
+		this.x = virtualScreenWidth/2 - this.width / 2;
+		this.y = vPadding;
+
+		// this.pivot.set(-this.width / 2, -this.height / 2);
+		
 	}
 
 	public destroy(): void {

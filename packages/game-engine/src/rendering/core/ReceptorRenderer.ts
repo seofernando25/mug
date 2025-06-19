@@ -5,7 +5,7 @@ import { atom, effect, type Atom } from 'nanostores';
 export const receptorConfig = {
 	laneWidth: atom(75),
 	receptorHeight: atom(50),
-	baseColor: atom(0x333333),
+	baseColor: atom(0xaa3333),
 	activeColor: atom(0xffffff),
 	outlineColor: atom(0x333333),
 	outlineThickness: atom(2),
@@ -38,8 +38,12 @@ export class ReceptorRenderer extends PIXI.Container {
 
 	numLanes = atom(4);
 
-	constructor(screenHeight: Atom<number>) {
+	constructor() {
 		super();
+
+		const virtualScreenWidth = 1024;
+		const virtualScreenHeight = 768;
+
 		this.label = "ReceptorRenderer";
 
 		// Reactively (re)create receptors when config changes
@@ -59,11 +63,18 @@ export class ReceptorRenderer extends PIXI.Container {
 			});
 			this.receptors = [];
 			this.removeChildren();
-		
-			for (let i = 0; i < this.numLanes.get(); i++) { 
+
+
+			const numLanes = this.numLanes.get();
+			const lanesTotalWidth = numLanes * 4 * 13 + numLanes * 4;
+			const startX = virtualScreenWidth/2 - lanesTotalWidth/2 + 4
+
+			for (let i = 0; i < numLanes; i++) { 
 				const receptor = new Receptor(i);
-				receptor.x = (i - this.numLanes.get() / 2) * receptorConfig.laneWidth.get();
-				receptor.y = screenHeight.get() * (0.5 * 0.85);
+
+				receptor.x = startX  + i * 4 * 14;
+				receptor.y = virtualScreenHeight * ( 0.8);
+
 				this.receptors.push({ lane: i, receptor });
 				this.addChild(receptor);
 			}
@@ -90,43 +101,34 @@ class Receptor extends PIXI.Graphics {
 		// React to shared receptorActiveLanes
 		this.cleanup.push(effect([
 			receptorActiveLanes,
-			receptorConfig.laneWidth,
-			receptorConfig.receptorHeight,
 			receptorConfig.baseColor,
 			receptorConfig.activeColor,
 			receptorConfig.outlineColor,
 			receptorConfig.outlineThickness,
 			receptorConfig.baseAlpha,
 			receptorConfig.activeAlpha
-		], (activeLanes, laneWidth, receptorHeight, baseColor, activeColor, outlineColor, outlineThickness, baseAlpha, activeAlpha) => {
+		], (activeLanes, baseColor, activeColor, outlineColor, outlineThickness, baseAlpha, activeAlpha) => {
 			this.clear();
 			const isActive = activeLanes.has(this.lane);
-			const padding = 4;
-			const actualWidth = laneWidth - padding * 2;
-			const actualHeight = receptorHeight;
-			const x = padding;
-			const y = -padding * 5;
-			const cornerRadius = Math.min(12, actualWidth / 6, actualHeight / 3);
-			this.roundRect(x, y, actualWidth, receptorHeight, cornerRadius)
+			const width = 4 * 12;
+			const height = 4 * 12;
+			this.rect(0, 0, width, height)
 				.fill({
 					color: isActive ? activeColor : baseColor,
 					alpha: isActive ? activeAlpha : baseAlpha
 				});
-			this.roundRect(x, y, actualWidth, receptorHeight, cornerRadius)
-				.stroke({
-					width: outlineThickness,
-					color: outlineColor,
-					alpha: isActive ? 1.0 : 0.8
-				});
+			this.rect(0, 0, width, height)
+				// .stroke({
+				// 	width: outlineThickness,
+				// 	color: outlineColor,
+				// 	alpha: isActive ? 1.0 : 0.8
+				// });
 			if (isActive) {
-				const glowPadding = 2;
-				const innerRadius = Math.max(0, cornerRadius - 2);
-				this.roundRect(
-					x + glowPadding,
-					y + glowPadding,
-					actualWidth - glowPadding * 2,
-					actualHeight - glowPadding * 2,
-					innerRadius
+				this.rect(
+					0,
+					0,
+					width,
+					height,
 				)
 				.fill({
 					color: 0xffffff,
@@ -134,6 +136,7 @@ class Receptor extends PIXI.Graphics {
 				});
 			}
 		}));
+		// this.pivot.set(this.width / 2, this.height / 2);
 	}
 
 	public destroy(): void {
