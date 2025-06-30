@@ -1,6 +1,4 @@
 import type { GameConfig } from '../config/GameConfig';
-import type { GameStateManager } from '../core/GameState';
-import { type GamePhase as GameplaySystemPhase } from '../core/GameState';
 import type { GameplayNote, HitObject, NoteJudgment } from '../types/NoteTypes';
 import { createInitialNoteState } from '../types/NoteTypes';
 import { ComboTracker } from './ComboTracker';
@@ -13,8 +11,6 @@ export interface GameplayCallbacks {
 	onNoteHit?: (noteId: number, judgment: NoteJudgment, score: number, playerId?: string) => void;
 	onNoteMiss?: (noteId: number, playerId?: string) => void;
 	onScoreUpdate?: (playerId: string, score: number, combo: number, accuracy: number) => void;
-	onPhaseChange?: (phase: GameplaySystemPhase) => void;
-	onGameplaySystemPhaseChange?: (phase: GameplaySystemPhase) => void;
 	onCountdownUpdate?: (count: number) => void;
 	onRequestStartAudio?: () => void;
 	onRequestStopAudio?: () => void;
@@ -33,7 +29,6 @@ export interface PlayerGameplayState {
 export class GameplayManager {
 	private config: GameConfig;
 	private callbacks: GameplayCallbacks;
-	private gameStateManager: GameStateManager;
 
 	// Gameplay systems
 	private timingWindows: TimingWindows;
@@ -45,12 +40,10 @@ export class GameplayManager {
 
 	private notes: GameplayNote[] = [];
 	private activeCountdownTimer: any | null = null;
-	private currentGameplayPhase: GameplaySystemPhase = 'idle';
 
-	constructor(config: GameConfig, callbacks: GameplayCallbacks = {}, gameStateManager: GameStateManager) {
+	constructor(config: GameConfig, callbacks: GameplayCallbacks = {}) {
 		this.config = config;
 		this.callbacks = callbacks;
-		this.gameStateManager = gameStateManager;
 
 		// Initialize gameplay systems
 		this.timingWindows = new TimingWindows(config);
@@ -77,7 +70,6 @@ export class GameplayManager {
 				accuracy: 100
 			});
 		});
-		this.setGameplaySystemPhase('idle');
 	}
 
 	// Process key press
@@ -202,14 +194,7 @@ export class GameplayManager {
 		return Math.round((playerState.hits / totalNotes) * 100 * 100) / 100;
 	}
 
-	private setGameplaySystemPhase(phase: GameplaySystemPhase): void {
-		if (this.currentGameplayPhase === phase) return;
-		this.currentGameplayPhase = phase;
-		this.gameStateManager.setPhase(phase);
-		this.callbacks.onGameplaySystemPhaseChange?.(phase);
-		console.log(`GameplayManager Phase: ${phase}`);
-	}
-
+	
 	public loadNotes(hitObjects: HitObject[]): void {
 		// Convert HitObjects to GameplayNotes with initial state
 		this.notes = hitObjects.map((hitObject, index) => ({
@@ -217,54 +202,44 @@ export class GameplayManager {
 			id: index, // Generate sequential IDs
 			noteState: createInitialNoteState(hitObject.noteInfo)
 		})).sort((a, b) => a.timeMs - b.timeMs);
-		this.setGameplaySystemPhase('idle');
 	}
 
 	public startPreparation(): void {
 		console.log("GameplayManager: Starting preparation (e.g., countdown).");
-		this.setGameplaySystemPhase('countdown');
 		this.reset();
 
 		let count = this.config.countdownSeconds || 3;
 		this.callbacks.onCountdownUpdate?.(count);
-		this.gameStateManager.setCountdownValue(count);
 
 		if (this.activeCountdownTimer) clearInterval(this.activeCountdownTimer);
 
 		this.activeCountdownTimer = setInterval(() => {
 			count--;
 			this.callbacks.onCountdownUpdate?.(count);
-			this.gameStateManager.setCountdownValue(count);
 			if (count <= 0) {
 				if (this.activeCountdownTimer) clearInterval(this.activeCountdownTimer);
 				this.activeCountdownTimer = null;
-				this.setGameplaySystemPhase('playing');
 				this.callbacks.onRequestStartAudio?.();
 			}
 		}, 1000);
 	}
 
 	public update(currentTimeMs: number): void {
-		if (this.currentGameplayPhase !== 'playing') return;
 
 		const missedResults = this.noteJudgmentSystem.findMissedNotes(this.notes, currentTimeMs);
 		missedResults.forEach(result => {
 			// Update GameStateManager first as it holds the authoritative state
-			this.gameStateManager.updateNoteState(result.noteId, result.newNoteState);
 			this.playerStates.forEach((_, playerId) => this.processMiss(playerId, result.noteId));
 		});
 
 		const brokenHoldResults = this.noteJudgmentSystem.findBrokenHoldNotes(this.notes, currentTimeMs);
 		brokenHoldResults.forEach(result => {
 			// Update GameStateManager with the new note state from the judgment result
-			this.gameStateManager.updateNoteState(result.noteId, result.newNoteState);
 			this.playerStates.forEach((_, playerId) => this.processMiss(playerId, result.noteId));
 		});
 
 		const allEffectivelyJudged = this.notes.every(note => {
-			const currentNoteState = this.gameStateManager.getNoteState(note.id);
-			if (!currentNoteState) return false; // Should not happen if notes are loaded
-
+			const currentNoteState = note.noteState;
 			if (currentNoteState.noteType === 'tap') {
 				return currentNoteState.state.type === 'hit' || currentNoteState.state.type === 'missed';
 			} else if (currentNoteState.noteType === 'hold') {
@@ -279,10 +254,23 @@ export class GameplayManager {
 	}
 
 	public processInput(type: 'press' | 'release', key: string, currentTimeMs: number, playerId: string = 'player1'): void {
-		if (this.currentGameplayPhase !== 'playing') return;
 
 		const lane = this.config.keybindings.indexOf(key.toLowerCase());
 		if (lane === -1) return;
+
+		// if (type === 'press') {
+		// 	this.eventQueue.enqueue({
+		// 		type: "keyPress",
+		// 		lane,
+		// 		key,
+		// 	})
+		// } else if (type === 'release') {
+		// 	this.eventQueue.enqueue({
+		// 		type: "",
+		// 		lane,
+		// 		key,
+		// 	})
+		// }
 
 		// Read notes from GameStateManager for fresh state, or use internal this.notes if that's intended as the working copy.
 		// For now, using this.notes which loadNotes populates.
@@ -298,17 +286,11 @@ export class GameplayManager {
 		if (!result) return;
 
 		// Update GameStateManager with the new note state from the judgment result
-		this.gameStateManager.updateNoteState(result.noteId, result.newNoteState);
 
 		this.processNoteResult(result, playerId);
 	}
 
-	public notifySongEnded(): void {
-		console.log("GameplayManager: Notified that song has ended by GameEngine.");
-		if (this.currentGameplayPhase === 'playing' || this.currentGameplayPhase === 'countdown') {
-			this.setGameplaySystemPhase('finished');
-		}
-	}
+
 
 	private processMiss(playerId: string, noteIdToMiss?: number): void {
 		const playerState = this.playerStates.get(playerId);
@@ -336,7 +318,6 @@ export class GameplayManager {
 		}
 		this.notes = [];
 		this.reset();
-		this.setGameplaySystemPhase('idle');
 		console.log("GameplayManager: Cleaned up.");
 	}
 } 

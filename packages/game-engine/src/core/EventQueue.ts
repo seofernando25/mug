@@ -11,9 +11,6 @@ export class EventQueue {
 	private globalHandlers: EventHandler[] = [];
 	private currentGameTime: number = 0;
 
-	constructor() {
-		// No need to pre-initialize handler maps - they'll be created on demand
-	}
 
 	// Add event to queue
 	enqueue(event: GameEvent, delay: number = 0): void {
@@ -35,7 +32,7 @@ export class EventQueue {
 	processEvents(gameTime: number): GameEvent[] {
 		this.currentGameTime = gameTime;
 		const processedEvents: GameEvent[] = [];
-
+		
 		while (this.queue.length > 0 && this.queue[0]!.scheduledTime <= gameTime) {
 			const queuedEvent = this.queue.shift()!;
 			this.dispatchEvent(queuedEvent.event);
@@ -128,6 +125,7 @@ export class EventQueue {
 	}
 
 	private dispatchEvent(event: GameEvent): void {
+		console.log("dispatchEvent", event);
 		// Call type-specific handlers
 		const typeHandlers = this.handlers.get(event.type);
 		if (typeHandlers) {

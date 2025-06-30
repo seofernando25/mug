@@ -2,11 +2,11 @@ import { effect, type Atom } from 'nanostores';
 import * as PIXI from 'pixi.js';
 import type { GameplayNote, GameplaySong, NoteJudgment } from '../../types';
 import { ProgressBarRenderer, type ProgressBarConfig } from '../ui/ProgressBarRenderer';
-import { BackgroundRenderer } from './BackgroundRenderer';
+// import { BackgroundRenderer } from './BackgroundRenderer';
 import { type HitEffectConfig } from './EffectsRenderer';
 import { type JudgmentAnimationConfig, type JudgmentStyle } from './JudgmentRenderer';
 import { PlayfieldRenderer } from './PlayfieldRenderer';
-import { type PlayfieldLayout, type PlayfieldSizingParams } from './PlayfieldSizer';
+import { type PlayfieldSizingParams } from './PlayfieldSizer';
 import { StatsRenderer, type StatsRendererConfig } from './StatsRenderer';
 
 export interface MainGameRendererConfig {
@@ -26,35 +26,35 @@ export interface MainGameRendererConfig {
 
 export class MainGameRenderer {
 	private app: PIXI.Application;
-	private backgroundRenderer?: BackgroundRenderer;
+	// private backgroundRenderer?: BackgroundRenderer;
 	private playfieldRenderer: PlayfieldRenderer;
 	// private judgmentRenderer: JudgmentRenderer;
 	// private effectsRenderer: EffectsRenderer;
 	private statsRenderer?: StatsRenderer;
 	private progressBarRenderer?: ProgressBarRenderer;
+	private timeline: GSAPTimeline;
 
-	private currentPlayfieldLayout: PlayfieldLayout | null = null;
 
-	constructor(app: PIXI.Application, 
-		screenWidth: Atom<number>, 
+
+	constructor(app: PIXI.Application,
+		screenWidth: Atom<number>,
 		screenHeight: Atom<number>,
 		song: GameplaySong
 	) {
 		this.app = app;
 
-		this.backgroundRenderer = new BackgroundRenderer(screenWidth, screenHeight);
-		this.backgroundRenderer.imageUrl.set(song.backgroundImageUrl);
-		this.app.stage.addChild(this.backgroundRenderer);
+		// this.backgroundRenderer = new BackgroundRenderer(screenWidth, screenHeight);
+		// this.backgroundRenderer.imageUrl.set(song.backgroundImageUrl);
+		// this.app.stage.addChild(this.backgroundRenderer);
 
-		this.playfieldRenderer = new PlayfieldRenderer(screenWidth, screenHeight);
+		this.playfieldRenderer = new PlayfieldRenderer();
 		this.app.stage.addChild(this.playfieldRenderer);
-
 
 		effect([screenWidth, screenHeight], (w, h) => {
 			const baseWidth = 1024;
 			const baseHeight = 768;
 
-			let scale = Math.min(w / baseWidth, h / baseHeight);			
+			let scale = Math.min(w / baseWidth, h / baseHeight);
 
 			this.playfieldRenderer.scale.set(scale, scale);
 
@@ -69,8 +69,8 @@ export class MainGameRenderer {
 		// this.app.stage.addChild(this.effectsRenderer.container);
 
 		// if (config.stats) {
-			// this.statsRenderer = new StatsRenderer(config.stats, config.screenWidth, config.screenHeight);
-			// this.app.stage.addChild(this.statsRenderer.container);
+		// this.statsRenderer = new StatsRenderer(config.stats, config.screenWidth, config.screenHeight);
+		// this.app.stage.addChild(this.statsRenderer.container);
 		// }
 
 		// if (config.progressBar) {
@@ -79,73 +79,6 @@ export class MainGameRenderer {
 		// }
 
 	}
-
-	// private calculateAndApplyLayout(screenWidth: number, screenHeight: number): void {
-		// this.currentPlayfieldLayout = PlayfieldSizer.calculateLayout(
-		// 	screenWidth, screenHeight,
-		// 	this._config.playfieldSizing
-		// );
-
-		// if (!this.currentPlayfieldLayout) {
-		// 	console.error("Playfield layout could not be calculated.");
-		// 	return;
-		// }
-
-		// this.playfieldRenderer.onResize({
-		// 	...this._config.playfield,
-		// 	x: this.currentPlayfieldLayout.position.x,
-		// 	y: this.currentPlayfieldLayout.position.y,
-		// 	scale: this.currentPlayfieldLayout.scale,
-		// 	numLanes: this._config.numLanes,
-		// });
-
-		// Judgment and effects are typically positioned absolutely or relative to hits,
-		// but their containers might need repositioning if they are meant to be globally centered
-		// For now, assume they handle their own internal positioning relative to the stage or specific events.
-	// }
-
-	// public draw(config: MainGameRendererConfig): void {
-		// this._config = config;
-		// this.calculateAndApplyLayout(config.screenWidth, config.screenHeight);
-
-		// if (this.currentPlayfieldLayout) {
-		// 	this.playfieldRenderer.draw({
-		// 		...this._config.playfield,
-		// 		x: this.currentPlayfieldLayout.position.x,
-		// 		y: this.currentPlayfieldLayout.position.y,
-		// 		scale: this.currentPlayfieldLayout.scale,
-		// 		numLanes: this._config.numLanes,
-		// 	});
-		// } else {
-		// 	this.playfieldRenderer.draw(this._config.playfield);
-		// }
-
-		// if (config.judgmentStyles) {
-		// 	this.judgmentRenderer.updateStyles(config.judgmentStyles);
-		// }
-		// EffectsRenderer is mostly event-driven
-		// if (this.statsRenderer && config.stats) {
-		// 	// StatsRenderer typically updates via specific methods, but onResize handles its layout
-		// 	this.statsRenderer.onResize(config.screenWidth, config.screenHeight);
-		// 	if (config.stats.textStyle) this.statsRenderer.updateTextStyle(config.stats.textStyle);
-		// 	// Initial values are set in constructor, score/combo updates are via dedicated methods
-		// }
-	// }
-
-	// public onResize(screenWidth: number, screenHeight: number): void {
-		// this._config.screenWidth = screenWidth;
-		// this._config.screenHeight = screenHeight;
-		// this.calculateAndApplyLayout(screenWidth, screenHeight);
-		// if (this.backgroundRenderer) {
-		// 	this.backgroundRenderer.onResize(screenWidth, screenHeight);
-		// }
-		// if (this.statsRenderer) {
-		// 	this.statsRenderer.onResize(screenWidth, screenHeight);
-		// }
-		// if (this.progressBarRenderer) {
-		// 	this.progressBarRenderer.onResize(screenWidth, screenHeight);
-		// }
-	// }
 
 	public update(songTimeMs: number): void {
 		this.playfieldRenderer.updateNotes(songTimeMs);
@@ -221,9 +154,9 @@ export class MainGameRenderer {
 	}
 
 	public destroy(): void {
-		if (this.backgroundRenderer) {
-			this.backgroundRenderer.destroy();
-		}
+		// if (this.backgroundRenderer) {
+		// 	this.backgroundRenderer.destroy();
+		// }
 		this.playfieldRenderer.destroy();
 		this.judgmentRenderer.destroy();
 		this.effectsRenderer.destroy();

@@ -12,10 +12,11 @@ export class HoldNoteComponent extends NoteComponent {
 	private cleanup: (() => void)[] = [];
 
 	noteWidthRatio = atom(1);
-	laneWidth = atom(1);
+	laneWidth = atom(40);
 
 	constructor(noteData: GameplayNote, id: number) {
 		super(noteData, id);
+		this.label = "HoldNoteComponent";
 
 		this.addChild(this.headSprite);
 		this.addChild(this.bodySprite);
@@ -162,7 +163,7 @@ class HoldNoteTail extends Graphics {
 
 	noteColor = atom(0xffffff);
 	noteWidthRatio = atom(1);
-	laneWidth = atom(1);
+	laneWidth = atom(50);
 	padding = atom(4);
 	noteHeight = atom(50);
 	noteWidth = computed([this.laneWidth, this.noteWidthRatio, this.padding], (laneWidth, noteWidthRatio, padding) => laneWidth * noteWidthRatio - padding * 2);

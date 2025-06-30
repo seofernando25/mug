@@ -49,30 +49,8 @@
 	onMount(() => {
 		let cleanupCalled = false;
 
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') {
-				if (isPausedStore) {
-					gameInstance?.resumeGame();
-					isPausedStore = false;
-				} else if (gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') {
-					gameInstance?.pauseGame();
-					isPausedStore = true;
-				}
-				event.preventDefault();
-				return;
-			}
-			if (!gameInstance || isPausedStore) return;
-			gameInstance.handleKeyPress(event.key.toLowerCase(), event);
-		};
 
-		const handleKeyUp = (event: KeyboardEvent) => {
-			if (!gameInstance) return;
-			gameInstance.handleKeyRelease(event.key.toLowerCase(), event);
-		};
 
-		const handleResize = () => {
-			gameInstance?.handleResize?.();
-		};
 
 		const handlePageFocusChange = () => {
 			if (!gameInstance) return;
@@ -103,12 +81,6 @@
 
 		const initializeGame = async () => {
 			gameInstance = await createGameEngine(data.songData, data.chartData, canvasElement, {
-				onPhaseChange: (phase: GamePhase) => {
-					gamePhaseStore = phase;
-					if (!(phase === 'playing' || phase === 'countdown')) {
-						isPausedStore = false;
-					}
-				},
 				onCountdownUpdate: (value: number) => (countdownValueStore = value),
 				onSongEnd: () => {},
 				onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
@@ -137,10 +109,6 @@
 
 			try {
 				gameInstance.startGameplay();
-
-				window.addEventListener('keydown', handleKeyDown);
-				window.addEventListener('keyup', handleKeyUp);
-				window.addEventListener('resize', handleResize);
 				document.addEventListener('visibilitychange', handlePageFocusChange);
 				window.addEventListener('blur', handleWindowBlur);
 			} catch (err) {
@@ -161,9 +129,6 @@
 			if (cleanupCalled) return;
 			cleanupCalled = true;
 			console.log('Destroying Gameplay Svelte component, calling gameInstance.cleanup()');
-			window.removeEventListener('keydown', handleKeyDown);
-			window.removeEventListener('keyup', handleKeyUp);
-			window.removeEventListener('resize', handleResize);
 			document.removeEventListener('visibilitychange', handlePageFocusChange);
 			window.removeEventListener('blur', handleWindowBlur);
 

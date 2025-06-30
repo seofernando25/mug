@@ -1,6 +1,6 @@
 # Web Integration Example
 
-This example shows how to use the new `WebGameAdapter` to replace the old complex `createGame` function.
+This example shows how to use the new `WebGame` to replace the old complex `createGame` function.
 
 ## Before (Old Complex Integration)
 
@@ -23,7 +23,7 @@ const gameInstance = await createGame(songData, chartData, canvasElement, {
 ## After (New Simple Integration)
 
 ```typescript
-import { WebGameAdapter, type GameplaySong } from 'game-engine';
+import { WebGame, type GameplaySong } from 'game-engine';
 
 // Convert your chart data to GameplaySong format
 const song: GameplaySong = {
@@ -41,7 +41,7 @@ const song: GameplaySong = {
 };
 
 // Create the adapter with simple callbacks
-const gameAdapter = new WebGameAdapter({
+const gameAdapter = new WebGame({
   onPhaseChange: (phase) => {
     console.log('Gameplay phase:', phase);
     // Update your UI based on phase
@@ -149,7 +149,7 @@ function cleanup() {
 
 1. Install the game-engine package
 2. Convert your chart data to `GameplaySong` format
-3. Replace `createGame` with `WebGameAdapter`
+3. Replace `createGame` with `WebGame`
 4. Update your input handlers to use the adapter methods
 5. Update your rendering to use the adapter's state getters
 6. Remove manual audio and game loop management code 

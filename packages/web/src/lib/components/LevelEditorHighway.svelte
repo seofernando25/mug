@@ -68,10 +68,6 @@
 		}
 	});
 
-	// You might need to expose some game instance methods or state if the parent needs to interact with the game
-	// For example:
-	// export function handleKeyPress(key: string, event: KeyboardEvent) { gameInstance?.handleKeyPress(key, event); }
-	// export function handleKeyRelease(key: string, event: KeyboardEvent) { gameInstance?.handleKeyRelease(key, event); }
 </script>
 
 <canvas bind:this={canvasElement} style="width: {containerWidth}px; height: {containerHeight}px;"></canvas>

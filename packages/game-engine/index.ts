@@ -1,6 +1,5 @@
 // Core engine exports
 export { GameEngine, type GameEngineCallbacks, type GameEngineCorePhase } from './src/core/GameEngine';
-export { GameStateManager, type GamePhase } from './src/core/GameState';
 export { EventQueue } from './src/core/EventQueue';
 
 // Configuration exports
@@ -27,8 +26,7 @@ export { ScoreSystem } from './src/gameplay/ScoreSystem';
 export { ComboTracker } from './src/gameplay/ComboTracker';
 
 // Rendering exports
-export { MainGameRenderer } from './src/rendering/core/MainGameRenderer';
 export { PlayfieldRenderer } from './src/rendering/core/PlayfieldRenderer';
 
 // Web integration
-export { WebGameAdapter, type WebGameCallbacks, type WebGameConfig } from './src/web/WebGameAdapter'; 
+export { WebGame, type WebGameCallbacks, type WebGameConfig } from './src/web/WebGame'; 

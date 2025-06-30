@@ -1,8 +1,8 @@
 import * as PIXI from 'pixi.js';
 import type { GameplayNote } from '../../types';
-import { NotePool } from '../notes/NotePool';
 import type { NoteRenderConfig, NoteComponent } from '../notes/NoteComponent';
-import { atom } from 'nanostores';
+import { atom, effect, type ReadableAtom } from 'nanostores';
+import { HoldNoteComponent, TapNoteComponent } from '../notes';
 
 export interface NoteRendererConfig extends NoteRenderConfig { // Extends the one from notes
 	// Add any additional config specific to the overall NoteRenderer here if needed
@@ -16,9 +16,9 @@ export interface NoteRendererConfig extends NoteRenderConfig { // Extends the on
 
 // TODO: Fix this class!!!!
 export class NoteRenderer extends PIXI.Container {
-	private notePool = new NotePool(this);
 	private activeNotes: Map<number, NoteComponent> = new Map();
 
+	numLanes = atom(4);
 	laneWidth = atom(0);
 	noteWidthRatio = atom(1);
 	laneColors = atom<number[]>([]);
@@ -28,13 +28,73 @@ export class NoteRenderer extends PIXI.Container {
 	scrollSpeed = atom(1);
 	canvasHeight = atom(0);
 
-	constructor() {
+	constructor(protected receptorPositions: ReadableAtom<{
+		x: number;
+		y: number;
+	}[]>) {
+
+
 		super();
+		const virtualScreenHeight = 768;
+
+		const g = new PIXI.Graphics()
+		this.addChild(g);
+		effect([this.receptorPositions], (receptorPositions) => {
+
+			g.clear();
+			const mag = Math.max(...receptorPositions.map(pos => pos.x)) - Math.min(...receptorPositions.map(pos => pos.x));
+	
+			g.clear();
+			g.rect(0, 0, mag, virtualScreenHeight);
+			g.fill({
+				color: 0x00aa00,
+				alpha: 0.2
+			});
+		});
+
+		
+
+
+		
+
 		this.label = "NoteRenderer";
 	}
 
+
+	private tapNotePool: TapNoteComponent[] = [];
+	private holdNotePool: HoldNoteComponent[] = [];
+	
+	private _getNote(noteData: GameplayNote, id: number): NoteComponent {
+		if (noteData.noteInfo.type === 'hold') {
+			let note = this.holdNotePool.find(n => !n.visible);
+			if (note) {
+				note.reset(noteData, id);
+			} else {
+				note = new HoldNoteComponent(noteData, id);
+				this.holdNotePool.push(note);
+			}
+			this.addChild(note)
+			return note;
+		} else {
+			let note = this.tapNotePool.find(n => !n.visible);
+			if (note) {
+				note.reset(noteData, id);
+			} else {
+				note = new TapNoteComponent(noteData, id);
+				this.tapNotePool.push(note);
+			}
+			this.addChild(note)
+			return note;
+		}
+	}
+
+	 private _releaseNote(note: NoteComponent): void {
+		note.visible = false;
+	}
+
 	public addNote(noteData: GameplayNote): void {
-		const note = this.notePool.getNote(noteData, noteData.id);
+		const note = this._getNote(noteData, noteData.id);
+
 		note.visible = true;
 		// Initial position update
 		note.updatePosition(
@@ -46,18 +106,20 @@ export class NoteRenderer extends PIXI.Container {
 			this.highwayX.get()
 		);
 		this.activeNotes.set(noteData.id, note);
+		this.addChild(note);
 	}
 
 	public removeNote(noteId: number): void {
 		const note = this.activeNotes.get(noteId);
 		if (note) {
-			this.notePool.releaseNote(note);
+			this._releaseNote(note);
 			this.activeNotes.delete(noteId);
 		}
 	}
 
 	public updateNotes(songTimeMs: number): void {
 		for (const [_id, note] of this.activeNotes) {
+			const posInfo = this.receptorPositions.get()[note.noteData.lane];
 			note.updatePosition(
 				songTimeMs,
 				this.hitZoneY.get(),
@@ -79,6 +141,7 @@ export class NoteRenderer extends PIXI.Container {
 		scrollSpeed,
 		canvasHeight
 	}: {
+		
 		laneWidth: number,
 		noteWidthRatio: number,
 		laneColors: number[],
@@ -97,26 +160,30 @@ export class NoteRenderer extends PIXI.Container {
 		this.scrollSpeed.set(scrollSpeed);
 		this.canvasHeight.set(canvasHeight);
 
-		// Pass the NoteRenderConfig part to NotePool
-		this.notePool.updateNoteRenderConfig({
-			laneWidth,
-			noteWidthRatio,
-			laneColors,
+		// todo: fix this
+		const songTimeMs = 0;
+
+		this.tapNotePool.forEach(note => {
+			if (note.visible) {
+				note.updatePosition(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
+			}
 		});
-		// Also tell the pool to update any active notes based on new highway/layout params
-		this.notePool.updateActiveNotesLayout(
-			highwayX,
-			0, // Ideally, pass current songTimeMs here if available during resize
-			hitZoneY,
-			receptorYPosition,
-			scrollSpeed,
-			canvasHeight
-		);
+		this.holdNotePool.forEach(note => {
+			if (note.visible) {
+				note.updatePosition(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
+			}
+		});
+
 	}
 
 	public destroy(): void {
 		super.destroy({ children: true, texture: true });
-		this.notePool.clearAll();
+
+		this.tapNotePool.forEach(note => note.destroy());
+		this.holdNotePool.forEach(note => note.destroy());
+		this.tapNotePool = [];
+		this.holdNotePool = [];
+
 		this.activeNotes.clear();
 	}
 } 

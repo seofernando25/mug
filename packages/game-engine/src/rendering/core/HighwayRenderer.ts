@@ -1,64 +1,72 @@
+import { computed, effect, type Atom } from 'nanostores';
 import * as PIXI from 'pixi.js';
-import { atom, computed, effect, type Atom } from 'nanostores';
 
-
-export class HighwayRenderer extends PIXI.Graphics {
-	private cleanup: (() => void)[] = [];
-	numLanes = atom(4);
-	laneWidth = atom(75);
-	fillColor = atom(0x333333);
-	borderColor = atom(0x333333);
-	borderThickness = atom(2);
-	laneSeparatorColor = atom(0x333333);
-
-	laneCenterOffsets = computed([this.laneWidth, this.numLanes], (laneWidth, numLanes) => {
-		return Array.from({ length: numLanes }, (_, i) => i * laneWidth + laneWidth / 2);
+const singleLaneRenderer = (ctx: {
+	virtualScreenHeight: Atom<number>,
+	fillColor: Atom<number>,
+	fillAlpha: Atom<number>,
+}) => {
+	const vPadding = 16;
+	const g = new PIXI.Graphics();
+	const laneWidth = 4 * 13;
+	const redraw = effect([ctx.fillColor, ctx.fillAlpha, ctx.virtualScreenHeight],
+		(fillColor, fillAlpha, virtualScreenHeight) => {
+		g.clear();
+		g.rect(0, vPadding, laneWidth, virtualScreenHeight - vPadding * 2);
+		g.fill({
+			color: fillColor,
+			alpha: fillAlpha
+		});		
 	});
+
+	g.context.on("destroy", () => {
+		redraw();
+	});
+
+	g.pivot.set(laneWidth/2, 0);
+
+	return g;
+}
+
+
+export const highwayRenderer = (ctx: {
+	numLanes: Atom<number>,
+	screenSize: Atom<{ width: number, height: number }>,
+	fillColor: Atom<number>,
+	fillAlpha: Atom<number>,
+	laneSpace: Atom<number>,
+}) => {
+
+	const container = new PIXI.Container();
+	container.label = "HighwayRenderer";
+
+	const cleanup: (() => void)[] = [];
+
 	
 
-	constructor(
-	) {
-		super();
-		const virtualScreenWidth = 1024;
-		// const virtualScreenHeight = 768;
-		const vPadding = 16;
-		const lanePadding = 4;
-		const highwayHeight = 768 - vPadding * 2;
-		const laneWidth = 4 * 13;
-		this.label = "HighwayRenderer";
+	cleanup.push(effect([ctx.numLanes], (numLanes) => {
+		container.removeChildren();
+		const screenWidth = ctx.screenSize.get().width;
+		for (let laneIdx = 0; laneIdx < numLanes; laneIdx++) {
+			const lane = singleLaneRenderer({
+				virtualScreenHeight: computed([ctx.screenSize], (screenSize) => screenSize.height),
+				fillColor: ctx.fillColor,
+				fillAlpha: ctx.fillAlpha,
+			});
 
-		const cleanup: (() => void)[] = [];
-
-		this.clear();
-
-
-
-
-		const totalLanes = this.numLanes.get();
-		for (let laneIdx = 0; laneIdx < totalLanes; laneIdx++) {
-			const laneX = laneIdx * (laneWidth + lanePadding);
-
-			this
-				.rect(laneX, 0, laneWidth, highwayHeight)
-				.fill({
-					color: this.fillColor.get(),
-					alpha: this.fillColor.get() !== undefined ? 0.3 : 0.2
-				});
+			// vertical line
+			const lane2 = new PIXI.Graphics();
+			lane2.clear();
+			lane2.rect(0, 0, 1, 1000);
+			lane2.fill({
+				color: 0xff00ff,
+			});	
+				
+			lane2.x = screenWidth / 2 - ((numLanes - 1) * ctx.laneSpace.get()) / 2 + (laneIdx * ctx.laneSpace.get());
+			lane.x = screenWidth / 2 - ((numLanes - 1) * ctx.laneSpace.get()) / 2 + (laneIdx * ctx.laneSpace.get());
+			container.addChild(lane);
+			container.addChild(lane2);
 		}
-
-		// center on 1024 wide screen
-		this.x = virtualScreenWidth/2 - this.width / 2;
-		this.y = vPadding;
-
-		// this.pivot.set(-this.width / 2, -this.height / 2);
-		
-	}
-
-	public destroy(): void {
-		super.destroy({ children: true, texture: true });
-
-		for (const cleanup of this.cleanup) {
-			cleanup();
-		}
-	}
-} 
+	}));
+	return container;
+}

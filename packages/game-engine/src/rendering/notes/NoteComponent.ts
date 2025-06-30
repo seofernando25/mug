@@ -1,5 +1,6 @@
+import { atom } from 'nanostores';
 import type { GameplayNote } from '../../types';
-import * as PIXI from 'pixi.js';
+import { Container } from 'pixi.js';
 
 export interface NoteRenderConfig {
 	laneWidth: number;
@@ -7,7 +8,7 @@ export interface NoteRenderConfig {
 	laneColors: number[];
 }
 
-export abstract class NoteComponent extends PIXI.Container {
+export abstract class NoteComponent extends Container {
 	public noteData: GameplayNote;
 	public id: number;
 

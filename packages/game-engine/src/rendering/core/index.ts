@@ -5,6 +5,5 @@ export * from './JudgmentRenderer';
 export * from './EffectsRenderer';
 export * from './NoteRenderer';
 export * from './PlayfieldRenderer';
-export * from './MainGameRenderer';
 export * from './StatsRenderer';
 export * from './BackgroundRenderer'; 

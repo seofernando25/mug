@@ -3,7 +3,7 @@ import type { GameConfig } from '../config/GameConfig';
 import { GameplayManager, type GameplayCallbacks } from '../gameplay/GameplayManager';
 import type { GameplaySong } from '../types/ChartTypes';
 import { EventQueue } from './EventQueue';
-import { GameStateManager, type GamePhase as GameplaySystemPhase } from './GameState';
+import { atom, effect, type Atom } from 'nanostores';
 
 // Core Engine Phases - distinct from GameplaySystemPhase
 export type GameEngineCorePhase =
@@ -18,10 +18,11 @@ export type GameEngineCorePhase =
 	| 'audio_ended'
 	| 'error';
 
+
+
 export interface GameEngineCallbacks {
 	// Renamed phase change to be specific to the core engine's perspective
 	onEngineCorePhaseChange?: (phase: GameEngineCorePhase) => void;
-	onGameplaySystemPhaseChange?: (phase: GameplaySystemPhase) => void; // For phases from GameplayManager/GameStateManager
 
 	onScoreUpdate?: (playerId: string, score: number, combo: number, accuracy: number) => void;
 	onNoteHit?: (noteId: number, judgment: string, score: number) => void;
@@ -45,7 +46,6 @@ export class GameEngine {
 
 	// --- Private members ---
 	private eventQueue: EventQueue;
-	private gameStateManager: GameStateManager; // Manages gameplay-related state and phase
 	private callbacks: GameEngineCallbacks;
 
 	private gameplayManager: GameplayManager;
@@ -58,7 +58,6 @@ export class GameEngine {
 	private systemTimeAtLastAudioUpdate: number = 0;
 	private internalCurrentSongTimeMs: number = 0;
 	private audioLoaded: boolean = false;
-	private audioError: Error | null = null;
 	private audioPlaybackManuallyStarted: boolean = false;
 
 	private engineCorePhase: GameEngineCorePhase = 'idle';
@@ -69,7 +68,6 @@ export class GameEngine {
 		this.callbacks = callbacks;
 
 		this.eventQueue = new EventQueue();
-		this.gameStateManager = new GameStateManager(); // Gameplay state and phase (e.g. playing, paused, summary)
 
 		const gameplayCallbacks: GameplayCallbacks = {
 			onNoteHit: this.callbacks.onNoteHit ? (noteId, judgment, score, _playerId) => {
@@ -97,10 +95,12 @@ export class GameEngine {
 				}
 			}
 		};
-		this.gameplayManager = new GameplayManager(config, gameplayCallbacks, this.gameStateManager);
+		this.gameplayManager = new GameplayManager(config, gameplayCallbacks);
 
 		this.setEngineCorePhase('idle');
-		this.setupEventHandlers(); // Core engine events, not gameplay ones directly
+
+		this.eventQueue.on('coreEnginePause', () => this.pauseAudio());
+		this.eventQueue.on('coreEngineResume', () => this.resumeAudio());
 	}
 
 	private setEngineCorePhase(phase: GameEngineCorePhase): void {
@@ -110,17 +110,10 @@ export class GameEngine {
 		console.log(`GameEngine Core Phase: ${phase}`);
 	}
 
-	private setupEventHandlers(): void {
-		// Core engine events, e.g., for pause/resume triggered externally to GameEngine
-		this.eventQueue.on('coreEnginePause', () => this.pauseAudio());
-		this.eventQueue.on('coreEngineResume', () => this.resumeAudio());
-		// Other core system events can be added here
-	}
 
 	// Step 1: Consumer loads chart data into the engine
 	public initializeChart(song: GameplaySong, playerIds: string[]): void {
 		this.setEngineCorePhase('loading_chart');
-		this.gameStateManager.initializeGame(song, playerIds, false, playerIds[0]); // Assuming solo for now
 		this.gameplayManager.initializePlayers(playerIds);
 		this.gameplayManager.loadNotes(song.hitObjects); // GameplayManager needs the notes
 		// Consider if GameStateManager also needs all notes directly or if GameplayManager is the source of truth
@@ -136,7 +129,6 @@ export class GameEngine {
 		this.setEngineCorePhase('loading_song');
 		this.audioUrl = audioUrl;
 		this.audioLoaded = false;
-		this.audioError = null;
 		this.sound?.destroy(); // Clean up previous sound if any
 		this.sound = null;
 		this.soundInstance?.destroy();
@@ -172,9 +164,8 @@ export class GameEngine {
 			this.callbacks.onSongLoaded?.();
 		} catch (error) {
 			console.error(`Error loading audio: ${this.audioUrl}`, error);
-			this.audioError = error as Error;
 			this.setEngineCorePhase('song_load_error');
-			this.callbacks.onSongLoadError?.(this.audioError);
+			this.callbacks.onSongLoadError?.(error as Error);
 			throw error; // Re-throw for the caller
 		}
 	}
@@ -270,7 +261,6 @@ export class GameEngine {
 			this.isRunningGameplayLoop = false;
 			this.setEngineCorePhase('audio_ended');
 			this.callbacks.onAudioPlaybackEnded?.();
-			this.gameplayManager.notifySongEnded(); // Inform GameplayManager
 		});
 
 		// Note: @pixi/sound IMediaInstance doesn't support 'error' events
@@ -322,20 +312,14 @@ export class GameEngine {
 		return this.internalCurrentSongTimeMs;
 	}
 
-	// Get current gameplay phase from GameplayManager
-	public getGameplayPhase(): GameplaySystemPhase {
-		return this.gameStateManager.getPhase();
-	}
+
 
 	// Get player states for rendering
 	public getPlayerStates(): Map<string, any> {
 		return this.gameplayManager.getAllPlayerStates();
 	}
 
-	// Get notes for rendering (with current states)
-	public getNotesForRendering(): any[] {
-		return this.gameStateManager.getAllNotes();
-	}
+
 
 	// Check if game is paused
 	public isPaused(): boolean {
@@ -348,6 +332,7 @@ export class GameEngine {
 		if (this.engineCorePhase === 'audio_playing' && this.isRunningGameplayLoop) {
 			// GameplayManager will use its own phase and current time to decide if input is valid
 			this.gameplayManager.processInput(type, key, this.internalCurrentSongTimeMs, playerId);
+
 		}
 	}
 
@@ -374,23 +359,11 @@ export class GameEngine {
 		this.eventQueue.clear();
 		this.eventQueue.clearHandlers();
 
-		this.gameStateManager.cleanup(); // Gameplay related state
 		this.gameplayManager.cleanup(); // Gameplay logic cleanup
 
 		this.setEngineCorePhase('idle');
 	}
 
-	// Old methods like "startGame" (the one that started countdown and then game)
-	// "pause", "resume" (the gameplay ones) are now effectively replaced.
-	// External calls will be to requestStartGameplaySequence, pauseAudio, resumeAudio.
-	// The internal game logic (countdown, actual start of note processing)
-	// is now orchestrated more by GameplayManager, reacting to engine state and time.
-
-	// The old handleKeyPress, handleKeyRelease are effectively replaced by processInput in GameplayManager.
-	// The old handleGameStart, handleGamePause, handleGameResume, handleGameEnd are now driven by
-	// a combination of engineCorePhase changes and GameplayManager's internal logic and its callbacks.
-	// The old handleCountdown is now GameplayManager's responsibility, signaling through onGameplayCountdownUpdate.
-	// The old handleNoteHit, handleNoteMiss are direct pass-throughs from GameplayManager's callbacks.
 
 	public getLaneForKey(key: string): number {
 		return this.config.keybindings.indexOf(key.toLowerCase());

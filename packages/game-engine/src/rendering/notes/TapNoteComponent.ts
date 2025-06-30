@@ -10,7 +10,7 @@ export class TapNoteComponent extends NoteComponent {
 
 	noteColor = atom(0xffffff);
 	noteWidthRatio = atom(1);
-	laneWidth = atom(1);
+	laneWidth = atom(40);
 	padding = atom(4);
 	noteHeight = atom(50);
 	noteWidth = computed([this.laneWidth, this.noteWidthRatio, this.padding], (laneWidth, noteWidthRatio, padding) => laneWidth * noteWidthRatio - padding * 2);
