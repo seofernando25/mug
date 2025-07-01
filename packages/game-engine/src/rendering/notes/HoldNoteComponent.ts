@@ -207,7 +207,7 @@ class HoldNoteBody extends Graphics {
 
 	noteColor = atom(0xffffff);
 	noteWidthRatio = atom(1);
-	laneWidth = atom(1);
+	laneWidth = atom(30);
 	padding = atom(4);
 	noteHeight = atom(0);
 

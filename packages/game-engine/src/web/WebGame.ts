@@ -154,8 +154,8 @@ export class WebGame {
 					
 					const note = hitObject.noteInfo.type === "hold" ? new HoldNoteComponent({
 						id: 1,
-						lane: 1,
-						timeMs: 0,
+						lane: hitObject.lane,
+						timeMs: hitObject.timeMs,
 						noteInfo: hitObject.noteInfo,
 						noteState: {
 							noteType: "hold",
@@ -166,7 +166,7 @@ export class WebGame {
 					}, -1) : new TapNoteComponent({
 						id: 1,
 						lane: hitObject.lane,
-						timeMs: 0,
+						timeMs: hitObject.timeMs,
 						noteInfo: hitObject.noteInfo,
 						noteState: {
 							noteType: "tap",
