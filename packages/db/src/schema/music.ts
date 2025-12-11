@@ -1,5 +1,5 @@
 import { integer, jsonb, pgEnum, pgTable, real, serial, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { user } from "./auth-schema"; // Import the user table from your auth schema
+import { user } from "./auth";
 import { relations } from "drizzle-orm";
 
 export const song = pgTable('song', {
@@ -25,47 +25,43 @@ export const chart = pgTable('chart', {
 	// Removed: hitObjects field
 });
 
-// New table for individual hit objects belonging to a chart
-
 export const noteTypePgEnum = pgEnum('note_type', ['tap', 'hold']);
 
-export const chartHitObject = pgTable('chart_hit_object', { // Using snake_case for table name common in SQL, adjust if you prefer camelCase
-	id: serial('id').primaryKey(), // Simple auto-incrementing ID for each hit object
-	chartId: uuid('chart_id').notNull().references(() => chart.id, { onDelete: 'cascade' }), // Link to the chart this object belongs to
-	time: integer('time').notNull(), // Hit time in milliseconds
-	lane: integer('lane').notNull(), // Lane number (0-indexed)
+export const chartHitObject = pgTable('chart_hit_object', {
+	id: serial('id').primaryKey(),
+	chartId: uuid('chart_id').notNull().references(() => chart.id, { onDelete: 'cascade' }),
+	time: integer('time').notNull(),
+	lane: integer('lane').notNull(),
 	note_type: noteTypePgEnum('note_type').notNull(),
-	duration: integer('duration'), // Duration in milliseconds (only for 'hold' type)
-	// Add any other hit object properties needed later (e.g., custom sound, position)
+	duration: integer('duration'),
 });
 
-// Table for storing player scores on charts
 export const score = pgTable('score', {
 	id: uuid('id').defaultRandom().primaryKey(),
-	chartId: uuid('chart_id').notNull().references(() => chart.id, { onDelete: 'cascade' }), // Link to the chart
-	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }), // Link to the user who got the score
+	chartId: uuid('chart_id').notNull().references(() => chart.id, { onDelete: 'cascade' }),
+	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 	score: integer('score').notNull(),
 	accuracy: real('accuracy').notNull(), // e.g., 98.5 -> stored as 98.5
 	maxCombo: integer('max_combo').notNull(),
 	playDate: timestamp('play_date').defaultNow().notNull(),
 });
 
-
-export const songRelations = relations(song, ({ many }) => ({
-	charts: many(chart),
+export const songRelations = relations(song, (helpers: any) => ({
+	charts: helpers.many(chart),
 }));
 
-export const chartRelations = relations(chart, ({ one, many }) => ({
-	song: one(song, {
+export const chartRelations = relations(chart, (helpers: any) => ({
+	song: helpers.one(song, {
 		fields: [chart.songId],
 		references: [song.id]
-	}), // Relation back to song (optional for this query but good practice)
-	hitObjects: many(chartHitObject),
+	}),
+	hitObjects: helpers.many(chartHitObject),
 }));
 
-export const chartHitObjectRelations = relations(chartHitObject, ({ one }) => ({
-	chart: one(chart, {
+export const chartHitObjectRelations = relations(chartHitObject, (helpers: any) => ({
+	chart: helpers.one(chart, {
 		fields: [chartHitObject.chartId],
 		references: [chart.id]
-	}), // Relation back to chart (optional)
+	}),
 }));
+

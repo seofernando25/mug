@@ -1,5 +1,4 @@
-import { db } from '$lib/server/db';
-import { user as userSchema } from '$lib/server/db/auth-schema';
+import { db, user as userSchema } from '@mug/db';
 import { type } from 'arktype';
 import { eq } from 'drizzle-orm';
 import { routerBaseContext } from './context';

@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { orpcClient } from '$lib/rpc/client';
 	import MultiplayerRoomListItem from './MultiplayerRoomListItem.svelte';
 	import { goto } from '$app/navigation';
+	import { gameSocket, lobbyRooms, socketStatus } from '$lib/network/socket';
 
 	let isLoading = $state(true);
-	let rooms = $state<Awaited<ReturnType<typeof orpcClient.multiplayer.room.list>>['rooms']>([]);
+	let rooms = $state<any[]>([]);
 	let error = $state<string | null>(null);
+	let status = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
 	// Modal state
 	let newRoomName = $state('');
@@ -16,27 +18,19 @@
 	let createRoomError = $state<string | null>(null);
 	let createRoomDialog: HTMLDialogElement;
 
-	async function loadRooms() {
-		isLoading = true;
-		error = null;
-		rooms = [];
-		try {
-			const result = await orpcClient.multiplayer.room.list();
-			if (result.success) {
-				rooms = result.rooms ?? [];
-			} else {
-				console.error('Failed to load rooms:', result.error);
-				error = result.error?.message ?? 'Unknown error loading rooms.';
-			}
-		} catch (e: any) {
-			console.error('Exception loading rooms:', e);
-			error = e.message ?? 'An exception occurred while loading rooms.';
-		}
-		isLoading = false;
-	}
-
 	onMount(() => {
-		loadRooms();
+		const unsubLobby = lobbyRooms.subscribe((v) => {
+			rooms = v ?? [];
+			isLoading = false;
+		});
+		const unsubStatus = socketStatus.subscribe((v) => {
+			status = v;
+		});
+		gameSocket.connect();
+		return () => {
+			unsubLobby();
+			unsubStatus();
+		};
 	});
 
 	function openCreateRoomModal() {
@@ -96,16 +90,12 @@
 		</button>
 	</header>
 
-	{#if isLoading}
-		<p class="text-center text-gray-400 text-lg py-10">Loading rooms...</p>
+	{#if status === 'connecting' || isLoading}
+		<p class="text-center text-gray-400 text-lg py-10">Connecting to lobby...</p>
 	{:else if error}
 		<div class="bg-red-800 border border-red-600 text-red-100 px-4 py-3 rounded-md my-4">
 			<p class="font-semibold">Error loading rooms:</p>
 			<p>{error}</p>
-			<button
-				onclick={loadRooms}
-				class="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white">Try Again</button
-			>
 		</div>
 	{:else if rooms && rooms.length > 0}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">

@@ -48,3 +48,4 @@ export const verification = pgTable("verification", {
 	createdAt: timestamp('created_at').$defaultFn(() => new Date),
 	updatedAt: timestamp('updated_at').$defaultFn(() => new Date)
 });
+

@@ -1,18 +1,16 @@
 import { pgTable, text, timestamp, serial, integer, primaryKey, uuid } from 'drizzle-orm/pg-core';
-import { user } from './auth-schema'; // Assuming users table is exported as 'user'
-import { chart } from './music-schema'; // Import chart table
+import { user } from './auth';
+import { chart } from './music';
 import { relations } from 'drizzle-orm';
 
 export const room = pgTable('room', {
 	id: serial('id').primaryKey(),
 	name: text('name').notNull().unique(),
-	passwordHash: text('password_hash'), // Nullable for public rooms
-	ownerId: text('owner_id').references(() => user.id, { onDelete: 'set null', onUpdate: 'cascade' }), // If owner's user account is deleted, set owner to NULL.
+	passwordHash: text('password_hash'),
+	ownerId: text('owner_id').references(() => user.id, { onDelete: 'set null', onUpdate: 'cascade' }),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	lastActivityAt: timestamp('last_activity_at').defaultNow().notNull(),
-
-	// Reference to the currently selected chart for the room
-	currentChartId: uuid('current_chart_id').references(() => chart.id, { onDelete: 'set null' }), // Nullable, if no chart is selected or chart is deleted
+	currentChartId: uuid('current_chart_id').references(() => chart.id, { onDelete: 'set null' }),
 });
 
 export const roomPlayer = pgTable('room_player', {
@@ -23,25 +21,22 @@ export const roomPlayer = pgTable('room_player', {
 	primaryKey({ columns: [table.roomId, table.userId] }),
 ]);
 
-
-// Room relations
-
-
-export const roomRelations = relations(room, ({ one, many }) => ({
-	currentChart: one(chart, {
+export const roomRelations = relations(room, (helpers) => ({
+	currentChart: helpers.one(chart, {
 		fields: [room.currentChartId],
 		references: [chart.id],
 	}),
-	players: many(roomPlayer)
+	players: helpers.many(roomPlayer)
 }));
 
-export const roomPlayerRelations = relations(roomPlayer, ({ one }) => ({
-	room: one(room, {
+export const roomPlayerRelations = relations(roomPlayer, (helpers) => ({
+	room: helpers.one(room, {
 		fields: [roomPlayer.roomId],
 		references: [room.id],
 	}),
-	user: one(user, {
+	user: helpers.one(user, {
 		fields: [roomPlayer.userId],
 		references: [user.id],
 	}),
 }));
+

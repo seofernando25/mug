@@ -1,6 +1,5 @@
-import { db } from '$lib/server/db';
+import { db, s3 } from '@mug/db';
 import { type } from 'arktype';
-import s3Client from '../s3';
 import { routerBaseContext } from './context';
 
 // No specific input schema for listing all songs, but can be added for pagination/filtering
@@ -38,7 +37,7 @@ export const listSongsProcedure = routerBaseContext
 			// Sign the image urls
 			const itemsWithSignedUrls = await Promise.all(items.map(async (item) => {
 				if (item.imageS3Key) {
-					const signedUrl = s3Client.presign(item.imageS3Key, {
+					const signedUrl = s3.presign(item.imageS3Key, {
 						acl: 'public-read',
 					})
 					return {

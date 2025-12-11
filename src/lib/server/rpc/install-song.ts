@@ -1,11 +1,11 @@
-import { db } from '$lib/server/db';
-import { chart, chartHitObject, song } from '$lib/server/db/music-schema';
+import { db, chart, chartHitObject, song, getRedis, s3 } from '@mug/db';
 import { ORPCError } from '@orpc/server';
 import { type } from 'arktype';
 import { randomUUIDv7 } from 'bun';
 import { createInsertSchema } from 'drizzle-arktype';
-import { processFileAndExtractData } from '../conversion';
-import s3Client from '../s3';
+import { UploadJob, uploadJobSchema } from '@mug/contract';
+import { USE_PROCESSOR } from '$lib/featureFlags';
+import { processFileAndExtractData } from '@mug/game-logic';
 import { requireAuth } from './middleware/auth';
 import { routerBaseContext } from './context';
 
@@ -23,6 +23,33 @@ export const installSongProcedure = routerBaseContext
 	.handler(async ({ input, context }) => {
 		const uploaderId = context.auth.user.id;
 		const uploadedFile = input.file;
+
+		if (USE_PROCESSOR) {
+			const jobId = randomUUIDv7();
+			const queueKey = process.env.UPLOAD_QUEUE_KEY ?? 'upload-jobs';
+			const s3Key = `uploads/${jobId}.osz`;
+			try {
+				const buffer = new Uint8Array(await uploadedFile.arrayBuffer());
+				await s3.write(s3Key, buffer, { type: uploadedFile.type || 'application/octet-stream' });
+
+				const job: UploadJob = uploadJobSchema({
+					jobId,
+					userId: uploaderId,
+					s3Key,
+				});
+				if (job instanceof type.errors) {
+					throw new Error(job.toString());
+				}
+
+				const redis = getRedis();
+				await redis.rPush(queueKey, JSON.stringify(job));
+
+				return { success: true, message: 'Processing started', jobId };
+			} catch (err: any) {
+				console.error('Failed to enqueue upload job', err);
+				throw new ORPCError('INTERNAL_SERVER_ERROR', { message: 'Failed to enqueue processing job' });
+			}
+		}
 
 		let processedData: Awaited<ReturnType<typeof processFileAndExtractData>> | null = null;
 		try {
@@ -56,7 +83,7 @@ export const installSongProcedure = routerBaseContext
 
 
 			try {
-				await s3Client.write(imageS3Key, processedData.imageContent, { type: imageContentType });
+				await s3.write(imageS3Key, processedData.imageContent, { type: imageContentType });
 			} catch (s3Err: any) {
 				console.warn(`Warning: Failed to upload image ${imageS3Key} to S3:`, s3Err.message);
 				imageS3Key = null; // Proceed without image if upload fails
@@ -64,7 +91,7 @@ export const installSongProcedure = routerBaseContext
 		}
 
 		try {
-			await s3Client.write(audioS3Key, audioContent, { type: audioContentType });
+			await s3.write(audioS3Key, audioContent, { type: audioContentType });
 		} catch (s3Err: any) {
 			console.error(`Fatal Error: Failed to upload audio ${audioS3Key} to S3:`, s3Err.message);
 			throw new ORPCError('INTERNAL_SERVER_ERROR', { message: `Failed to upload audio file to storage: ${s3Err.message || 'Unknown S3 error'}` });
