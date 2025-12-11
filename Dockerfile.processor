@@ -1,0 +1,19 @@
+FROM oven/bun:1 AS base
+WORKDIR /app
+
+# Install dependencies (cached)
+FROM base AS install
+COPY package.json bun.lock ./
+COPY packages ./packages
+COPY apps/processor/package.json apps/processor/
+RUN bun install --frozen-lockfile
+
+# Runtime image
+FROM base AS runtime
+WORKDIR /app
+COPY --from=install /app/node_modules ./node_modules
+COPY . .
+ENV NODE_ENV=production
+WORKDIR /app/apps/processor
+CMD ["bun", "run", "src/index.ts"]
+

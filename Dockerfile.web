@@ -1,0 +1,23 @@
+FROM oven/bun:1 AS base
+WORKDIR /app
+
+# Install and build
+FROM base AS build
+COPY package.json bun.lock ./
+COPY packages ./packages
+COPY apps ./apps
+COPY src ./src
+COPY svelte.config.js tsconfig.json vite.config.ts ./
+RUN bun install --frozen-lockfile
+RUN bun run build
+
+# Runtime
+FROM oven/bun:1 AS runtime
+WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/build ./build
+ENV NODE_ENV=production
+EXPOSE 4173
+# Replace with your prod start command if different
+CMD ["bun", "run", "build"]
+
