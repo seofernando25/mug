@@ -78,11 +78,62 @@ export class RoomManager {
 	broadcastToRoom(roomId: string, packet: ServerPacket, exclude?: ServerWebSocket<PlayerData>) {
 		const room = this.rooms.get(roomId);
 		if (!room) return;
+		if (packet.op === 'peer_score_update' || packet.op === 'peer_match_finished') {
+			console.log(
+				'[bancho] sending',
+				packet.op,
+				'to room',
+				roomId,
+				'packet',
+				JSON.stringify(packet),
+				'playerCount',
+				room.players.size
+			);
+		}
 		const msg = JSON.stringify(packet);
 		for (const p of room.players) {
 			if (p === exclude) continue;
 			p.send(msg);
 		}
+	}
+
+	broadcastScore(player: ServerWebSocket<PlayerData>, data: any) {
+		const roomId = player.data.roomId;
+		if (!roomId) return;
+		const score = data?.score;
+		const userId = player.data.user?.id;
+		if (!userId || typeof userId !== 'string') return;
+		if (typeof score !== 'number' || Number.isNaN(score)) return;
+		const packet: ServerPacket = {
+			op: 'peer_score_update',
+			data: {
+				userId,
+				username: player.data.user?.username ?? null,
+				score,
+				combo: typeof data?.combo === 'number' ? data.combo : undefined,
+				maxCombo: typeof data?.maxCombo === 'number' ? data.maxCombo : undefined,
+				health: typeof data?.health === 'number' ? data.health : undefined
+			}
+		};
+		console.log('[bancho] broadcasting score', JSON.stringify(packet));
+		this.broadcastToRoom(roomId, packet, player); // exclude sender to reduce echo
+	}
+
+	broadcastMatchFinish(player: ServerWebSocket<PlayerData>, data: any) {
+		const roomId = player.data.roomId;
+		if (!roomId) return;
+		const userId = player.data.user?.id;
+		if (!userId || typeof userId !== 'string') return;
+		const packet: ServerPacket = {
+			op: 'peer_match_finished',
+			data: {
+				userId,
+				finalScore: typeof data?.score === 'number' ? data.score : 0,
+				maxCombo: typeof data?.maxCombo === 'number' ? data.maxCombo : undefined
+			}
+		};
+		console.log('[bancho] broadcasting match_finish', JSON.stringify(packet));
+		this.broadcastToRoom(roomId, packet);
 	}
 }
 

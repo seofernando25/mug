@@ -6,6 +6,19 @@ import { PUBLIC_WS_URL } from '$env/static/public';
 export const socketStatus = writable<'disconnected' | 'connecting' | 'connected'>('disconnected');
 export const lobbyRooms = writable<any[]>([]); // TODO: replace any with RoomSummary once server sends structured lobby data
 
+export interface PeerState {
+	userId: string;
+	username?: string | null;
+	score: number;
+	combo: number;
+	maxCombo?: number;
+	health?: number;
+	finished: boolean;
+}
+
+// Map<userId, PeerState>
+export const matchState = writable<Record<string, PeerState>>({});
+
 class GameSocket {
 	private ws: WebSocket | null = null;
 	private shouldReconnect = true;
@@ -36,7 +49,36 @@ class GameSocket {
 
 		this.ws.onmessage = (event) => {
 			try {
+				console.log('[ws] raw message', event.data);
 				const raw = JSON.parse(event.data);
+				if (raw?.op === 'peer_score_update') {
+					console.log('[ws] incoming peer_score_update raw', raw);
+					const userId = raw?.data?.userId;
+					const score = raw?.data?.score;
+					if (
+						typeof userId !== 'string' ||
+						userId.length === 0 ||
+						typeof score !== 'number' ||
+						Number.isNaN(score)
+					) {
+						console.warn('Dropping invalid peer_score_update packet from server (client guard)', raw);
+						return;
+					}
+					// Manually handle valid peer_score_update to avoid global assert failure
+					this.handlePacket(raw as ServerPacket);
+					return;
+				}
+				if (raw?.op === 'peer_match_finished') {
+					const userId = raw?.data?.userId;
+					const finalScore = raw?.data?.finalScore;
+					if (typeof userId !== 'string' || typeof finalScore !== 'number' || Number.isNaN(finalScore)) {
+						console.warn('Dropping invalid peer_match_finished packet from server', raw);
+						return;
+					}
+					// Manually handle to avoid assert failure on malformed packets
+					this.handlePacket(raw as ServerPacket);
+					return;
+				}
 				if (raw?.op === 'score_update') {
 					const score = raw?.data?.score;
 					if (typeof score !== 'number' || Number.isNaN(score)) {
@@ -48,6 +90,7 @@ class GameSocket {
 				const packet = raw as ServerPacket;
 				this.handlePacket(packet);
 			} catch (e: any) {
+				console.error('WS packet parse/validate error; raw data:', event.data);
 				if (e instanceof type.errors) {
 					console.error('Invalid server packet:', e.summary);
 				} else {
@@ -59,6 +102,7 @@ class GameSocket {
 
 	send(packet: ClientPacket) {
 		if (this.ws?.readyState === WebSocket.OPEN) {
+			console.log('[ws] sending packet', packet);
 			this.ws.send(JSON.stringify(packet));
 		} else {
 			console.warn('Cannot send packet: socket not connected');
@@ -81,6 +125,47 @@ class GameSocket {
 			}
 			case 'room_event': {
 				// TODO: update lobbyRooms when server emits lobby events
+				break;
+			}
+			case 'peer_score_update': {
+				const payload: any = (packet as any).data ?? packet;
+				const { userId, username, score, combo, maxCombo, health } = payload;
+				if (typeof userId !== 'string' || typeof score !== 'number' || Number.isNaN(score)) {
+					console.warn('Dropping invalid peer_score_update', payload);
+					return;
+				}
+				matchState.update((state) => ({
+					...state,
+					[userId]: {
+						...(state[userId] ?? { userId, finished: false, combo: 0 }),
+						userId,
+						username: typeof username === 'string' ? username : state[userId]?.username,
+						score,
+						combo: typeof combo === 'number' ? combo : state[userId]?.combo ?? 0,
+						maxCombo: typeof maxCombo === 'number' ? maxCombo : state[userId]?.maxCombo,
+						health: typeof health === 'number' ? health : state[userId]?.health,
+						finished: false
+					}
+				}));
+				break;
+			}
+			case 'peer_match_finished': {
+				const payload: any = (packet as any).data ?? packet;
+				const { userId, finalScore, maxCombo } = payload;
+				if (typeof userId !== 'string' || typeof finalScore !== 'number' || Number.isNaN(finalScore)) {
+					console.warn('Dropping invalid peer_match_finished', payload);
+					return;
+				}
+				matchState.update((state) => ({
+					...state,
+					[userId]: {
+						...(state[userId] ?? { userId, combo: 0 }),
+						userId,
+						score: finalScore,
+						maxCombo: typeof maxCombo === 'number' ? maxCombo : state[userId]?.maxCombo,
+						finished: true
+					}
+				}));
 				break;
 			}
 			case 'pong':

@@ -17,6 +17,7 @@ const server = Bun.serve<PlayerData>({
 	// Default to 3001 to match PUBLIC_WS_URL in the web app
 	port: Number(process.env.BANCHO_PORT ?? 3001),
 	async fetch(req, srv) {
+		console.log('[bancho] received fetch request');
 		if (shuttingDown.value) {
 			return new Response('Shutting down', { status: 503 });
 		}
@@ -55,6 +56,7 @@ const server = Bun.serve<PlayerData>({
 			ws.send(JSON.stringify({ op: 'ack', data: { message: 'connected', lobby: roomManager.getLobbyList() } }));
 		},
 		message(ws, msg) {
+			console.log('[bancho] received message from', ws.data?.user, 'message', msg);
 			try {
 				const parsed = typeof msg === 'string' ? JSON.parse(msg) : JSON.parse(msg.toString());
 				assertClientPacket(parsed);
@@ -92,11 +94,31 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case 'score_update': {
-						// TODO: broadcast to room or store scores
+						// Validate incoming client score payload before broadcasting
+						const payload = (parsed as any).data;
+						if (!payload || typeof payload.score !== 'number' || Number.isNaN(payload.score)) {
+							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'invalid score_update payload' } }));
+							break;
+						}
+						// Inject authoritative identity to avoid missing userId/username downstream
+						const normalizedPayload = {
+							...payload,
+							userId: ws.data?.user?.id,
+							username: ws.data?.user?.username
+						};
+						console.log('[bancho] received score_update from', ws.data?.user, 'payload', normalizedPayload);
+						roomManager.broadcastScore(ws, normalizedPayload);
 						break;
 					}
 					case 'match_finished': {
-						// TODO: handle match end aggregation
+						const payload = (parsed as any).data;
+						const normalizedPayload = {
+							...(payload ?? {}),
+							userId: ws.data?.user?.id,
+							username: ws.data?.user?.username
+						};
+						console.log('[bancho] received match_finished from', ws.data?.user, 'payload', normalizedPayload);
+						roomManager.broadcastMatchFinish(ws, normalizedPayload);
 						break;
 					}
 					default:

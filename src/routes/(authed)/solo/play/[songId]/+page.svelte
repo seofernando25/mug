@@ -9,6 +9,8 @@
 	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
 	import ScoreDisplay from '$lib/components/ScoreDisplay.svelte';
 	import { createGame, type GamePhase } from '$lib/game/game.client.js';
+	import MultiplayerLeaderboard from '$lib/components/game/MultiplayerLeaderboard.svelte';
+	import { socketStatus } from '$lib/network/socket';
 	import { onMount } from 'svelte';
 
 	const { data } = $props();
@@ -261,6 +263,10 @@
 	{/if}
 
 	<ScoreDisplay score={currentScoreStore} />
+
+	{#if $socketStatus === 'connected'}
+		<MultiplayerLeaderboard />
+	{/if}
 </div>
 
 <!-- Placeholder for canvas and overlay elements -->

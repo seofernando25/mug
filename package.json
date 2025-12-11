@@ -14,7 +14,7 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"dev:services": "bunx concurrently \"bun run --cwd apps/bancho dev\" \"bun run --cwd apps/processor dev\" \"bun run dev\"",
+		"dev:services": "bunx concurrently \"bun run --cwd apps/bancho  dev\" \"bun run --cwd apps/processor dev\" \"bun run dev\"",
 		"db:push": "bunx drizzle-kit push",
 		"db:studio": "bunx drizzle-kit studio",
 		"format": "prettier --write .",
