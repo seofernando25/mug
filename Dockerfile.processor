@@ -6,7 +6,7 @@ FROM base AS install
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN bun install
 
 # Runtime image
 FROM base AS runtime
