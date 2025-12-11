@@ -1,12 +1,24 @@
 import { type } from 'arktype';
 
 export const roomSummarySchema = type({
-	id: 'number > 0',
+	id: 'string>0',
 	name: 'string>0',
-	ownerId: 'string>0',
-	currentChartId: 'string?',
-	playerCount: 'number >= 0',
-	isLocked: 'boolean',
+	playerCount: 'number >= 0?',
+	status: 'string?',
+	hostId: 'string?',
+	hostName: 'string?',
+	currentChart: type({
+		coverUrl: 'string?',
+		name: 'string?',
+		artist: 'string?',
+		difficultyName: 'string?'
+	}).optional(),
+	isPasswordProtected: 'boolean?',
+	owner: type({
+		id: 'string>0',
+		name: 'string?',
+		avatarUrl: 'string?'
+	}).optional()
 });
 
 export const roomEventSchema = type({
