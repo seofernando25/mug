@@ -6,7 +6,8 @@ FROM base AS install
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
-ENV BUN_WORKSPACE_FILTER=apps/processor
+# Install only what processor needs (app + shared packages)
+ENV BUN_WORKSPACE_FILTER="apps/processor packages/db packages/contract"
 RUN bun install --frozen-lockfile --ignore-scripts
 
 # Runtime image
