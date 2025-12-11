@@ -7,10 +7,7 @@ COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
 # Install only what bancho needs (app + shared packages)
-RUN bun install --frozen-lockfile --ignore-scripts \
-	--filter apps/bancho \
-	--filter @mug/db \
-	--filter @mug/contract
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Runtime image
 FROM base AS runtime

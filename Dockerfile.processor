@@ -6,11 +6,7 @@ FROM base AS install
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
-# Install only what processor needs (app + shared packages)
-RUN bun install --frozen-lockfile --ignore-scripts \
-	--filter apps/processor \
-	--filter @mug/db \
-	--filter @mug/contract
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Runtime image
 FROM base AS runtime
