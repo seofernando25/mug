@@ -7,8 +7,10 @@ COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
 # Install only what bancho needs (app + shared packages)
-ENV BUN_WORKSPACE_FILTER="apps/bancho packages/db packages/contract"
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN bun install --frozen-lockfile --ignore-scripts \
+	--filter apps/bancho \
+	--filter packages/db \
+	--filter packages/contract
 
 # Runtime image
 FROM base AS runtime
