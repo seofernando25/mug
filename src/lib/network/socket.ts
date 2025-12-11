@@ -37,6 +37,13 @@ class GameSocket {
 		this.ws.onmessage = (event) => {
 			try {
 				const raw = JSON.parse(event.data);
+				if (raw?.op === 'score_update') {
+					const score = raw?.data?.score;
+					if (typeof score !== 'number' || Number.isNaN(score)) {
+						console.warn('Dropping invalid score_update packet from server', raw);
+						return;
+					}
+				}
 				assertServerPacket(raw);
 				const packet = raw as ServerPacket;
 				this.handlePacket(packet);

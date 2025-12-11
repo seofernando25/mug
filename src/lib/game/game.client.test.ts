@@ -4,6 +4,7 @@ import type { ClientChart, ClientSong } from '$lib/types';
 // Mock renderer to avoid Pixi usage in tests
 mock.module('$lib/game-engine/renderer', () => ({
 	GameRenderer: class {
+		async init() {}
 		render() {}
 		flashLane() {}
 		showJudgment() {}
