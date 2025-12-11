@@ -5,8 +5,9 @@ WORKDIR /app
 FROM base AS install
 COPY package.json bun.lock ./
 COPY packages ./packages
-COPY apps/processor/package.json apps/processor/
-RUN bun install --frozen-lockfile
+COPY apps ./apps
+ENV BUN_WORKSPACE_FILTER=apps/processor
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Runtime image
 FROM base AS runtime

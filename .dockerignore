@@ -1,0 +1,14 @@
+.git
+node_modules
+**/node_modules
+.turbo
+.cache
+.svelte-kit
+build
+dist
+.env
+.env.*
+*.log
+docker-compose.yml
+Dockerfile*
+
