@@ -1,22 +1,19 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:1 AS build
 WORKDIR /app
 
-# Install dependencies (cached)
-FROM base AS install
+# Install workspace deps
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
-RUN bun install
+RUN bun install --frozen-lockfile --ignore-scripts
 
-# Runtime image
-FROM base AS runtime
+# Compile processor into a single binary
+RUN bun build --compile apps/processor/src/index.ts --outfile /app/processor
+
+# Runtime image: no node_modules needed
+FROM debian:bookworm-slim AS runtime
 WORKDIR /app
-COPY . .
-# Bring in installed dependencies (root + per-workspace node_modules)
-COPY --from=install /app/node_modules ./node_modules
-COPY --from=install /app/packages ./packages
-COPY --from=install /app/apps ./apps
+COPY --from=build /app/processor /app/processor
 ENV NODE_ENV=production
-WORKDIR /app/apps/processor
-CMD ["bun", "run", "src/index.ts"]
+CMD ["/app/processor"]
 
