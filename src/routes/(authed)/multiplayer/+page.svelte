@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { orpcClient } from '$lib/rpc/client';
+	import { onMount } from 'svelte';
 	import MultiplayerRoomListItem from './MultiplayerRoomListItem.svelte';
 	import { goto } from '$app/navigation';
 	import { gameSocket, lobbyRooms, socketStatus } from '$lib/network/socket';
@@ -54,27 +53,24 @@
 		createRoomError = null;
 
 		try {
-			const result = await orpcClient.multiplayer.room.create({
-				roomName: newRoomName.trim(),
-				...(newRoomPassword.trim() && { roomPassword: newRoomPassword.trim() }),
-				...(newRoomChartId.trim() && { currentChartId: newRoomChartId.trim() })
+			gameSocket.send({
+				op: 'create_room',
+				data: { name: newRoomName.trim() }
+			} as any);
+			const ack = await gameSocket.waitForAck((pkt) => {
+				if (pkt?.data?.message === 'room_created' && pkt?.data?.roomId) return pkt.data;
+				return null;
 			});
-
-			if (result.success && result.room) {
-				closeCreateRoomModal();
-				await goto(`/multiplayer/room/${result.room.id}`);
-			} else {
-				console.error('Failed to create room:', result.error);
-				createRoomError = result.error?.message ?? 'Could not create room.';
-			}
+			closeCreateRoomModal();
+			await goto(`/multiplayer/room/${ack.roomId}`);
 		} catch (e: any) {
 			console.error('Exception creating room:', e);
-			createRoomError = e.message ?? 'An exception occurred while creating the room.';
+			createRoomError = e?.message ?? 'An exception occurred while creating the room.';
 		}
 		isCreatingRoom = false;
 	}
 
-	function handleRoomClick(roomId: number) {
+	function handleRoomClick(roomId: string) {
 		goto(`/multiplayer/room/${roomId}`);
 	}
 </script>

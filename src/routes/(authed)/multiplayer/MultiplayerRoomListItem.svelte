@@ -1,9 +1,20 @@
 <script lang="ts">
-	import type { orpcClient } from '$lib/rpc/client';
-
-	type RoomListItem = NonNullable<
-		Awaited<ReturnType<typeof orpcClient.multiplayer.room.list>>['rooms']
-	>[number];
+	type RoomListItem = {
+		id: string;
+		name: string;
+		playerCount?: number;
+		status?: string;
+		hostId?: string | null;
+		hostName?: string | null;
+		currentChart?: {
+			coverUrl?: string | null;
+			name?: string | null;
+			artist?: string | null;
+			difficultyName?: string | null;
+		} | null;
+		owner?: { id: string; name?: string | null; avatarUrl?: string | null };
+		isPasswordProtected?: boolean;
+	};
 
 	const { room }: { room: RoomListItem } = $props();
 
@@ -15,10 +26,12 @@
 	};
 
 	const isPasswordProtected = $derived(room.isPasswordProtected);
-	const coverUrl = $derived(room.currentChart?.coverUrl);
+	const coverUrl = $derived(room.currentChart?.coverUrl ?? null);
 	const beatmapName = $derived(room.currentChart?.name ?? 'No beatmap selected');
 	const beatmapArtist = $derived(room.currentChart?.artist ?? '');
 	const difficultyName = $derived(room.currentChart?.difficultyName ?? '');
+	const ownerName = $derived(room.hostName ?? room.owner?.name ?? 'Unknown Host');
+	const ownerAvatar = $derived(room.owner?.avatarUrl ?? null);
 </script>
 
 <div
@@ -71,19 +84,19 @@
 		<div class="mt-auto pt-3">
 			<div class="flex items-center justify-between text-xs text-gray-400">
 				<div class="flex items-center">
-					{#if room.owner.avatarUrl}
+					{#if ownerAvatar}
 						<img
-							src={room.owner.avatarUrl}
-							alt="{room.owner.name}'s avatar"
+							src={ownerAvatar}
+							alt="{ownerName}'s avatar"
 							class="h-5 w-5 rounded-full mr-1.5 border border-gray-600"
 						/>
 					{/if}
-					<span class="truncate">Hosted by {room.owner.name}</span>
+					<span class="truncate">Hosted by {ownerName}</span>
 				</div>
 				<div class="flex items-center">
 					<!-- <UserGroupSolid class="h-4 w-4 mr-1 text-gray-500" /> -->
 					<span class="mr-1">Players:</span>
-					<span>{room.playerCount}</span>
+					<span>{room.playerCount ?? 0}</span>
 					<!-- Max players can be added if needed -->
 				</div>
 			</div>

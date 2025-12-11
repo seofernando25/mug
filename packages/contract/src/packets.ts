@@ -7,6 +7,7 @@ export type ClientPacket =
 	| { op: 'create_room'; data?: { name?: string } }
 	| { op: 'join_room'; data: { roomId: string } }
 	| { op: 'leave_room'; data?: { roomId?: string } }
+	| { op: 'get_room_state'; data: { roomId: string } }
 	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
 	| { op: 'match_finished'; data?: { score?: number; maxCombo?: number } };
 
@@ -14,7 +15,9 @@ export type ServerPacket =
 	| { op: 'pong'; data?: unknown }
 	| { op: 'ack'; data?: unknown }
 	| { op: 'error'; data: { code: ErrorCode; message?: string } }
-	| { op: 'room_event'; data: typeof roomEventSchema['infer'] | unknown }
+	| { op: 'room_list'; data: Array<{ id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null }> }
+	| { op: 'room_event'; data: typeof roomEventSchema['infer'] | { type: 'add' | 'remove' | 'update'; room?: { id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null } } }
+	| { op: 'room_state'; data: { id: string; name?: string; hostId?: string | null; players: Array<{ userId: string; username?: string | null; avatarUrl?: string | null }> } }
 	| { op: 'peer_score_update'; data: { userId: string; username?: string | null; score: number; combo?: number; maxCombo?: number; health?: number } }
 	| { op: 'peer_match_finished'; data: { userId: string; finalScore: number; maxCombo?: number } }
 	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
@@ -28,6 +31,9 @@ export function assertClientPacket(input: any): asserts input is ClientPacket {
 		case 'leave_room':
 		case 'create_room':
 		case 'match_finished':
+			return;
+		case 'get_room_state':
+			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) throw new Error('get_room_state requires roomId');
 			return;
 		case 'join_room':
 			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) throw new Error('join_room requires roomId');
@@ -49,6 +55,19 @@ export function assertServerPacket(input: any): asserts input is ServerPacket {
 		case 'error':
 			return;
 		case 'room_event':
+			return;
+		case 'room_list':
+			if (!Array.isArray(input.data)) throw new Error('room_list requires array data');
+			for (const r of input.data) {
+				if (!r || typeof r !== 'object' || typeof (r as any).id !== 'string') {
+					throw new Error('room_list entries require id');
+				}
+			}
+			return;
+		case 'room_state':
+			if (!input.data || typeof input.data !== 'object') throw new Error('room_state requires data object');
+			if (typeof (input.data as any).id !== 'string') throw new Error('room_state requires id');
+			if (!Array.isArray((input.data as any).players)) throw new Error('room_state requires players');
 			return;
 		case 'peer_score_update':
 			if (input.data && typeof input.data === 'object') {

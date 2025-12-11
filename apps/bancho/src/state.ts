@@ -25,6 +25,14 @@ export class RoomManager {
 	}
 
 	createRoom(player: ServerWebSocket<PlayerData>, name: string): Room {
+		// Enforce single room per host (by user id). If this user already hosts a room, remove it.
+		for (const [id, room] of this.rooms.entries()) {
+			if (room.hostId === player.data.user.id) {
+				this.rooms.delete(id);
+				this.notify({ type: 'remove', room: { id, name: room.name } });
+			}
+		}
+
 		const roomId = crypto.randomUUID();
 		const room: Room = {
 			id: roomId,
@@ -61,8 +69,23 @@ export class RoomManager {
 			this.rooms.delete(roomId);
 			this.notify({ type: 'remove', room: { id: roomId, name: room.name } });
 		} else {
-			this.broadcastToRoom(roomId, { op: 'room_event', data: { op: 'room_event', roomId, event: 'leave', payload: { userId: player.data.user.id } } }, player);
-			// TODO: reassign host when host leaves.
+			// If the host left, reassign to the next available player
+			if (room.hostId === player.data.user.id) {
+				const [nextHost] = Array.from(room.players);
+				if (nextHost) {
+					room.hostId = nextHost.data.user.id;
+					this.notify({ type: 'update', id: roomId });
+				}
+			}
+			this.broadcastToRoom(
+				roomId,
+				{ op: 'room_event', data: { op: 'room_event', roomId, event: 'leave', payload: { userId: player.data.user.id } } },
+				player
+			);
+			const state = this.getRoomState(roomId);
+			if (state) {
+				this.broadcastToRoom(roomId, { op: 'room_state', data: state });
+			}
 		}
 	}
 
@@ -72,7 +95,30 @@ export class RoomManager {
 			name: r.name,
 			playerCount: r.players.size,
 			status: r.status,
+			hostId: r.hostId,
+			hostName: this.getHostName(r),
 		}));
+	}
+
+	getRoomState(roomId: string) {
+		const room = this.rooms.get(roomId);
+		if (!room) return null;
+		return {
+			id: room.id,
+			name: room.name,
+			hostId: room.hostId,
+			hostName: this.getHostName(room),
+			players: Array.from(room.players).map((p) => ({
+				userId: p.data.user.id,
+				username: p.data.user.username ?? null,
+				avatarUrl: null
+			}))
+		};
+	}
+
+	private getHostName(room: Room) {
+		const host = Array.from(room.players).find(p => p.data.user.id === room.hostId);
+		return host?.data.user.username ?? host?.data.user.id ?? null;
 	}
 
 	broadcastToRoom(roomId: string, packet: ServerPacket, exclude?: ServerWebSocket<PlayerData>) {

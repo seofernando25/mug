@@ -46,5 +46,31 @@ describe("RoomManager Logic", () => {
 		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeUndefined();
 		expect(notifier).toHaveBeenCalledTimes(2); // add + remove
 	});
+
+	it("includes hostName and hostId in lobby list and room state", () => {
+		const manager = new RoomManager();
+		const host = createMockPlayer("u1", "peppy");
+		const room = manager.createRoom(host, "Lobby");
+		const lobby = manager.getLobbyList()[0];
+		expect(lobby.hostId).toBe("u1");
+		expect(lobby.hostName).toBe("peppy");
+
+		const state = manager.getRoomState(room.id);
+		expect(state?.hostId).toBe("u1");
+		expect(state?.hostName).toBe("peppy");
+		expect(state?.players.find(p => p.userId === "u1")).toBeDefined();
+	});
+
+	it("reassigns host and updates hostName when original host leaves", () => {
+		const manager = new RoomManager();
+		const host = createMockPlayer("u1", "first");
+		const p2 = createMockPlayer("u2", "second");
+		const room = manager.createRoom(host, "Lobby");
+		manager.joinRoom(p2, room.id);
+		manager.leaveRoom(host);
+		const state = manager.getRoomState(room.id);
+		expect(state?.hostId).toBe("u2");
+		expect(state?.hostName).toBe("second");
+	});
 });
 

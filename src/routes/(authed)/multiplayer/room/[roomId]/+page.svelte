@@ -1,77 +1,38 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { orpcClient } from '$lib/rpc/client';
+	import { gameSocket, currentRoomState, socketStatus } from '$lib/network/socket';
 
-	let roomId = $state<number | null>(null);
+	let roomId = $state<string | null>(null);
 	let roomDetails = $state<any | null>(null);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let leaveError = $state<string | null>(null);
 	let isLeaving = $state(false);
-	let wantsToStopSubscription = $state(false);
+	let connectionStatus = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
-	// ORPC Event Iterator related state
-	let eventIterator: Awaited<
-		ReturnType<typeof orpcClient.multiplayer.room.subscribeToRoomEvents>
-	> | null = null;
-	let sseStatus = $state('Disconnected');
-	let isSubscribed = $state(false);
-
-	function initializeRoom(id: number) {
+	function initializeRoom(id: string) {
 		roomId = id;
-		loadRoomDetails();
-		startEventSubscription();
-	}
-
-	async function loadRoomDetails() {
-		const currentRoomId = roomId;
-		if (currentRoomId === null) return;
+		roomDetails = null;
 		isLoading = true;
 		error = null;
-		try {
-			const result = await orpcClient.multiplayer.room.get({ roomId: currentRoomId });
-			if (result.success) {
-				roomDetails = result.room;
-			} else {
-				console.error('Failed to load room details:', result.error);
-				error = result.error?.message ?? 'Unknown error loading room details.';
-				if (result.error?.code === 'NOT_FOUND') {
-					await goto('/multiplayer');
-				}
-			}
-		} catch (e: any) {
-			console.error('Exception loading room details:', e);
-			error = e.message ?? 'An exception occurred.';
-		}
-		isLoading = false;
+		// Request room state over WS and join the room
+		gameSocket.connect();
+		gameSocket.send({ op: 'join_room', data: { roomId: id } } as any);
+		gameSocket.send({ op: 'get_room_state', data: { roomId: id } } as any);
 	}
 
 	async function handleLeaveRoom() {
 		const currentRoomId = roomId;
+		console.log('handleLeaveRoom', currentRoomId);
 		if (currentRoomId === null) return;
-
-		// Stop the event subscription first
-		wantsToStopSubscription = true;
-		if (eventIterator) {
-			try {
-				await eventIterator.return();
-			} catch (e) {
-				console.error('Error stopping event iterator:', e);
-			}
-		}
 
 		isLeaving = true;
 		leaveError = null;
 		try {
-			const result = await orpcClient.multiplayer.room.leave({ roomId: currentRoomId });
-			if (result.success) {
-				await goto('/multiplayer');
-			} else {
-				console.error('Failed to leave room:', result.error);
-				leaveError = result.error?.message ?? 'Could not leave room.';
-			}
+			gameSocket.send({ op: 'leave_room', data: { roomId: currentRoomId } } as any);
+			await goto('/multiplayer');
 		} catch (e: any) {
 			console.error('Exception leaving room:', e);
 			leaveError = e.message ?? 'An exception occurred while leaving.';
@@ -79,80 +40,23 @@
 		isLeaving = false;
 	}
 
-	async function startEventSubscription() {
-		const currentRoomId = roomId;
-		if (currentRoomId === null || isSubscribed) return;
-
-		sseStatus = 'Connecting...';
-		isSubscribed = true;
-
-		try {
-			eventIterator = await orpcClient.multiplayer.room.subscribeToRoomEvents({
-				roomId: currentRoomId
-			});
-
-			if (!eventIterator) {
-				sseStatus = 'Error: Failed to connect';
-				isSubscribed = false;
-				return;
-			}
-
-			for await (const event of eventIterator) {
-				if (wantsToStopSubscription) {
-					break;
-				}
-
-				if (event.success === true) {
-					if (event.type === 'CONNECTION_ESTABLISHED') {
-						sseStatus = 'Connected';
-					}
-				} else if (event.success === false) {
-					sseStatus = `Error: ${event.message}`;
-					break;
-				}
-			}
-
-			if (isSubscribed) sseStatus = 'Disconnected';
-		} catch (err: any) {
-			console.error('Event stream error:', err);
-			sseStatus = 'Disconnected';
-		} finally {
-			if (isSubscribed) {
-				isSubscribed = false;
-				if (!sseStatus.startsWith('Error')) {
-					sseStatus = 'Disconnected';
-				}
-			}
-		}
-	}
-
 	onMount(() => {
 		const idStr = page.params.roomId;
-		const id = parseInt(idStr, 10);
-		if (!isNaN(id)) {
-			initializeRoom(id);
-		} else {
-			error = 'Invalid Room ID in URL.';
-			isLoading = false;
-		}
-
-		// Handle browser/tab closing
-		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-			wantsToStopSubscription = true;
-			if (eventIterator) {
-				// Try to gracefully close the connection
-				eventIterator.return?.();
+		initializeRoom(idStr);
+		const unsubRoom = currentRoomState.subscribe((state) => {
+			if (state && state.id === roomId) {
+				roomDetails = {
+					...state,
+					players: state.players ?? []
+				};
+				isLoading = false;
 			}
-		};
-
-		window.addEventListener('beforeunload', handleBeforeUnload);
+		});
+		const unsubStatus = socketStatus.subscribe((v) => (connectionStatus = v));
 
 		return () => {
-			wantsToStopSubscription = true;
-			if (eventIterator) {
-				eventIterator.return?.();
-			}
-			window.removeEventListener('beforeunload', handleBeforeUnload);
+			unsubRoom();
+			unsubStatus();
 		};
 	});
 </script>
@@ -246,20 +150,23 @@
 					</div>
 				</div>
 
-				<!-- Right Column: Game Area / Chat (Placeholder) -->
+				<!-- Right Column: Placeholder for song selection (empty block) + status -->
 				<div class="md:col-span-2 p-4 bg-gray-800 rounded-lg shadow min-h-[300px] flex flex-col">
-					<h2 class="text-xl font-semibold mb-2 border-b border-gray-700 pb-2">Game Area</h2>
+					<h2 class="text-xl font-semibold mb-2 border-b border-gray-700 pb-2">
+						Song Selection (coming soon)
+					</h2>
 					<div class="flex-grow flex items-center justify-center">
-						<p class="text-gray-500 italic">Gameplay will appear here.</p>
+						<p class="text-gray-500 italic">This area is intentionally empty for now.</p>
 					</div>
 					<div class="mt-auto">
 						<h3 class="text-lg font-semibold mb-1">
-							Connection Status: <span
-								class="font-normal text-sm {sseStatus === 'Connected'
+							Connection Status:
+							<span
+								class="font-normal text-sm {connectionStatus === 'connected'
 									? 'text-green-400'
-									: sseStatus.startsWith('Error')
+									: connectionStatus === 'disconnected'
 										? 'text-red-400'
-										: 'text-yellow-400'}">{sseStatus}</span
+										: 'text-yellow-400'}">{connectionStatus}</span
 							>
 						</h3>
 					</div>

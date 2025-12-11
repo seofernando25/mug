@@ -1,6 +1,7 @@
 import { assertClientPacket, ErrorCode } from '@mug/contract';
 import { validateSession, getRedis } from '@mug/db';
 import { RoomManager, type PlayerData } from './state';
+import type { ServerWebSocket } from 'bun';
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 const MAX_DB_CONNECTIONS = Number(process.env.BANCHO_DB_POOL_MAX ?? 2);
@@ -9,8 +10,14 @@ const shuttingDown = { value: false };
 void MAX_DB_CONNECTIONS;
 
 const redis = getRedis();
+const connections = new Set<ServerWebSocket<PlayerData>>();
 const roomManager = new RoomManager((event) => {
 	redis.publish('global-lobby', JSON.stringify(event));
+	// Broadcast lobby events to all connected clients
+	const packet = JSON.stringify({ op: 'room_event', data: event });
+	for (const client of connections) {
+		if (client.readyState === 1) client.send(packet);
+	}
 });
 
 const server = Bun.serve<PlayerData>({
@@ -53,7 +60,9 @@ const server = Bun.serve<PlayerData>({
 	websocket: {
 		open(ws) {
 			console.log(`User connected: ${ws.data.user.id}`);
-			ws.send(JSON.stringify({ op: 'ack', data: { message: 'connected', lobby: roomManager.getLobbyList() } }));
+			connections.add(ws);
+			ws.send(JSON.stringify({ op: 'ack', data: { message: 'connected' } }));
+			ws.send(JSON.stringify({ op: 'room_list', data: roomManager.getLobbyList() }));
 		},
 		message(ws, msg) {
 			console.log('[bancho] received message from', ws.data?.user, 'message', msg);
@@ -69,8 +78,17 @@ const server = Bun.serve<PlayerData>({
 						break;
 					case 'create_room': {
 						if (ws.data.roomId) roomManager.leaveRoom(ws);
-						const room = roomManager.createRoom(ws, (parsed as any).data?.name ?? 'Room');
+						const name = ((parsed as any).data?.name ?? '').toString().trim() || 'Room';
+						const room = roomManager.createRoom(ws, name);
 						ws.send(JSON.stringify({ op: 'ack', data: { message: 'room_created', roomId: room.id, name: room.name } }));
+						// Send updated lobby list to all
+						const lobby = roomManager.getLobbyList();
+						for (const client of connections) {
+							if (client.readyState === 1) client.send(JSON.stringify({ op: 'room_list', data: lobby }));
+						}
+						// Send room_state to members
+						const state = roomManager.getRoomState(room.id);
+						if (state) roomManager.broadcastToRoom(room.id, { op: 'room_state', data: state });
 						break;
 					}
 					case 'join_room': {
@@ -83,6 +101,8 @@ const server = Bun.serve<PlayerData>({
 							if (ws.data.roomId && ws.data.roomId !== roomId) roomManager.leaveRoom(ws);
 							roomManager.joinRoom(ws, roomId);
 							ws.send(JSON.stringify({ op: 'ack', data: { message: 'room_joined', roomId } }));
+							const state = roomManager.getRoomState(roomId);
+							if (state) roomManager.broadcastToRoom(roomId, { op: 'room_state', data: state });
 						} catch (err: any) {
 							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.NOT_FOUND, message: err?.message ?? 'join failed' } }));
 						}
@@ -91,6 +111,19 @@ const server = Bun.serve<PlayerData>({
 					case 'leave_room': {
 						roomManager.leaveRoom(ws);
 						ws.send(JSON.stringify({ op: 'ack', data: { message: 'left_room' } }));
+						const lobby = roomManager.getLobbyList();
+						for (const client of connections) {
+							if (client.readyState === 1) client.send(JSON.stringify({ op: 'room_list', data: lobby }));
+						}
+						break;
+					}
+					case 'get_room_state': {
+						const roomId = (parsed as any).data?.roomId;
+						if (roomId && typeof roomId === 'string') {
+							const state = roomManager.getRoomState(roomId);
+							if (state) ws.send(JSON.stringify({ op: 'room_state', data: state }));
+							else ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.NOT_FOUND, message: 'room not found' } }));
+						}
 						break;
 					}
 					case 'score_update': {
@@ -131,7 +164,12 @@ const server = Bun.serve<PlayerData>({
 			}
 		},
 		close(ws) {
+			connections.delete(ws);
 			roomManager.leaveRoom(ws);
+			const lobby = roomManager.getLobbyList();
+			for (const client of connections) {
+				if (client.readyState === 1) client.send(JSON.stringify({ op: 'room_list', data: lobby }));
+			}
 		}
 	}
 });

@@ -1,10 +1,11 @@
 import { writable } from 'svelte/store';
 import { type ClientPacket, assertServerPacket, type ServerPacket } from '@mug/contract';
 import { type } from 'arktype';
-import { PUBLIC_WS_URL } from '$env/static/public';
+import type { RoomSummary, RoomState } from './types';
 
 export const socketStatus = writable<'disconnected' | 'connecting' | 'connected'>('disconnected');
-export const lobbyRooms = writable<any[]>([]); // TODO: replace any with RoomSummary once server sends structured lobby data
+export const lobbyRooms = writable<RoomSummary[]>([]);
+export const currentRoomState = writable<RoomState | null>(null);
 
 export interface PeerState {
 	userId: string;
@@ -24,6 +25,10 @@ class GameSocket {
 	private shouldReconnect = true;
 	private reconnectDelayMs = 2000;
 	private url: string;
+	private ackWaiters: Array<(packet: any) => boolean> = [];
+	private requestRoomState(roomId: string) {
+		this.send({ op: 'get_room_state', data: { roomId } } as any);
+	}
 
 	constructor(url: string) {
 		this.url = url;
@@ -79,6 +84,10 @@ class GameSocket {
 					this.handlePacket(raw as ServerPacket);
 					return;
 				}
+				if (raw?.op === 'room_list' || raw?.op === 'room_state') {
+					this.handlePacket(raw as ServerPacket);
+					return;
+				}
 				if (raw?.op === 'score_update') {
 					const score = raw?.data?.score;
 					if (typeof score !== 'number' || Number.isNaN(score)) {
@@ -89,6 +98,9 @@ class GameSocket {
 				assertServerPacket(raw);
 				const packet = raw as ServerPacket;
 				this.handlePacket(packet);
+				if (packet.op === 'ack') {
+					this.ackWaiters = this.ackWaiters.filter((fn) => !fn(packet));
+				}
 			} catch (e: any) {
 				console.error('WS packet parse/validate error; raw data:', event.data);
 				if (e instanceof type.errors) {
@@ -114,17 +126,73 @@ class GameSocket {
 		this.ws?.close();
 	}
 
+	waitForAck<T = any>(predicate: (packet: any) => T | null | false, timeoutMs = 2000) {
+		return new Promise<T>((resolve, reject) => {
+			const timer = setTimeout(() => {
+				this.ackWaiters = this.ackWaiters.filter((fn) => fn !== handler);
+				reject(new Error('Ack timeout'));
+			}, timeoutMs);
+			const handler = (packet: any) => {
+				try {
+					const result = predicate(packet);
+					if (result) {
+						clearTimeout(timer);
+						resolve(result);
+						return true;
+					}
+				} catch (err) {
+					console.error('Ack handler error', err);
+				}
+				return false;
+			};
+			this.ackWaiters.push(handler);
+		});
+	}
+
 	private handlePacket(packet: ServerPacket) {
 		switch (packet.op) {
 			case 'ack': {
 				const lobby = (packet.data as any)?.lobby;
 				if (Array.isArray(lobby)) {
-					lobbyRooms.set(lobby);
+					lobbyRooms.set(lobby as any);
 				}
 				break;
 			}
 			case 'room_event': {
-				// TODO: update lobbyRooms when server emits lobby events
+				const ev: any = (packet as any).data ?? packet;
+				lobbyRooms.update((rooms) => {
+					if (!ev || !ev.type) return rooms;
+					switch (ev.type) {
+						case 'add': {
+							const next = rooms.filter((r) => r.id !== ev.room?.id);
+							if (ev.room?.id) next.push({ id: ev.room.id, name: ev.room.name, playerCount: ev.room.playerCount, status: ev.room.status, hostId: ev.room.hostId, hostName: ev.room.hostName });
+							return next;
+						}
+						case 'remove': {
+							return rooms.filter((r) => r.id !== ev.room?.id);
+						}
+						case 'update': {
+							// server only sends id; trigger refetch on next ack or leave as-is
+							return rooms;
+						}
+						default:
+							return rooms;
+					}
+				});
+				break;
+			}
+			case 'room_list': {
+				const list = (packet as any).data;
+				if (Array.isArray(list)) {
+					lobbyRooms.set(list as any);
+				}
+				break;
+			}
+			case 'room_state': {
+				const state = (packet as any).data;
+				if (state && typeof state.id === 'string' && Array.isArray(state.players)) {
+					currentRoomState.set(state as any);
+				}
 				break;
 			}
 			case 'peer_score_update': {
@@ -176,6 +244,17 @@ class GameSocket {
 	}
 }
 
-const BANCHO_URL = PUBLIC_WS_URL || 'ws://localhost:3001';
+let BANCHO_URL = 'ws://localhost:3001';
+try {
+	// @ts-ignore dynamic import only available at build, ignored in tests
+	const env = await import('$env/static/public');
+	if (env?.PUBLIC_WS_URL) BANCHO_URL = env.PUBLIC_WS_URL;
+} catch {
+	// Not in Svelte/Vite env (e.g., tests); fall back to default/local env
+	if (typeof process !== 'undefined' && process.env?.PUBLIC_WS_URL) {
+		BANCHO_URL = process.env.PUBLIC_WS_URL;
+	}
+}
+
 export const gameSocket = new GameSocket(BANCHO_URL);
 
