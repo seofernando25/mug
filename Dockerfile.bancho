@@ -12,8 +12,11 @@ RUN bun install
 # Runtime image
 FROM base AS runtime
 WORKDIR /app
-COPY --from=install /app/node_modules ./node_modules
 COPY . .
+# Bring in installed dependencies (root + per-workspace node_modules)
+COPY --from=install /app/node_modules ./node_modules
+COPY --from=install /app/packages ./packages
+COPY --from=install /app/apps ./apps
 ENV NODE_ENV=production
 WORKDIR /app/apps/bancho
 EXPOSE 3001
