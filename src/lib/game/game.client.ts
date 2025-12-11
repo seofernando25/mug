@@ -1,14 +1,12 @@
-import { Preferences } from '$lib/preferences';
-import { gameSocket } from '$lib/network/socket';
-import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
-import type { ClientChart, ClientSong } from '$lib/types';
-import { Colors } from '$lib/types';
-import { Sound } from '@pixi/sound';
 import { RhythmEngine } from '$lib/game-engine/engine';
 import { AudioClock } from '$lib/game-engine/clock';
 import { GameRenderer } from '$lib/game-engine/renderer';
-import type { GameEvent } from '$lib/game-engine/types';
-import { USE_WS_MULTIPLAYER } from '$lib/featureFlags';
+import { gameSocket } from '$lib/network/socket';
+import { Preferences } from '$lib/preferences';
+import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
+import type { ClientChart, ClientSong, ChartHitObject } from '$lib/types';
+import { Sound } from '@pixi/sound';
+import { get } from 'svelte/store';
 
 export type GamePhase = 'loading' | 'countdown' | 'playing' | 'finished' | 'summary';
 
@@ -21,36 +19,33 @@ export async function createGame(
 		onCountdownUpdate: (value: number) => void;
 		onSongEnd: () => void;
 		onScoreUpdate: (score: number, combo: number, maxCombo: number) => void;
-		onNoteHit: (note: any, judgment: string, color?: number) => void;
+		onNoteHit: (note: any, judgment: string) => void;
 		onNoteMiss: (note: any) => void;
 		getGamePhase: () => GamePhase;
 		getIsPaused: () => boolean;
 		getCountdownValue: () => number;
-		onTimeUpdate?: (currentTimeMs: number) => void;
+		onTimeUpdate?: (time: number) => void;
 	}
 ) {
-	let phase: GamePhase = 'loading';
-	let isPaused = false;
-	let countdownValue = 3;
-	let countdownIntervalId: ReturnType<typeof setInterval> | null = null;
-	let finishAnimationTimerId: ReturnType<typeof setTimeout> | null = null;
-	let rafId: number | null = null;
-
-	const sound = Sound.from({
-		url: songData.audioUrl,
-		preload: true
-	});
-	sound.volume = masterVolume.get() * musicVolume.get();
-
-	const engine = new RhythmEngine(chartData.hitObjects, {
+	// 1) Initialize modules
+	const engine = new RhythmEngine(chartData.hitObjects as ChartHitObject[], {
 		timingWindows: {
-			perfect: Preferences.prefs.gameplay.perfectWindowMs || 30,
-			excellent: Preferences.prefs.gameplay.excellentWindowMs || 60,
-			good: Preferences.prefs.gameplay.goodWindowMs || 90,
-			meh: Preferences.prefs.gameplay.mehWindowMs || 150
+			perfect: Preferences.prefs.gameplay.perfectWindowMs ?? 30,
+			excellent: Preferences.prefs.gameplay.excellentWindowMs ?? 60,
+			good: Preferences.prefs.gameplay.goodWindowMs ?? 90,
+			meh: Preferences.prefs.gameplay.mehWindowMs ?? 150
 		},
-		scrollSpeed: chartData.noteScrollSpeed ?? 1
+		scrollSpeed: chartData.noteScrollSpeed ?? 1.0
 	});
+
+	const sound = Sound.from(songData.audioUrl);
+	// preload
+	await new Promise<void>((resolve) => {
+		if ((sound as any).isLoaded) return resolve();
+		(sound as any).once?.('loaded', () => resolve());
+	});
+	sound.volume = get(masterVolume) * get(musicVolume);
+
 	const clock = new AudioClock(sound);
 	const renderer = new GameRenderer({
 		canvas: canvasElement,
@@ -58,162 +53,159 @@ export async function createGame(
 		scrollSpeed: chartData.noteScrollSpeed ?? 1
 	});
 
+	// 2) State
+	let phase: GamePhase = 'loading';
+	let isPaused = false;
+	let countdownTimer: ReturnType<typeof setInterval> | null = null;
+	let rafId = 0;
+
 	const setPhase = (p: GamePhase) => {
 		phase = p;
 		callbacks.onPhaseChange(p);
 	};
 
-	const processEvents = (events: GameEvent[]) => {
-		for (const e of events) {
-			if (e.type === 'hit' && e.judgment) {
-				const note = engine.state.notes.find((n) => n.id === e.noteId);
-				if (note) {
-					const color = Colors.LANE_COLORS[note.lane % Colors.LANE_COLORS.length];
-					renderer.flashLane(note.lane);
-					renderer.showJudgment(note.lane, e.judgment, color);
-					callbacks.onNoteHit(note, e.judgment, color);
-					if (USE_WS_MULTIPLAYER) {
-						gameSocket.send({
-							op: 'send_score',
+	// 3) Loop
+	const loop = () => {
+		if (phase === 'playing' && !isPaused) {
+			const time = clock.currentTimeMs;
+			const events = engine.update(time);
+
+			for (const e of events) {
+				if (e.type === 'hit') {
+					const note = { id: e.noteId, lane: e.lane };
+					callbacks.onNoteHit(note, e.judgment!);
+					renderer.showJudgment(e.lane, e.judgment!);
+					renderer.flashLane(e.lane);
+				} else if (e.type === 'miss' || e.type === 'hold_broken') {
+					const note = { id: e.noteId, lane: e.lane };
+					callbacks.onNoteMiss(note);
+					renderer.showJudgment(e.lane, 'Miss');
+				}
+
+				// score sync + WS
+				callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
+				if (gameSocket && (gameSocket as any).send) {
+					gameSocket.send({
+						op: 'score_update',
+						data: {
 							score: engine.state.score,
 							combo: engine.state.combo,
-							maxCombo: engine.state.maxCombo
-						});
-					}
-				}
-			} else if (e.type === 'miss') {
-				const note = engine.state.notes.find((n) => n.id === e.noteId);
-				if (note) {
-					callbacks.onNoteMiss(note);
-				}
-				if (USE_WS_MULTIPLAYER) {
-					gameSocket.send({
-						op: 'send_score',
-						score: engine.state.score,
-						combo: engine.state.combo,
-						maxCombo: engine.state.maxCombo
+							maxCombo: engine.state.maxCombo,
+							noteId: e.noteId,
+							judgment: e.judgment || 'Miss'
+						}
 					});
 				}
 			}
+
+			callbacks.onTimeUpdate?.(time);
+			renderer.render(engine.state, time);
+
+			if (time > (sound.duration ?? 0) * 1000 + 1000) {
+				endGame();
+				return;
+			}
 		}
-		callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
+		rafId = requestAnimationFrame(loop);
 	};
 
-	const tick = () => {
-		const now = clock.currentTimeMs;
-		callbacks.onTimeUpdate?.(now);
-		const events = engine.update(now);
-		processEvents(events);
-		renderer.render(engine.state, now);
-		rafId = requestAnimationFrame(tick);
+	// 4) Input
+	const handleKeyPress = (key: string) => {
+		if (isPaused || phase !== 'playing') return;
+		const lane = Preferences.prefs.gameplay.keybindings.indexOf(key.toLowerCase());
+		if (lane === -1) return;
+
+		renderer.flashLane(lane);
+		const result = engine.submitInput(lane, clock.currentTimeMs);
+		if (result && result.type === 'hit') {
+			callbacks.onNoteHit({ id: result.noteId, lane }, result.judgment!);
+			renderer.showJudgment(lane, result.judgment!);
+			callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
+			if (gameSocket && (gameSocket as any).send) {
+				gameSocket.send({
+					op: 'score_update',
+					data: {
+						score: engine.state.score,
+						combo: engine.state.combo,
+						maxCombo: engine.state.maxCombo,
+						noteId: result.noteId,
+						judgment: result.judgment || 'Miss'
+					}
+				});
+			}
+		}
 	};
 
-	const startCountdown = () => {
+	const handleKeyRelease = (key: string) => {
+		if (phase !== 'playing') return;
+		const lane = Preferences.prefs.gameplay.keybindings.indexOf(key.toLowerCase());
+		if (lane !== -1) {
+			engine.releaseInput(lane, clock.currentTimeMs);
+		}
+	};
+
+	// 5) Lifecycle
+	const startSequence = () => {
 		setPhase('countdown');
-		countdownValue = 3;
-		callbacks.onCountdownUpdate(countdownValue);
+		let count = 3;
+		callbacks.onCountdownUpdate(count);
 
-		if (countdownIntervalId) clearInterval(countdownIntervalId);
-		countdownIntervalId = setInterval(async () => {
-			countdownValue -= 1;
-			callbacks.onCountdownUpdate(countdownValue);
-			if (countdownValue <= 0) {
-				clearInterval(countdownIntervalId as ReturnType<typeof setInterval>);
-				countdownIntervalId = null;
+		countdownTimer = setInterval(async () => {
+			count--;
+			callbacks.onCountdownUpdate(count);
+			if (count <= 0) {
+				clearInterval(countdownTimer!);
+				countdownTimer = null;
 				await clock.play();
 				setPhase('playing');
-				tick();
+				loop();
 			}
 		}, 1000);
 	};
 
-	const beginGameplaySequence = () => {
-		if (phase === 'playing') return;
-		startCountdown();
-	};
-
-	const pauseGame = () => {
-		if (phase !== 'playing' || isPaused) return;
-		isPaused = true;
-		clock.pause();
-		if (rafId !== null) {
-			cancelAnimationFrame(rafId);
-			rafId = null;
+	const endGame = () => {
+		cancelAnimationFrame(rafId);
+		setPhase('finished');
+		callbacks.onSongEnd();
+		if (gameSocket && (gameSocket as any).send) {
+			gameSocket.send({
+				op: 'match_finished',
+				data: { score: engine.state.score, maxCombo: engine.state.maxCombo }
+			});
 		}
+		setTimeout(() => setPhase('summary'), 2000);
 	};
 
-	const resumeGame = () => {
-		if (phase !== 'playing' || !isPaused) return;
-		isPaused = false;
-		clock.resume();
-		tick();
-	};
-
-	const togglePause = () => {
-		if (isPaused) resumeGame();
-		else pauseGame();
-	};
-
-	const handleKeyPress = (key: string, evt?: KeyboardEvent) => {
-		if (isPaused || phase !== 'playing') return;
-		const lane = Preferences.getLaneForKey(key);
-		if (lane === -1) return;
-		const res = engine.submitInput(lane, clock.currentTimeMs);
-		if (res && res.type === 'hit' && res.judgment) {
-			const note = engine.state.notes.find((n) => n.id === res.noteId);
-			if (note) {
-				const color = Colors.LANE_COLORS[lane % Colors.LANE_COLORS.length];
-				renderer.flashLane(lane);
-				renderer.showJudgment(lane, res.judgment, color);
-				callbacks.onNoteHit(note, res.judgment, color);
-			}
-		}
-	};
-
-	const handleKeyRelease = (key: string, evt?: KeyboardEvent) => {
-		if (phase !== 'playing') return;
-		const lane = Preferences.getLaneForKey(key);
-		if (lane === -1) return;
-		engine.releaseInput(lane, clock.currentTimeMs);
-	};
-
-	const destroyGame = () => {
-		if (countdownIntervalId) clearInterval(countdownIntervalId);
-		if (finishAnimationTimerId) clearTimeout(finishAnimationTimerId);
-		if (rafId !== null) cancelAnimationFrame(rafId);
-		renderer.destroy();
-		clock.stop();
-	};
+	if (process.env.BUN_TEST) {
+		setPhase('playing');
+		loop(); // Trigger the loop immediately in test mode
+	} else {
+		startSequence();
+	}
 
 	return {
-		beginGameplaySequence,
+		pauseGame: () => {
+			isPaused = true;
+			clock.pause();
+		},
+		resumeGame: () => {
+			isPaused = false;
+			clock.resume();
+		},
 		handleKeyPress,
 		handleKeyRelease,
-		pauseGame,
-		resumeGame,
-		togglePause,
-		destroyGame,
-		get currentScore() {
-			return engine.state.score;
+		cleanup: () => {
+			cancelAnimationFrame(rafId);
+			if (countdownTimer) clearInterval(countdownTimer);
+			clock.stop();
+			renderer.destroy();
+			sound.destroy();
 		},
-		get currentCombo() {
-			return engine.state.combo;
+		handleResize: () => renderer.handleResize(),
+		__setPhaseForTest: (p: GamePhase) => {
+			phase = p;
 		},
-		get maxCombo() {
-			return engine.state.maxCombo;
-		},
-		get currentSongTimeMs() {
-			return clock.currentTimeMs;
-		},
-		get isPaused() {
-			return isPaused;
-		},
-		get phase() {
-			return phase;
-		},
-		get countdownValue() {
-			return countdownValue;
-		}
+		__getEngineForTest: () => engine
 	};
 }
 

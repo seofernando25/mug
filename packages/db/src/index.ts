@@ -1,3 +1,9 @@
+import * as music from './schema/music';
+import * as multiplayer from './schema/multiplayer';
+import * as auth from './schema/auth';
+
+export const schema = { ...music, ...multiplayer, ...auth };
+
 export * from './auth';
 export * from './redis';
 export * from './client';

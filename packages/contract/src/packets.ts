@@ -14,7 +14,9 @@ export type ServerPacket =
 	| { op: 'pong'; data?: unknown }
 	| { op: 'ack'; data?: unknown }
 	| { op: 'error'; data: { code: ErrorCode; message?: string } }
-	| { op: 'room_event'; data: typeof roomEventSchema['infer'] | unknown };
+	| { op: 'room_event'; data: typeof roomEventSchema['infer'] | unknown }
+	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
+	| { op: 'match_finished'; data?: { score?: number; maxCombo?: number } };
 
 export function assertClientPacket(input: any): asserts input is ClientPacket {
 	if (!input || typeof input !== 'object') throw new Error('Invalid packet');
@@ -43,6 +45,17 @@ export function assertServerPacket(input: any): asserts input is ServerPacket {
 		case 'ack':
 		case 'error':
 		case 'room_event':
+		case 'score_update':
+			if (input.data && typeof input.data === 'object') {
+				const { score, combo, maxCombo } = input.data as any;
+				if (typeof score !== 'number' || Number.isNaN(score)) throw new Error('score_update requires numeric score');
+				if (combo !== undefined && (typeof combo !== 'number' || Number.isNaN(combo))) throw new Error('combo must be numeric');
+				if (maxCombo !== undefined && (typeof maxCombo !== 'number' || Number.isNaN(maxCombo))) throw new Error('maxCombo must be numeric');
+			} else {
+				throw new Error('score_update requires data object');
+			}
+			return;
+		case 'match_finished':
 			return;
 		default:
 			throw new Error('Unsupported server op');
