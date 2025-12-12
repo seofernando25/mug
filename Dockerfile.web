@@ -6,16 +6,20 @@ FROM base AS build
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
-COPY src ./src
-COPY svelte.config.js tsconfig.json vite.config.ts ./
-RUN bun install --frozen-lockfile
-RUN bun run build
+# Install only what web needs
+RUN bun install --frozen-lockfile --ignore-scripts \
+	--filter @mug/web \
+	--filter @mug/contract \
+	--filter @mug/db \
+	--filter @mug/game-logic
+# Build the web app
+RUN bun run --cwd apps/web build
 
 # Runtime
 FROM oven/bun:1 AS runtime
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/build ./build
+COPY --from=build /app/apps/web/build ./build
 ENV NODE_ENV=production
 EXPOSE 4173
 # Replace with your prod start command if different

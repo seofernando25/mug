@@ -67,8 +67,9 @@ const server = Bun.serve<PlayerData>({
 		message(ws, msg) {
 			console.log('[bancho] received message from', ws.data?.user, 'message', msg);
 			try {
-				const parsed = typeof msg === 'string' ? JSON.parse(msg) : JSON.parse(msg.toString());
-				assertClientPacket(parsed);
+				const parsedRaw = typeof msg === 'string' ? JSON.parse(msg) : JSON.parse(msg.toString());
+				assertClientPacket(parsedRaw);
+				const parsed = parsedRaw as import('@mug/contract').ClientPacket;
 
 				switch (parsed.op) {
 					case 'ping':
@@ -78,7 +79,8 @@ const server = Bun.serve<PlayerData>({
 						break;
 					case 'create_room': {
 						if (ws.data.roomId) roomManager.leaveRoom(ws);
-						const name = ((parsed as any).data?.name ?? '').toString().trim() || 'Room';
+						const payload = parsed.data?.name ?? '';
+						const name = payload.toString().trim() || 'Room';
 						const room = roomManager.createRoom(ws, name);
 						ws.send(JSON.stringify({ op: 'ack', data: { message: 'room_created', roomId: room.id, name: room.name } }));
 						// Send updated lobby list to all
@@ -92,7 +94,7 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case 'join_room': {
-						const roomId = (parsed as any).data?.roomId;
+						const roomId = parsed.data?.roomId;
 						if (!roomId) {
 							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'roomId required' } }));
 							break;
@@ -118,7 +120,7 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case 'get_room_state': {
-						const roomId = (parsed as any).data?.roomId;
+						const roomId = parsed.data?.roomId;
 						if (roomId && typeof roomId === 'string') {
 							const state = roomManager.getRoomState(roomId);
 							if (state) ws.send(JSON.stringify({ op: 'room_state', data: state }));
@@ -127,8 +129,7 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case 'score_update': {
-						// Validate incoming client score payload before broadcasting
-						const payload = (parsed as any).data;
+						const payload = parsed.data;
 						if (!payload || typeof payload.score !== 'number' || Number.isNaN(payload.score)) {
 							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'invalid score_update payload' } }));
 							break;
@@ -144,7 +145,7 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case 'match_finished': {
-						const payload = (parsed as any).data;
+						const payload = parsed.data;
 						const normalizedPayload = {
 							...(payload ?? {}),
 							userId: ws.data?.user?.id,

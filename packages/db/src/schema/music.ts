@@ -46,11 +46,11 @@ export const score = pgTable('score', {
 	playDate: timestamp('play_date').defaultNow().notNull(),
 });
 
-export const songRelations = relations(song, (helpers: any) => ({
+export const songRelations = relations(song, (helpers) => ({
 	charts: helpers.many(chart),
 }));
 
-export const chartRelations = relations(chart, (helpers: any) => ({
+export const chartRelations = relations(chart, (helpers) => ({
 	song: helpers.one(song, {
 		fields: [chart.songId],
 		references: [song.id]
@@ -58,7 +58,7 @@ export const chartRelations = relations(chart, (helpers: any) => ({
 	hitObjects: helpers.many(chartHitObject),
 }));
 
-export const chartHitObjectRelations = relations(chartHitObject, (helpers: any) => ({
+export const chartHitObjectRelations = relations(chartHitObject, (helpers) => ({
 	chart: helpers.one(chart, {
 		fields: [chartHitObject.chartId],
 		references: [chart.id]
