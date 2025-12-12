@@ -37,7 +37,7 @@ export async function createGame(
 			good: Preferences.prefs.gameplay.goodWindowMs ?? 90,
 			meh: Preferences.prefs.gameplay.mehWindowMs ?? 150
 		},
-		scrollSpeed: (chartData as any).noteScrollSpeed ?? 1.0
+		scrollSpeed: chartData.noteScrollSpeed ?? 1.0
 	});
 
 	let sound: Sound | null = null;
@@ -87,8 +87,8 @@ export async function createGame(
 	const clock = new AudioClock(soundInstance);
 	const renderer = new GameRenderer({
 		canvas: canvasElement,
-		lanes: (chartData as any).lanes ?? 4,
-		scrollSpeed: (chartData as any).noteScrollSpeed ?? 1
+		lanes: chartData.lanes ?? 4,
+		scrollSpeed: chartData.noteScrollSpeed ?? 1
 	});
 	console.log('[MUG] 3. Initializing Renderer...');
 	await renderer.init();
@@ -131,7 +131,7 @@ export async function createGame(
 
 				// score sync + WS
 				callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
-				if (gameSocket && (gameSocket as any).send) {
+				if (gameSocket) {
 					gameSocket.send({
 						op: 'score_update',
 						data: {
@@ -168,7 +168,7 @@ export async function createGame(
 			callbacks.onNoteHit({ id: result.noteId, lane }, result.judgment!);
 			renderer.showJudgment(lane, result.judgment!);
 			callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
-			if (gameSocket && (gameSocket as any).send) {
+			if (gameSocket) {
 				gameSocket.send({
 					op: 'score_update',
 					data: {
@@ -219,7 +219,7 @@ export async function createGame(
 		cancelAnimationFrame(rafId);
 		setPhase('finished');
 		callbacks.onSongEnd();
-		if (gameSocket && (gameSocket as any).send) {
+		if (gameSocket) {
 			gameSocket.send({
 				op: 'match_finished',
 				data: { score: engine.state.score, maxCombo: engine.state.maxCombo }

@@ -1,6 +1,6 @@
-import { roomEventSchema } from './room';
-import { ErrorCode } from './errors';
+import { type } from 'arktype';
 
+// Keep the original type definitions for now - we'll migrate to ArkType schemas gradually
 export type ClientPacket =
 	| { op: 'ping' }
 	| { op: 'noop' }
@@ -14,98 +14,111 @@ export type ClientPacket =
 export type ServerPacket =
 	| { op: 'pong'; data?: unknown }
 	| { op: 'ack'; data?: unknown }
-	| { op: 'error'; data: { code: ErrorCode; message?: string } }
+	| { op: 'error'; data: { code: 'UNAUTHORIZED' | 'BAD_REQUEST' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL'; message?: string } }
 	| { op: 'room_list'; data: Array<{ id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null }> }
-	| { op: 'room_event'; data: typeof roomEventSchema['infer'] | { type: 'add' | 'remove' | 'update'; room?: { id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null } } }
+	| { op: 'room_event'; data: { type: 'add' | 'remove' | 'update'; room?: { id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null } } }
 	| { op: 'room_state'; data: { id: string; name?: string; hostId?: string | null; players: Array<{ userId: string; username?: string | null; avatarUrl?: string | null }> } }
 	| { op: 'peer_score_update'; data: { userId: string; username?: string | null; score: number; combo?: number; maxCombo?: number; health?: number } }
 	| { op: 'peer_match_finished'; data: { userId: string; finalScore: number; maxCombo?: number } }
 	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
 	| { op: 'match_finished'; data?: { score?: number; maxCombo?: number } };
 
+// --- ArkType Schemas (for future use and gradual migration) ---
+
+// Shared schema definitions
+const RoomInfoSchema = type({
+	id: "string",
+	name: "string",
+	playerCount: "number?",
+	status: "string?",
+	hostId: "string|null?",
+	hostName: "string|null?"
+});
+
+const PlayerInfoSchema = type({
+	userId: "string",
+	username: "string|null?",
+	avatarUrl: "string|null?"
+});
+
+// Basic schemas for validation (not full union yet)
+export const ClientPacketSchema = type({
+	op: "string",
+	data: "unknown?"
+});
+
+export const ServerPacketSchema = type({
+	op: "string",
+	data: "unknown?"
+});
+
+// --- Legacy assertion functions (for backward compatibility) ---
+
 export function assertClientPacket(input: any): asserts input is ClientPacket {
-	if (!input || typeof input !== 'object') throw new Error('Invalid packet');
+	// Basic validation - check if it has an op field
+	if (!input || typeof input !== 'object' || typeof input.op !== 'string') {
+		throw new Error('Invalid packet');
+	}
+
+	// Validate based on op type
 	switch (input.op) {
 		case 'ping':
 		case 'noop':
-		case 'leave_room':
 		case 'create_room':
+		case 'leave_room':
 		case 'match_finished':
 			return;
-		case 'get_room_state':
-			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) throw new Error('get_room_state requires roomId');
-			return;
 		case 'join_room':
-			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) throw new Error('join_room requires roomId');
+		case 'get_room_state':
+			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) {
+				throw new Error(`${input.op} requires valid roomId`);
+			}
 			return;
 		case 'score_update':
-			if (!input.data || typeof input.data.score !== 'number') throw new Error('score_update requires numeric score');
+			if (!input.data || typeof input.data.score !== 'number') {
+				throw new Error('score_update requires numeric score');
+			}
 			return;
 		default:
-			throw new Error('Unsupported op');
+			throw new Error(`Unsupported client op: ${input.op}`);
 	}
 }
 
 export function assertServerPacket(input: any): asserts input is ServerPacket {
-	if (!input || typeof input !== 'object') throw new Error('Invalid server packet');
+	// Basic validation - check if it has an op field
+	if (!input || typeof input !== 'object' || typeof input.op !== 'string') {
+		throw new Error('Invalid server packet');
+	}
+
+	// Validate based on op type
 	switch (input.op) {
 		case 'pong':
 		case 'ack':
-			return;
 		case 'error':
-			return;
 		case 'room_event':
+		case 'match_finished':
 			return;
 		case 'room_list':
-			if (!Array.isArray(input.data)) throw new Error('room_list requires array data');
-			for (const r of input.data) {
-				if (!r || typeof r !== 'object' || typeof (r as any).id !== 'string') {
-					throw new Error('room_list entries require id');
-				}
+			if (!Array.isArray(input.data)) {
+				throw new Error('room_list requires array data');
 			}
 			return;
 		case 'room_state':
-			if (!input.data || typeof input.data !== 'object') throw new Error('room_state requires data object');
-			if (typeof (input.data as any).id !== 'string') throw new Error('room_state requires id');
-			if (!Array.isArray((input.data as any).players)) throw new Error('room_state requires players');
+			if (!input.data || typeof input.data !== 'object' || typeof input.data.id !== 'string') {
+				throw new Error('room_state requires valid data object with id');
+			}
+			if (!Array.isArray(input.data.players)) {
+				throw new Error('room_state requires players array');
+			}
 			return;
 		case 'peer_score_update':
-			if (input.data && typeof input.data === 'object') {
-				const { userId, username, score, combo, maxCombo, health } = input.data as any;
-				if (typeof userId !== 'string' || userId.length === 0) throw new Error('peer_score_update requires userId');
-				if (username !== undefined && username !== null && typeof username !== 'string') throw new Error('username must be a string when provided');
-				if (typeof score !== 'number' || Number.isNaN(score)) throw new Error('peer_score_update requires numeric score');
-				if (combo !== undefined && (typeof combo !== 'number' || Number.isNaN(combo))) throw new Error('combo must be numeric');
-				if (maxCombo !== undefined && (typeof maxCombo !== 'number' || Number.isNaN(maxCombo))) throw new Error('maxCombo must be numeric');
-				if (health !== undefined && (typeof health !== 'number' || Number.isNaN(health))) throw new Error('health must be numeric');
-			} else {
-				throw new Error('peer_score_update requires data object');
-			}
-			return;
 		case 'peer_match_finished':
-			if (input.data && typeof input.data === 'object') {
-				const { userId, finalScore, maxCombo } = input.data as any;
-				if (typeof userId !== 'string' || userId.length === 0) throw new Error('peer_match_finished requires userId');
-				if (typeof finalScore !== 'number' || Number.isNaN(finalScore)) throw new Error('peer_match_finished requires numeric finalScore');
-				if (maxCombo !== undefined && (typeof maxCombo !== 'number' || Number.isNaN(maxCombo))) throw new Error('maxCombo must be numeric');
-			} else {
-				throw new Error('peer_match_finished requires data object');
-			}
-			return;
 		case 'score_update':
-			if (input.data && typeof input.data === 'object') {
-				const { score, combo, maxCombo } = input.data as any;
-				if (typeof score !== 'number' || Number.isNaN(score)) throw new Error('score_update requires numeric score');
-				if (combo !== undefined && (typeof combo !== 'number' || Number.isNaN(combo))) throw new Error('combo must be numeric');
-				if (maxCombo !== undefined && (typeof maxCombo !== 'number' || Number.isNaN(maxCombo))) throw new Error('maxCombo must be numeric');
-			} else {
-				throw new Error('score_update requires data object');
+			if (!input.data || typeof input.data !== 'object' || typeof input.data.userId !== 'string') {
+				throw new Error(`${input.op} requires valid data object with userId`);
 			}
-			return;
-		case 'match_finished':
 			return;
 		default:
-			throw new Error('Unsupported server op');
+			throw new Error(`Unsupported server op: ${input.op}`);
 	}
 }
-

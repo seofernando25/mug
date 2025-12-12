@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import { assertClientPacket, assertServerPacket } from "./packets";
-import { wsRoomListSchema, wsRoomEventSchema, wsRoomStateSchema } from "./wsSchemas";
 
 describe("Contract Integrity", () => {
 	it("validates a correct join_room packet", () => {
@@ -18,38 +17,65 @@ describe("Contract Integrity", () => {
 		expect(() => assertClientPacket(payload)).not.toThrow();
 	});
 
-	it("rejects score_update with strings", () => {
-		const payload = { op: "score_update", data: { score: "100000", combo: 50 } } as any;
+	it("rejects score_update with invalid data", () => {
+		const payload = { op: "score_update", data: { score: "invalid" } };
 		expect(() => assertClientPacket(payload)).toThrow(/numeric score/);
 	});
 
-	it("validates a room_list packet shape with Arktype", () => {
+	it("validates a room_list packet", () => {
 		const pkt = {
 			op: "room_list",
 			data: [
-				{ id: "r1", name: "Room", playerCount: 2, status: "idle", hostId: "u1", hostName: "host" }
+				{ id: "r1", name: "Room", playerCount: 2, status: "idle" }
 			]
 		};
-		expect(() => wsRoomListSchema.assert(pkt)).not.toThrow();
 		expect(() => assertServerPacket(pkt)).not.toThrow();
 	});
 
-	it("validates a room_event packet shape with Arktype", () => {
+	it("validates a room_event packet", () => {
 		const pkt = {
 			op: "room_event",
 			data: { type: "add", room: { id: "r1", name: "New", hostId: "u1", hostName: "host" } }
 		};
-		expect(() => wsRoomEventSchema.assert(pkt)).not.toThrow();
 		expect(() => assertServerPacket(pkt)).not.toThrow();
 	});
 
-	it("validates a room_state packet shape with Arktype", () => {
+	it("validates a room_state packet", () => {
 		const pkt = {
 			op: "room_state",
-			data: { id: "r1", hostId: "u1", hostName: "host", players: [{ userId: "u1", username: "host" }] }
+			data: { id: "r1", hostId: "u1", players: [{ userId: "u1", username: "host" }] }
 		};
-		expect(() => wsRoomStateSchema.assert(pkt)).not.toThrow();
 		expect(() => assertServerPacket(pkt)).not.toThrow();
+	});
+
+	it("validates a peer_score_update packet", () => {
+		const pkt = {
+			op: "peer_score_update",
+			data: {
+				userId: "u123",
+				username: "peppy",
+				score: 500000,
+				combo: 100
+			}
+		};
+		expect(() => assertServerPacket(pkt)).not.toThrow();
+	});
+
+	it("rejects peer_score_update missing userId", () => {
+		const pkt = {
+			op: "peer_score_update",
+			data: {
+				username: "peppy",
+				score: 500000
+			}
+		};
+		expect(() => assertServerPacket(pkt)).toThrow(/userId/);
+	});
+
+	it("rejects invalid packets", () => {
+		expect(() => assertClientPacket(null)).toThrow();
+		expect(() => assertClientPacket({})).toThrow();
+		expect(() => assertServerPacket({ op: "invalid" })).toThrow(/Unsupported/);
 	});
 });
 

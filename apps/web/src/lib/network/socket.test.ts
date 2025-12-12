@@ -13,7 +13,7 @@ describe("gameSocket handler", () => {
 	});
 
 	it("updates lobbyRooms from room_list", () => {
-		(gameSocket as any).handlePacket({
+		gameSocket.handlePacket({
 			op: "room_list",
 			data: [{ id: "r1", name: "Test", hostName: "host", playerCount: 1 }],
 		});
@@ -27,7 +27,7 @@ describe("gameSocket handler", () => {
 
 	it("applies room_event add/remove", () => {
 		lobbyRooms.set([{ id: "r1", name: "Old" } as any]);
-		(gameSocket as any).handlePacket({
+		gameSocket.handlePacket({
 			op: "room_event",
 			data: { type: "add", room: { id: "r2", name: "New", hostName: "h" } },
 		});
@@ -46,7 +46,7 @@ describe("gameSocket handler", () => {
 	});
 
 	it("updates currentRoomState from room_state", () => {
-		(gameSocket as any).handlePacket({
+		gameSocket.handlePacket({
 			op: "room_state",
 			data: {
 				id: "r1",
@@ -64,7 +64,8 @@ describe("gameSocket handler", () => {
 
 	it("ignores invalid peer_score_update", () => {
 		matchState.set({});
-		(gameSocket as any).handlePacket({
+		// @ts-expect-error Test bad data
+		gameSocket.handlePacket({
 			op: "peer_score_update",
 			data: { userId: 123, score: "not-number" },
 		});

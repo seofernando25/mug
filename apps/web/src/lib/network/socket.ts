@@ -149,7 +149,7 @@ class GameSocket {
 		});
 	}
 
-	private handlePacket(packet: ServerPacket) {
+	handlePacket(packet: ServerPacket) {
 		switch (packet.op) {
 			case 'ack': {
 				const lobby = (packet.data as { lobby?: unknown })?.lobby;

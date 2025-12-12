@@ -119,13 +119,16 @@ describe('Game Conductor (headless simulation)', () => {
 		process.env.BUN_TEST = '1';
 		const { createGame } = await import('./game.client');
 		// @ts-ignore - test-only property
-		const { __clockRef } = await import('$lib/game-engine/clock') as { __clockRef?: any };
+		const { __clockRef } = await import('$lib/game-engine/clock');
 		const chart: ClientChart = {
 			id: 'test',
+			difficultyName: 'test',
+			lyrics: null,
+			songId: 'test',
 			lanes: 4,
 			hitObjects: [{ id: 1, time: 1000, lane: 0, note_type: 'tap', duration: null, chartId: '' }],
 			noteScrollSpeed: 1
-		} as any;
+		};
 		const song: ClientSong = { audioUrl: 'mock.mp3', id: 'song', title: 't', artist: 'a', bpm: 120 } as any;
 		const canvas = new HTMLCanvasElement();
 
@@ -151,7 +154,7 @@ describe('Game Conductor (headless simulation)', () => {
 		if (!c) throw new Error('Clock mock not initialized');
 		c.currentTimeMs = 1000;
 		// Force phase to playing in headless mode
-		(game as any).__setPhaseForTest?.('playing');
+		game.__setPhaseForTest?.('playing');
 		game.handleKeyPress('d');
 
 		// Run one frame
