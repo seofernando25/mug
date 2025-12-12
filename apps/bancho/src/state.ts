@@ -19,9 +19,18 @@ type Room = {
 export class RoomManager {
 	private rooms = new Map<string, Room>();
 	private notify: LobbyNotifier;
+	private disconnectTimers = new Map<string, Timer>();
+	private setTimeoutFn: (callback: () => void, delay: number) => Timer;
+	private clearTimeoutFn: (id: Timer) => void;
 
-	constructor(notify: LobbyNotifier = () => {}) {
+	constructor(
+		notify: LobbyNotifier = () => {},
+		setTimeoutFn: (callback: () => void, delay: number) => Timer = global.setTimeout,
+		clearTimeoutFn: (id: Timer) => void = global.clearTimeout
+	) {
 		this.notify = notify;
+		this.setTimeoutFn = setTimeoutFn;
+		this.clearTimeoutFn = clearTimeoutFn;
 	}
 
 	createRoom(player: ServerWebSocket<PlayerData>, name: string): Room {
@@ -48,6 +57,21 @@ export class RoomManager {
 	}
 
 	joinRoom(player: ServerWebSocket<PlayerData>, roomId: string): Room {
+		const userId = player.data.user.id;
+
+		// Check if they are currently "disconnecting" (reconnection)
+		const pendingTimer = this.disconnectTimers.get(userId);
+		if (pendingTimer) {
+			console.log(`[Bancho] User ${userId} reconnected! Cancelling leave.`);
+			this.clearTimeoutFn(pendingTimer);
+			this.disconnectTimers.delete(userId);
+
+			// Perform socket swap instead of fresh join
+			this.swapSocket(roomId, userId, player);
+			return this.rooms.get(roomId)!;
+		}
+
+		// Normal join logic
 		const room = this.rooms.get(roomId);
 		if (!room) throw new Error('Room not found');
 		room.players.add(player);
@@ -56,7 +80,7 @@ export class RoomManager {
 		return room;
 	}
 
-	leaveRoom(player: ServerWebSocket<PlayerData>): void {
+	private reallyLeaveRoom(player: ServerWebSocket<PlayerData>): void {
 		const roomId = player.data.roomId;
 		if (!roomId) return;
 		const room = this.rooms.get(roomId);
@@ -87,6 +111,49 @@ export class RoomManager {
 				this.broadcastToRoom(roomId, { op: 'room_state', data: state });
 			}
 		}
+	}
+
+	handleDisconnect(player: ServerWebSocket<PlayerData>): void {
+		const roomId = player.data.roomId;
+		const userId = player.data.user.id;
+		if (!roomId) return;
+
+		// Start a 5-second timer. If the timeout fires, call reallyLeaveRoom
+		const timer = this.setTimeoutFn(() => {
+			this.reallyLeaveRoom(player);
+			this.disconnectTimers.delete(userId);
+		}, 5000); // 5 Seconds Grace Period
+
+		this.disconnectTimers.set(userId, timer);
+	}
+
+	// Public method for intentional leaves (not disconnections)
+	leaveRoom(player: ServerWebSocket<PlayerData>): void {
+		// Cancel any pending disconnect timer for this user
+		const userId = player.data.user.id;
+		const pendingTimer = this.disconnectTimers.get(userId);
+		if (pendingTimer) {
+			this.clearTimeoutFn(pendingTimer);
+			this.disconnectTimers.delete(userId);
+		}
+
+		// Immediately leave the room
+		this.reallyLeaveRoom(player);
+	}
+
+	private swapSocket(roomId: string, userId: string, newSocket: ServerWebSocket<PlayerData>): void {
+		const room = this.rooms.get(roomId);
+		if (!room) return;
+
+		// Find the old socket for this user and replace it
+		for (const existingSocket of room.players) {
+			if (existingSocket.data.user.id === userId) {
+				room.players.delete(existingSocket);
+				break;
+			}
+		}
+		room.players.add(newSocket);
+		newSocket.data.roomId = roomId;
 	}
 
 	getLobbyList() {

@@ -87,7 +87,7 @@
 	<div class="w-2/3 xl:w-3/5 flex flex-col">
 		<SongSearchSort bind:searchTerm search={handleSearch} sort={handleSort} />
 
-		<div class="flex-grow p-4 overflow-y-auto">
+		<div class="grow p-4 overflow-y-auto">
 			{#if isLoadingSongs}
 				<p class="text-center text-gray-400">Loading songs...</p>
 			{:else if currentError && allSongs.length === 0}

@@ -6,9 +6,10 @@
 	import { isPaused } from '$lib/stores/settingsStore';
 	import '../app.css';
 
-	let { children } = $props();
+	let { children, data } = $props();
 
-	let sessionData = $state(authClient.useSession());
+	// Use client-side session store, but it will be initialized with server data
+	let sessionData = authClient.useSession();
 
 	let isAuthRoute = $derived(
 		page.url.pathname === '/' ||
@@ -18,6 +19,11 @@
 			page.url.pathname === '/express'
 	);
 	let isGameplayPage = $derived(page.url.pathname.startsWith('/solo/play/'));
+	let isFullScreenPage = $derived(
+		isAuthRoute ||
+		isGameplayPage ||
+		page.url.pathname.startsWith('/multiplayer/room/')
+	);
 
 	// Effect for keyboard listeners
 	$effect(() => {
@@ -36,7 +42,7 @@
 </script>
 
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col font-mono">
-	{#if !isGameplayPage && !isAuthRoute}
+	{#if !isFullScreenPage}
 		<header class="bg-gray-800 p-4 shadow-md !fixed !top-0 !left-0 !right-0 !z-10">
 			<div class="container mx-auto flex justify-between items-center">
 				<a href="/home" class="text-xl font-bold text-purple-400 hover:text-purple-300"
@@ -70,9 +76,9 @@
 	{/if}
 
 	<main
-		class="flex flex-col flex-grow {isGameplayPage || isAuthRoute
+		class="flex flex-col grow {isFullScreenPage
 			? ''
-			: 'container mx-auto p-4 pt-20 pb-10'}"
+			: 'container pt-20 pb-10'}"
 	>
 		{@render children()}
 	</main>

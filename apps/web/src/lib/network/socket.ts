@@ -26,6 +26,7 @@ class GameSocket {
 	private reconnectDelayMs = 2000;
 	private url: string;
 	private ackWaiters: Array<(packet: ServerPacket) => boolean> = [];
+	private messageQueue: ClientPacket[] = [];
 	private requestRoomState(roomId: string) {
 		this.send({ op: 'get_room_state', data: { roomId } });
 	}
@@ -43,10 +44,18 @@ class GameSocket {
 
 		this.ws.onopen = () => {
 			socketStatus.set('connected');
+			// Send any queued messages now that we're connected
+			while (this.messageQueue.length > 0) {
+				const packet = this.messageQueue.shift()!;
+				this.ws!.send(JSON.stringify(packet));
+				console.log('[ws] sent queued packet', packet);
+			}
 		};
 
 		this.ws.onclose = () => {
 			socketStatus.set('disconnected');
+			// Clear message queue on disconnect to avoid sending stale messages
+			this.messageQueue.length = 0;
 			if (this.shouldReconnect) {
 				setTimeout(() => this.connect(), this.reconnectDelayMs);
 			}
@@ -117,7 +126,8 @@ class GameSocket {
 			console.log('[ws] sending packet', packet);
 			this.ws.send(JSON.stringify(packet));
 		} else {
-			console.warn('Cannot send packet: socket not connected');
+			console.log('[ws] queueing packet (socket not ready)', packet);
+			this.messageQueue.push(packet);
 		}
 	}
 

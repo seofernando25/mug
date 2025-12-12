@@ -74,5 +74,32 @@ describe("gameSocket handler", () => {
 		unsub();
 		expect(Object.keys(state).length).toBe(0);
 	});
+
+	it("queues messages when socket not connected", () => {
+		// Create a mock socket that's not connected
+		const mockSocket = {
+			readyState: WebSocket.CONNECTING,
+			send: (() => { throw new Error("Should not be called"); }) as any,
+		} as any;
+
+		// Temporarily replace the internal ws
+		const originalWs = (gameSocket as any).ws;
+		(gameSocket as any).ws = mockSocket;
+
+		try {
+			// Send a message while "connecting"
+			gameSocket.send({ op: "ping" });
+
+			// Check that the message was queued
+			expect((gameSocket as any).messageQueue.length).toBe(1);
+			expect((gameSocket as any).messageQueue[0].op).toBe("ping");
+
+			// Verify send was not called on the socket
+			// (message should be queued instead)
+		} finally {
+			// Restore original socket
+			(gameSocket as any).ws = originalWs;
+		}
+	});
 });
 

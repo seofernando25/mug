@@ -8,7 +8,7 @@
 		"packages/*"
 	],
 	"scripts": {
-		"dev:services": "bunx concurrently \"bun run --cwd apps/bancho dev\" \"bun run --cwd apps/processor dev\" \"bun run --cwd apps/web dev\"",
+		"dev:services": "bun run scripts/dev.ts",
 		"db:push": "bunx drizzle-kit push",
 		"db:studio": "bunx drizzle-kit studio",
 		"format": "prettier --write .",

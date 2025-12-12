@@ -12,7 +12,6 @@
 	// Modal state
 	let newRoomName = $state('');
 	let newRoomPassword = $state('');
-	let newRoomChartId = $state(''); // Simple text input for now
 	let isCreatingRoom = $state(false);
 	let createRoomError = $state<string | null>(null);
 	let createRoomDialog: HTMLDialogElement;
@@ -35,7 +34,6 @@
 	function openCreateRoomModal() {
 		newRoomName = '';
 		newRoomPassword = '';
-		newRoomChartId = '';
 		createRoomError = null;
 		createRoomDialog?.showModal();
 	}
@@ -157,23 +155,6 @@
 				class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-purple-500 focus:border-purple-500 placeholder-gray-500"
 				placeholder="Keep it secret, keep it safe"
 			/>
-		</div>
-		<div>
-			<label for="currentChartId" class="block text-sm font-medium text-gray-300 mb-1"
-				>Chart ID (Optional UUID)</label
-			>
-			<input
-				type="text"
-				id="currentChartId"
-				bind:value={newRoomChartId}
-				pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-				title="Enter a valid UUID (e.g., xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)"
-				class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-purple-500 focus:border-purple-500 placeholder-gray-500"
-				placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-			/>
-			<p class="text-xs text-gray-500 mt-1">
-				If you have a specific Chart ID (UUID) to start with.
-			</p>
 		</div>
 
 		{#if createRoomError}

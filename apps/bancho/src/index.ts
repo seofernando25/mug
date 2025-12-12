@@ -166,7 +166,7 @@ const server = Bun.serve<PlayerData>({
 		},
 		close(ws) {
 			connections.delete(ws);
-			roomManager.leaveRoom(ws);
+			roomManager.handleDisconnect(ws);
 			const lobby = roomManager.getLobbyList();
 			for (const client of connections) {
 				if (client.readyState === 1) client.send(JSON.stringify({ op: 'room_list', data: lobby }));

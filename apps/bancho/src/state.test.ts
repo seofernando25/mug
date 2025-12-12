@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it, mock, jest } from "bun:test";
 import { RoomManager, type PlayerData } from "./state";
 import type { ServerWebSocket } from "bun";
 
@@ -71,6 +71,92 @@ describe("RoomManager Logic", () => {
 		const state = manager.getRoomState(room.id);
 		expect(state?.hostId).toBe("u2");
 		expect(state?.hostName).toBe("second");
+	});
+
+	it("allows reconnection within 5-second grace period", () => {
+		// Create mock timer functions
+		let timeoutCallback: (() => void) | null = null;
+		let timeoutId = 1;
+
+		const mockSetTimeout = (callback: () => void, delay: number) => {
+			timeoutCallback = callback;
+			return timeoutId++ as any;
+		};
+
+		const mockClearTimeout = (id: number) => {
+			if (timeoutCallback) {
+				timeoutCallback = null;
+			}
+		};
+
+		const manager = new RoomManager(() => {}, mockSetTimeout, mockClearTimeout);
+		const player = createMockPlayer("u1", "test");
+		const room = manager.createRoom(player, "Test Room");
+
+		// Simulate disconnect
+		manager.handleDisconnect(player);
+
+		// Room should still exist immediately after disconnect
+		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeDefined();
+		expect(room.players.has(player)).toBe(true);
+
+		// Timer should be set but not fired yet
+		expect(timeoutCallback).toBeTruthy();
+
+		// Create new socket for reconnection (simulating page refresh) BEFORE timer fires
+		const newSocket = createMockPlayer("u1", "test");
+
+		// Reconnect should succeed and cancel the disconnect timer
+		expect(() => manager.joinRoom(newSocket, room.id)).not.toThrow();
+
+		// Room should still exist
+		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeDefined();
+
+		// Old socket should be gone, new socket should be in the room
+		expect(room.players.has(player)).toBe(false);
+		expect(room.players.has(newSocket)).toBe(true);
+		expect(newSocket.data.roomId).toBe(room.id);
+
+		// Timer should be cleared (callback nulled)
+		expect(timeoutCallback).toBeNull();
+	});
+
+	it("actually disconnects after 5-second grace period", () => {
+		// Create mock timer functions
+		let timeoutCallback: (() => void) | null = null;
+		let timeoutId = 1;
+
+		const mockSetTimeout = (callback: () => void, delay: number) => {
+			timeoutCallback = callback;
+			return timeoutId++ as any;
+		};
+
+		const mockClearTimeout = (id: number) => {
+			timeoutCallback = null;
+		};
+
+		const notifier = mock(() => {});
+		const manager = new RoomManager(notifier, mockSetTimeout, mockClearTimeout);
+		const player = createMockPlayer("u1", "test");
+		const room = manager.createRoom(player, "Test Room");
+
+		// Simulate disconnect
+		manager.handleDisconnect(player);
+
+		// Room should still exist immediately after disconnect
+		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeDefined();
+
+		// Simulate timer firing (5 seconds passed)
+		expect(timeoutCallback).toBeTruthy();
+		timeoutCallback!(); // Fire the disconnect timer
+
+		// Room should be deleted automatically
+		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeUndefined();
+		expect(notifier).toHaveBeenCalledTimes(2); // add + remove
+
+		// Trying to join should fail
+		const newSocket = createMockPlayer("u1", "test");
+		expect(() => manager.joinRoom(newSocket, room.id)).toThrow("Room not found");
 	});
 });
 
