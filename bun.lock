@@ -59,6 +59,7 @@
       "dependencies": {
         "@mug/contract": "workspace:*",
         "@mug/db": "workspace:*",
+        "@mug/game-logic": "workspace:*",
         "jszip": "^3.10.1",
         "mime-types": "^2.1.35",
       },

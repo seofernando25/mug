@@ -133,10 +133,11 @@ function convertOsuDataToChart(osuData: ParsedOsuData): { chartData: ConvertedCh
 }
 
 export async function processFileAndExtractData(fileBlob: Blob): Promise<ProcessedSongData> {
-	const filename = (fileBlob instanceof File && fileBlob.name) ? fileBlob.name : 'uploaded_file';
+	// Derive extension only from real file names; reject nameless blobs up front.
+	const filename = fileBlob instanceof File ? fileBlob.name : '';
 	const fileExtension = filename.split('.').pop()?.toLowerCase();
 
-	if (fileExtension !== 'osz' && fileExtension !== 'mug') {
+	if (!fileExtension || (fileExtension !== 'osz' && fileExtension !== 'mug')) {
 		throw new Error('Invalid file type. Only .osz and .mug files are accepted.');
 	}
 

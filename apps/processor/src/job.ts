@@ -1,23 +1,14 @@
 import { db, s3, schema } from '@mug/db';
 import { processFileAndExtractData } from '@mug/game-logic';
-// Allow S3 client to be mocked in tests; fall back to local mock if not resolvable
-let GetObjectCommand: any;
-let PutObjectCommand: any;
-let DeleteObjectCommand: any;
-async function loadAws() {
-	try {
-		const mod = await import('@aws-sdk/client-s3');
-		GetObjectCommand = mod.GetObjectCommand;
-		PutObjectCommand = mod.PutObjectCommand;
-		DeleteObjectCommand = mod.DeleteObjectCommand;
-	} catch {
-		const mod = await import('./aws-mock');
-		GetObjectCommand = mod.GetObjectCommand;
-		PutObjectCommand = mod.PutObjectCommand;
-		DeleteObjectCommand = mod.DeleteObjectCommand;
-	}
-}
 import mime from 'mime-types';
+
+// Minimal S3 command shims; Bun's S3 client supports the AWS SDK command shape.
+class BaseCommand<T = any> {
+	constructor(public input: T) {}
+}
+class GetObjectCommand<T = any> extends BaseCommand<T> {}
+class PutObjectCommand<T = any> extends BaseCommand<T> {}
+class DeleteObjectCommand<T = any> extends BaseCommand<T> {}
 
 export interface UploadJob {
 	jobId: string;
@@ -27,7 +18,6 @@ export interface UploadJob {
 
 export async function processJob(job: UploadJob) {
 	console.log(`📥 Processing Job: ${job.jobId}`);
-	await loadAws();
 
 	// 1. Download
 	const { Body } = await s3.send(
