@@ -84,6 +84,14 @@ export async function createGame(
 	sound = soundInstance;
 	soundInstance.volume = get(masterVolume) * get(musicVolume);
 
+	// Subscribe to volume changes and update audio in real-time
+	const masterVolumeUnsubscribe = masterVolume.subscribe((masterVol) => {
+		soundInstance.volume = masterVol * get(musicVolume);
+	});
+	const musicVolumeUnsubscribe = musicVolume.subscribe((musicVol) => {
+		soundInstance.volume = get(masterVolume) * musicVol;
+	});
+
 	const clock = new AudioClock(soundInstance);
 	const renderer = new GameRenderer({
 		canvas: canvasElement,
@@ -260,6 +268,9 @@ export async function createGame(
 		cleanup: () => {
 			cancelAnimationFrame(rafId);
 			if (countdownTimer) clearInterval(countdownTimer);
+			// Unsubscribe from volume changes
+			masterVolumeUnsubscribe();
+			musicVolumeUnsubscribe();
 			clock.stop();
 			renderer.destroy();
 			soundInstance.destroy();
