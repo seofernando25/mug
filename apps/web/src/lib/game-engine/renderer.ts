@@ -4,9 +4,10 @@ import { drawKeyPressEffects } from './rendering/keypress';
 import { drawReceptor, getReceptorPositions, getReceptorSize } from './rendering/receptor';
 import { NotePool } from './rendering/NotePool';
 import { updateNotes } from './rendering/updateNotes';
+import { redrawNoteGraphicsOnResize } from './rendering/redrawNoteGraphicsOnResize';
 import type { GameState } from './types';
 import { Application, Container } from 'pixi.js';
-import { derived, get, writable, type Readable } from 'svelte/store';
+import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
 
 interface RendererOptions {
 	canvas: HTMLCanvasElement;
@@ -29,16 +30,20 @@ export class GameRenderer {
 	private initialized = false;
 	private opts: RendererOptions;
 	private lastRenderTimeMs: number | null = null;
+	private appWidth!: Writable<number>;
+	private appHeight!: Writable<number>;
+	private lanes: number;
 
 	constructor(opts: RendererOptions) {
 		this.opts = opts;
 		this.scrollSpeed = opts.scrollSpeed ?? 1.0;
+		this.lanes = opts.lanes;
 		this.app = new Application();
 		this.mainContainer = new Container();
 	}
 
 	async init() {
-		const { canvas, lanes } = this.opts;
+		const { canvas } = this.opts;
 
 		await this.app.init({
 			canvas,
@@ -51,21 +56,21 @@ export class GameRenderer {
 			backgroundAlpha: 0.0
 		});
 
-		const appWidth = writable(this.app.screen.width);
-		const appHeight = writable(this.app.screen.height);
+		this.appWidth = writable(this.app.screen.width);
+		this.appHeight = writable(this.app.screen.height);
 		this.highwayMetricsStore = derived(
-			[appHeight, appWidth],
-			([height, width]) => getHighwayMetrics(lanes, width, height)
+			[this.appHeight, this.appWidth],
+			([height, width]: [number, number]) => getHighwayMetrics(this.lanes, width, height)
 		);
 		const initialMetrics = get(this.highwayMetricsStore);
 		this.notePool = new NotePool(this.mainContainer, initialMetrics.laneWidth);
 		this.receptorPositions = getReceptorPositions(this.highwayMetricsStore);
-		this.receptorSize = derived([appHeight, appWidth], ([height, width]) => getReceptorSize(width, height));
+		this.receptorSize = derived([this.appHeight, this.appWidth], ([height, width]: [number, number]) => getReceptorSize(width, height));
 
 		this.app.stage.addChild(this.mainContainer);
 		this.highway = drawHighway(this.app, this.mainContainer, this.highwayMetricsStore);
 		this.receptors = drawReceptor(this.mainContainer, this.receptorPositions, this.receptorSize);
-		this.keyPressEffects = drawKeyPressEffects(this.mainContainer, lanes);
+		this.keyPressEffects = drawKeyPressEffects(this.mainContainer, this.lanes);
 		this.initialized = true;
 	}
 
@@ -142,11 +147,40 @@ export class GameRenderer {
 		this.judgmentTextsByLane[lane] = text;
 	}
 
-	handleResize() {
+	handleResize(songTimeMs?: number) {
 		if (!this.initialized) return;
+
+		// Get actual canvas dimensions
+		const canvas = this.opts.canvas;
+		const newWidth = canvas.clientWidth;
+		const newHeight = canvas.clientHeight;
+
+		// Update the dimension stores to trigger highway metrics recalculation
+		this.appWidth.set(newWidth);
+		this.appHeight.set(newHeight);
+
+		// Get the updated metrics
 		const metrics = get(this.highwayMetricsStore);
+
+		// Redraw notes if we have the current song time
+		if (songTimeMs !== undefined && this.notePool) {
+			redrawNoteGraphicsOnResize(
+				this.notePool,
+				metrics.x,
+				metrics.laneWidth,
+				songTimeMs,
+				metrics.receptorYPosition,
+				metrics.receptorYPosition,
+				this.scrollSpeed,
+				metrics.height
+			);
+		}
+
+		// Redraw highway with new metrics
 		this.highway?.redraw?.();
-		this.app.renderer.resize(metrics.width, metrics.height);
+
+		// Resize PIXI renderer to new dimensions
+		this.app.renderer.resize(newWidth, newHeight);
 	}
 
 	destroy() {

@@ -275,7 +275,7 @@ export async function createGame(
 			renderer.destroy();
 			soundInstance.destroy();
 		},
-		handleResize: () => renderer.handleResize(),
+		handleResize: () => renderer.handleResize(clock.currentTimeMs),
 		getHighwayMetrics: () => {
 			const metrics = get(renderer.highwayMetricsStore);
 			return metrics;
