@@ -11,7 +11,9 @@ export default defineConfig({
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
 	},
-	ssr: {
-		noExternal: ['pixi.js', '@pixi/sound']
+	build: {
+		rollupOptions: {
+			external: ['pixi.js', '@pixi/sound']
+		}
 	}
 });
