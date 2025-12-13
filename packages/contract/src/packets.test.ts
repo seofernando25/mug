@@ -1,25 +1,42 @@
 import { describe, expect, it } from "bun:test";
-import { assertClientPacket, assertServerPacket } from "./packets";
+import { type } from "arktype";
+import { ClientPacketSchema, ServerPacketSchema } from "./packets";
 
 describe("Contract Integrity", () => {
 	it("validates a correct join_room packet", () => {
 		const payload = { op: "join_room", data: { roomId: "room-123" } };
-		expect(() => assertClientPacket(payload)).not.toThrow();
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(false);
 	});
 
 	it("rejects a malformed packet (missing roomId)", () => {
 		const payload = { op: "join_room", data: {} };
-		expect(() => assertClientPacket(payload)).toThrow(/roomId/);
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(true);
+	});
+
+	it("validates a correct start_match packet", () => {
+		const payload = { op: "start_match", data: { roomId: "room-123" } };
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(false);
+	});
+
+	it("rejects start_match with missing roomId", () => {
+		const payload = { op: "start_match", data: {} };
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(true);
 	});
 
 	it("validates score_update with numbers", () => {
 		const payload = { op: "score_update", data: { score: 100000, combo: 50 } };
-		expect(() => assertClientPacket(payload)).not.toThrow();
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(false);
 	});
 
 	it("rejects score_update with invalid data", () => {
 		const payload = { op: "score_update", data: { score: "invalid" } };
-		expect(() => assertClientPacket(payload)).toThrow(/numeric score/);
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(true);
 	});
 
 	it("validates update_room with valid data", () => {
@@ -37,7 +54,8 @@ describe("Contract Integrity", () => {
 				}
 			}
 		};
-		expect(() => assertClientPacket(payload)).not.toThrow();
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(false);
 	});
 
 	it("rejects update_room with missing roomId", () => {
@@ -45,7 +63,8 @@ describe("Contract Integrity", () => {
 			op: "update_room",
 			data: { currentChart: {} }
 		};
-		expect(() => assertClientPacket(payload)).toThrow(/roomId/);
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(true);
 	});
 
 	it("rejects update_room with invalid currentChart", () => {
@@ -53,7 +72,8 @@ describe("Contract Integrity", () => {
 			op: "update_room",
 			data: { roomId: "room123", currentChart: "invalid" }
 		};
-		expect(() => assertClientPacket(payload)).toThrow(/currentChart object/);
+		const result = ClientPacketSchema(payload);
+		expect(result instanceof type.errors).toBe(true);
 	});
 
 	it("validates a room_list packet", () => {
@@ -63,7 +83,8 @@ describe("Contract Integrity", () => {
 				{ id: "r1", name: "Room", playerCount: 2, status: "idle" }
 			]
 		};
-		expect(() => assertServerPacket(pkt)).not.toThrow();
+		const result = ServerPacketSchema(pkt);
+		expect(result instanceof type.errors).toBe(false);
 	});
 
 	it("validates a room_event packet", () => {
@@ -71,7 +92,8 @@ describe("Contract Integrity", () => {
 			op: "room_event",
 			data: { type: "add", room: { id: "r1", name: "New", hostId: "u1", hostName: "host" } }
 		};
-		expect(() => assertServerPacket(pkt)).not.toThrow();
+		const result = ServerPacketSchema(pkt);
+		expect(result instanceof type.errors).toBe(false);
 	});
 
 	it("validates a room_state packet", () => {
@@ -79,7 +101,8 @@ describe("Contract Integrity", () => {
 			op: "room_state",
 			data: { id: "r1", hostId: "u1", players: [{ userId: "u1", username: "host" }] }
 		};
-		expect(() => assertServerPacket(pkt)).not.toThrow();
+		const result = ServerPacketSchema(pkt);
+		expect(result instanceof type.errors).toBe(false);
 	});
 
 	it("validates a peer_score_update packet", () => {
@@ -92,7 +115,8 @@ describe("Contract Integrity", () => {
 				combo: 100
 			}
 		};
-		expect(() => assertServerPacket(pkt)).not.toThrow();
+		const result = ServerPacketSchema(pkt);
+		expect(result instanceof type.errors).toBe(false);
 	});
 
 	it("rejects peer_score_update missing userId", () => {
@@ -103,13 +127,14 @@ describe("Contract Integrity", () => {
 				score: 500000
 			}
 		};
-		expect(() => assertServerPacket(pkt)).toThrow(/userId/);
+		const result = ServerPacketSchema(pkt);
+		expect(result instanceof type.errors).toBe(true);
 	});
 
 	it("rejects invalid packets", () => {
-		expect(() => assertClientPacket(null)).toThrow();
-		expect(() => assertClientPacket({})).toThrow();
-		expect(() => assertServerPacket({ op: "invalid" })).toThrow(/Unsupported/);
+		expect(ClientPacketSchema(null) instanceof type.errors).toBe(true);
+		expect(ClientPacketSchema({}) instanceof type.errors).toBe(true);
+		expect(ServerPacketSchema({ op: "invalid" }) instanceof type.errors).toBe(true);
 	});
 });
 

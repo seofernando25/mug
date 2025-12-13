@@ -1,133 +1,94 @@
 import { type } from 'arktype';
 
-// Keep the original type definitions for now - we'll migrate to ArkType schemas gradually
-export type ClientPacket =
-	| { op: 'ping' }
-	| { op: 'noop' }
-	| { op: 'create_room'; data?: { name?: string } }
-	| { op: 'join_room'; data: { roomId: string } }
-	| { op: 'leave_room'; data?: { roomId?: string } }
-	| { op: 'get_room_state'; data: { roomId: string } }
-	| { op: 'update_room'; data: { roomId: string; currentChart: { coverUrl?: string; name?: string; artist?: string; difficulty?: string; songId?: string; difficulties?: string[] } } }
-	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
-	| { op: 'match_finished'; data?: { score?: number; maxCombo?: number } };
+// --- ArkType Schemas ---
 
-export type ServerPacket =
-	| { op: 'pong'; data?: unknown }
-	| { op: 'ack'; data?: unknown }
-	| { op: 'error'; data: { code: 'UNAUTHORIZED' | 'BAD_REQUEST' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL'; message?: string } }
-	| { op: 'room_list'; data: Array<{ id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null }> }
-	| { op: 'room_event'; data: { type: 'add' | 'remove' | 'update'; room?: { id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null } } }
-	| { op: 'room_state'; data: { id: string; name?: string; hostId?: string | null; currentChart?: { coverUrl?: string; name?: string; artist?: string; difficulty?: string; songId?: string; difficulties?: string[] }; players: Array<{ userId: string; username?: string | null; avatarUrl?: string | null }> } }
-	| { op: 'peer_score_update'; data: { userId: string; username?: string | null; score: number; combo?: number; maxCombo?: number; health?: number } }
-	| { op: 'peer_match_finished'; data: { userId: string; finalScore: number; maxCombo?: number } }
-	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
-	| { op: 'match_finished'; data?: { score?: number; maxCombo?: number } };
+// --- Shared Sub-Schemas ---
 
-// --- ArkType Schemas (for future use and gradual migration) ---
-
-// Shared schema definitions
-const RoomInfoSchema = type({
-	id: "string",
-	name: "string",
-	playerCount: "number?",
-	status: "string?",
-	hostId: "string|null?",
-	hostName: "string|null?"
+const UserInfo = type({
+    userId: "string",
+    "username?": "string|null",
+    "avatarUrl?": "string|null"
 });
 
-const PlayerInfoSchema = type({
-	userId: "string",
-	username: "string|null?",
-	avatarUrl: "string|null?"
+const RoomInfo = type({
+    id: "string",
+    name: "string",
+    "playerCount?": "number",
+    "status?": "string", // 'idle' | 'starting' | 'playing'
+    "hostId?": "string|null",
+    "hostName?": "string|null"
 });
 
-// Basic schemas for validation (not full union yet)
-export const ClientPacketSchema = type({
-	op: "string",
-	data: "unknown?"
+const ChartInfo = type({
+    "coverUrl?": "string",
+    "name?": "string",
+    "artist?": "string",
+    "difficulty?": "string",
+    "songId?": "string",
+    "difficulties?": "string[]"
 });
 
-export const ServerPacketSchema = type({
-	op: "string",
-	data: "unknown?"
+const ScoreData = type({
+    score: "number",
+    "combo?": "number",
+    "maxCombo?": "number",
+    "noteId?": "string|number",
+    "judgment?": "string",
+    "health?": "number"
 });
 
-// --- Legacy assertion functions (for backward compatibility) ---
+// --- Client Packet Types ---
 
-export function assertClientPacket(input: any): asserts input is ClientPacket {
-	// Basic validation - check if it has an op field
-	if (!input || typeof input !== 'object' || typeof input.op !== 'string') {
-		throw new Error('Invalid packet');
-	}
+const PingPacket = type({ op: "'ping'", "data?": { "t1?": "number" } });
+const NoopPacket = type({ op: "'noop'" });
+const CreateRoomPacket = type({ op: "'create_room'", "data?": { "name?": "string" } });
+const JoinRoomPacket = type({ op: "'join_room'", data: { roomId: "string" } });
+const LeaveRoomPacket = type({ op: "'leave_room'", "data?": { "roomId?": "string" } });
+const GetRoomStatePacket = type({ op: "'get_room_state'", data: { roomId: "string" } });
+const UpdateRoomPacket = type({ op: "'update_room'", data: { roomId: "string", currentChart: ChartInfo } });
+const StartMatchPacket = type({ op: "'start_match'", data: { roomId: "string" } });
+const ScoreUpdatePacket = type({ op: "'score_update'", data: ScoreData });
+const MatchFinishedPacket = type({ op: "'match_finished'", "data?": { "score?": "number", "maxCombo?": "number" } });
 
-	// Validate based on op type
-	switch (input.op) {
-		case 'ping':
-		case 'noop':
-		case 'create_room':
-		case 'leave_room':
-		case 'match_finished':
-			return;
-		case 'join_room':
-		case 'get_room_state':
-			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) {
-				throw new Error(`${input.op} requires valid roomId`);
-			}
-			return;
-		case 'update_room':
-			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) {
-				throw new Error('update_room requires valid roomId');
-			}
-			if (!input.data.currentChart || typeof input.data.currentChart !== 'object') {
-				throw new Error('update_room requires currentChart object');
-			}
-			return;
-		case 'score_update':
-			if (!input.data || typeof input.data.score !== 'number') {
-				throw new Error('score_update requires numeric score');
-			}
-			return;
-		default:
-			throw new Error(`Unsupported client op: ${input.op}`);
-	}
-}
+// --- Client Packets (Sent by Web Client) ---
 
-export function assertServerPacket(input: any): asserts input is ServerPacket {
-	// Basic validation - check if it has an op field
-	if (!input || typeof input !== 'object' || typeof input.op !== 'string') {
-		throw new Error('Invalid server packet');
-	}
+export const ClientPacketSchema = PingPacket.or(NoopPacket).or(CreateRoomPacket).or(JoinRoomPacket).or(LeaveRoomPacket).or(GetRoomStatePacket).or(UpdateRoomPacket).or(StartMatchPacket).or(ScoreUpdatePacket).or(MatchFinishedPacket);
 
-	// Validate based on op type
-	switch (input.op) {
-		case 'pong':
-		case 'ack':
-		case 'error':
-		case 'room_event':
-		case 'match_finished':
-			return;
-		case 'room_list':
-			if (!Array.isArray(input.data)) {
-				throw new Error('room_list requires array data');
-			}
-			return;
-		case 'room_state':
-			if (!input.data || typeof input.data !== 'object' || typeof input.data.id !== 'string') {
-				throw new Error('room_state requires valid data object with id');
-			}
-			if (!Array.isArray(input.data.players)) {
-				throw new Error('room_state requires players array');
-			}
-			return;
-		case 'peer_score_update':
-		case 'peer_match_finished':
-		case 'score_update':
-			if (!input.data || typeof input.data !== 'object' || typeof input.data.userId !== 'string') {
-				throw new Error(`${input.op} requires valid data object with userId`);
-			}
-			return;
-		default:
-			throw new Error(`Unsupported server op: ${input.op}`);
-	}
-}
+// --- Server Packet Types ---
+
+const PongPacket = type({ op: "'pong'", "data?": { "message?": "string", "serverTime?": "number", "t1?": "number" } });
+const AckPacket = type({ op: "'ack'", "data?": "unknown" });
+const ErrorPacket = type({ op: "'error'", data: { code: "'UNAUTHORIZED'|'BAD_REQUEST'|'NOT_FOUND'|'CONFLICT'|'INTERNAL'", "message?": "string" } });
+const RoomListPacket = type({ op: "'room_list'", data: RoomInfo.array() });
+const RoomEventPacket = type({ op: "'room_event'", data: { type: "'add'|'remove'|'update'", "room?": RoomInfo, "id?": "string" } });
+const RoomStatePacket = type({ op: "'room_state'", data: {
+    id: "string",
+    "name?": "string",
+    "hostId?": "string|null",
+    "hostName?": "string|null",
+    "status?": "string",
+    "startTime?": "number",
+    "currentChart?": ChartInfo,
+    players: UserInfo.array()
+}});
+const PeerScoreUpdatePacket = type({ op: "'peer_score_update'", data: ScoreData.and({ userId: "string", "username?": "string" }) });
+const PeerMatchFinishedPacket = type({ op: "'peer_match_finished'", data: { userId: "string", finalScore: "number", "maxCombo?": "number" } });
+const ServerScoreUpdatePacket = type({ op: "'score_update'", data: ScoreData });
+const ServerMatchFinishedPacket = type({ op: "'match_finished'", "data?": { "score?": "number", "maxCombo?": "number" } });
+
+// --- Server Packets (Sent by Bancho) ---
+
+export const ServerPacketSchema = PongPacket.or(AckPacket).or(ErrorPacket).or(RoomListPacket).or(RoomEventPacket).or(RoomStatePacket).or(PeerScoreUpdatePacket).or(PeerMatchFinishedPacket).or(ServerScoreUpdatePacket).or(ServerMatchFinishedPacket);
+
+// --- Helper Types for Autocomplete ---
+
+// Extract op types from ArkType schemas
+export type ClientPacketOp = typeof ClientPacketSchema.infer['op'];
+export type ServerPacketOp = typeof ServerPacketSchema.infer['op'];
+
+// Helper to extract the 'data' type for a specific 'op' from ArkType schemas
+export type ClientPacketData<Op extends ClientPacketOp> =
+    Extract<typeof ClientPacketSchema.infer, { op: Op }> extends { data?: infer D } ? D : never;
+
+export type ServerPacketData<Op extends ServerPacketOp> =
+    Extract<typeof ServerPacketSchema.infer, { op: Op }> extends { data?: infer D } ? D : never;

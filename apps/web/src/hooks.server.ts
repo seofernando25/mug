@@ -9,5 +9,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// better-auth types currently expect an extended payload; cast narrowly to avoid mismatch.
-	return svelteKitHandler({ event: event as any, resolve: resolve as any, auth, building: false as any });
+	return svelteKitHandler({ event: event, resolve: resolve, auth, building: false });
 };

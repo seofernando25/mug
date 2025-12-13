@@ -3,39 +3,40 @@
         handleLeaveRoom: () => void;
         isLeaving: boolean;
         isHost: boolean;
-        isReady: boolean;
-        toggleReady: () => void;
         startGame: () => void;
     }
 
-    let { handleLeaveRoom, isLeaving, isHost, isReady, toggleReady, startGame }: Props = $props();
+    let { handleLeaveRoom, isLeaving, isHost, startGame }: Props = $props();
 </script>
 
-<div class="absolute bottom-0 w-full h-24 bg-linear-to-t zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz z-20 flex items-center justify-between px-12 pb-6">
+<div class="h-24 bg-gray-900/90 border-t border-gray-700 p-4 flex items-center justify-between backdrop-blur-md">
 
     <button
         onclick={handleLeaveRoom}
         disabled={isLeaving}
-        class="px-8 py-3 rounded-lg font-bold tracking-widest text-red-500 border border-red-900/50 hover:bg-red-950/50 hover:border-red-500 hover:text-red-400 transition-all uppercase text-sm"
+        class="px-6 py-3 rounded-lg font-bold text-red-400 hover:bg-red-900/30 hover:text-red-200 transition disabled:opacity-50"
     >
         {isLeaving ? 'LEAVING...' : 'LEAVE ROOM'}
     </button>
 
-    <div class="flex gap-4">
+    <div class="flex items-center gap-4">
         {#if isHost}
+            <div class="text-right mr-4 hidden md:block">
+                <div class="text-xs text-gray-400 uppercase tracking-widest">Match Control</div>
+                <div class="text-sm font-bold text-cyan-400">YOU ARE HOST</div>
+            </div>
+
             <button
                 onclick={startGame}
-                class="px-12 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black italic tracking-widest text-xl rounded-xl shadow-[0_0_30px_rgba(8,145,178,0.4)] hover:shadow-[0_0_50px_rgba(8,145,178,0.6)] hover:-translate-y-1 transition-all uppercase transform skew-x-[-10deg]"
+                class="px-12 py-4 bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl font-black text-xl tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-105 hover:shadow-pink-500/40 transition active:scale-95"
             >
                 START MATCH
             </button>
         {:else}
-            <button
-                onclick={toggleReady}
-                class="px-12 py-4 font-black italic tracking-widest text-xl rounded-xl border-2 transition-all uppercase transform skew-x-[-10deg] {isReady ? 'bg-green-600 border-green-500 text-white shadow-[0_0_30px_rgba(34,197,94,0.4)]' : 'bg-transparent border-gray-600 text-gray-400 hover:border-gray-400 hover:text-white'}"
-            >
-                {isReady ? 'READY!' : 'CLICK TO READY'}
-            </button>
+            <div class="flex items-center gap-3 px-8 py-3 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                <div class="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                <span class="font-bold text-gray-300 tracking-wide text-sm">WAITING FOR HOST TO START</span>
+            </div>
         {/if}
     </div>
 </div>

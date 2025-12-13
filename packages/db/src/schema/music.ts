@@ -41,7 +41,7 @@ export const score = pgTable('score', {
 	chartId: uuid('chart_id').notNull().references(() => chart.id, { onDelete: 'cascade' }),
 	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
 	score: integer('score').notNull(),
-	accuracy: real('accuracy').notNull(), // e.g., 98.5 -> stored as 98.5
+	accuracy: real('accuracy').notNull(),
 	maxCombo: integer('max_combo').notNull(),
 	playDate: timestamp('play_date').defaultNow().notNull(),
 });

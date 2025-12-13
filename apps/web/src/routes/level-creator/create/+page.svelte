@@ -2,11 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { ClientSong as SongData, ClientChart as ChartData } from '$lib/types';
 	import * as PIXI from 'pixi.js'; // Import PIXI
-	import { Application, Graphics, Container } from 'pixi.js'; // Import PIXI components
 
-	// Define the types for the functions returned by setupLevelEditorVisuals
-	type CleanupFn = () => void;
-	type ResizeFn = (newWidth: number, newHeight: number) => void;
 
 	let musicFile: File | null = $state(null);
 	let musicErrorMessage = $state<string | null>(null);

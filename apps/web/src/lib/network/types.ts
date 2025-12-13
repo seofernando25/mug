@@ -20,6 +20,16 @@ export type RoomState = {
 	name?: string;
 	hostId?: string | null;
 	hostName?: string | null;
+	status?: string;
+	startTime?: number;
+	currentChart?: {
+		coverUrl?: string;
+		name?: string;
+		artist?: string;
+		difficulty?: string;
+		songId?: string;
+		difficulties?: string[];
+	};
 	players: Array<{ userId: string; username?: string | null; avatarUrl?: string | null }>;
 };
 

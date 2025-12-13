@@ -13,7 +13,7 @@ describe("gameSocket handler", () => {
 	});
 
 	it("updates lobbyRooms from room_list", () => {
-		gameSocket.handlePacket({
+		gameSocket.handleValidatedPacket({
 			op: "room_list",
 			data: [{ id: "r1", name: "Test", hostName: "host", playerCount: 1 }],
 		});
@@ -27,7 +27,7 @@ describe("gameSocket handler", () => {
 
 	it("applies room_event add/remove", () => {
 		lobbyRooms.set([{ id: "r1", name: "Old" } as any]);
-		gameSocket.handlePacket({
+		gameSocket.handleValidatedPacket({
 			op: "room_event",
 			data: { type: "add", room: { id: "r2", name: "New", hostName: "h" } },
 		});
@@ -36,7 +36,7 @@ describe("gameSocket handler", () => {
 		unsub();
 		expect(rooms.find((r) => r.id === "r2")?.name).toBe("New");
 
-		(gameSocket as any).handlePacket({
+		(gameSocket as any).handleValidatedPacket({
 			op: "room_event",
 			data: { type: "remove", room: { id: "r1" } },
 		});
@@ -46,7 +46,7 @@ describe("gameSocket handler", () => {
 	});
 
 	it("updates currentRoomState from room_state", () => {
-		gameSocket.handlePacket({
+		gameSocket.handleValidatedPacket({
 			op: "room_state",
 			data: {
 				id: "r1",
@@ -62,17 +62,18 @@ describe("gameSocket handler", () => {
 		expect(state?.players[0].username).toBe("host");
 	});
 
-	it("ignores invalid peer_score_update", () => {
+	it("handles valid peer_score_update", () => {
 		matchState.set({});
-		// @ts-expect-error Test bad data
-		gameSocket.handlePacket({
+		gameSocket.handleValidatedPacket({
 			op: "peer_score_update",
-			data: { userId: 123, score: "not-number" },
+			data: { userId: "user123", score: 1000, combo: 5 },
 		});
 		let state: any = null;
 		const unsub = matchState.subscribe((v) => (state = v));
 		unsub();
-		expect(Object.keys(state).length).toBe(0);
+		expect(Object.keys(state).length).toBe(1);
+		expect(state.user123.score).toBe(1000);
+		expect(state.user123.combo).toBe(5);
 	});
 
 	it("queues messages when socket not connected", () => {
@@ -88,7 +89,7 @@ describe("gameSocket handler", () => {
 
 		try {
 			// Send a message while "connecting"
-			gameSocket.send({ op: "ping" });
+			gameSocket.send("ping");
 
 			// Check that the message was queued
 			expect((gameSocket as any).messageQueue.length).toBe(1);

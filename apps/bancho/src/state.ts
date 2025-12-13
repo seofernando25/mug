@@ -13,7 +13,8 @@ type Room = {
 	name: string;
 	hostId: string;
 	players: Set<ServerWebSocket<PlayerData>>;
-	status: 'idle' | 'playing';
+	status: 'idle' | 'starting' | 'playing';
+	startTime?: number;
 	currentChart?: {
 		coverUrl?: string;
 		name?: string;
@@ -82,6 +83,15 @@ export class RoomManager {
 		// Normal join logic
 		const room = this.rooms.get(roomId);
 		if (!room) throw new Error('Room not found');
+
+		// Check if this user is already in the room (prevent duplicates)
+		const existingPlayer = Array.from(room.players).find(p => p.data.user.id === userId);
+		if (existingPlayer) {
+			// Replace the existing socket with the new one (reconnection)
+			room.players.delete(existingPlayer);
+			console.log(`[Bancho] User ${userId} reconnected to room ${roomId}`);
+		}
+
 		room.players.add(player);
 		player.data.roomId = roomId;
 		this.broadcastToRoom(roomId, { op: 'room_event', data: { op: 'room_event', roomId, event: 'join', payload: { userId: player.data.user.id } } }, player);
@@ -178,17 +188,29 @@ export class RoomManager {
 	getRoomState(roomId: string) {
 		const room = this.rooms.get(roomId);
 		if (!room) return null;
+
+		// Deduplicate players by userId (in case of multiple sockets per user)
+		const uniquePlayers = new Map<string, { userId: string; username: string | null; avatarUrl: null }>();
+		for (const player of room.players) {
+			const userId = player.data.user.id;
+			if (!uniquePlayers.has(userId)) {
+				uniquePlayers.set(userId, {
+					userId,
+					username: player.data.user.username ?? null,
+					avatarUrl: null
+				});
+			}
+		}
+
 		return {
 			id: room.id,
 			name: room.name,
 			hostId: room.hostId,
 			hostName: this.getHostName(room),
+			status: room.status,
+			startTime: room.startTime,
 			currentChart: room.currentChart,
-			players: Array.from(room.players).map((p) => ({
-				userId: p.data.user.id,
-				username: p.data.user.username ?? null,
-				avatarUrl: null
-			}))
+			players: Array.from(uniquePlayers.values())
 		};
 	}
 

@@ -51,18 +51,31 @@
 		createRoomError = null;
 
 		try {
-			gameSocket.send({
-				op: 'create_room',
-				data: { name: newRoomName.trim() }
-			} as any);
-			const ack = await gameSocket.waitForAck((pkt) => {
-				const data = pkt?.data as { message?: string; roomId?: string } | undefined;
-				if (data?.message === 'room_created' && data?.roomId) return data as { message: string; roomId: string };
+			const roomName = newRoomName.trim();
+			gameSocket.send('create_room', { name: roomName });
+
+			// Step 1: Wait for acknowledgment that room was created
+			await gameSocket.waitForPacket((pkt) => {
+				if (pkt?.op === 'ack') {
+					const data = pkt.data as { message?: string };
+					return data?.message === 'room_created' ? true : null;
+				}
 				return null;
 			});
+
+			// Step 2: Wait for the room_state packet which contains the room ID
+			const roomState = await gameSocket.waitForPacket((pkt) => {
+				if (pkt?.op === 'room_state') {
+					const data = pkt.data as { id: string; name?: string };
+					// Make sure this is the room we just created
+					return data.name === roomName ? data : null;
+				}
+				return null;
+			}, 3000);
+
 			closeCreateRoomModal();
-			if (ack?.roomId) {
-				await goto(`/multiplayer/room/${ack.roomId}`);
+			if (roomState?.id) {
+				await goto(`/multiplayer/room/${roomState.id}`);
 			}
 		} catch (e: any) {
 			console.error('Exception creating room:', e);

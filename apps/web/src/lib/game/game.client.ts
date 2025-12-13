@@ -140,15 +140,12 @@ export async function createGame(
 				// score sync + WS
 				callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
 				if (gameSocket) {
-					gameSocket.send({
-						op: 'score_update',
-						data: {
-							score: engine.state.score,
-							combo: engine.state.combo,
-							maxCombo: engine.state.maxCombo,
-							noteId: e.noteId,
-							judgment: e.judgment || 'Miss'
-						}
+					gameSocket.send('score_update', {
+						score: engine.state.score,
+						combo: engine.state.combo,
+						maxCombo: engine.state.maxCombo,
+						noteId: e.noteId,
+						judgment: e.judgment || 'Miss'
 					});
 				}
 			}
@@ -177,15 +174,12 @@ export async function createGame(
 			renderer.showJudgment(lane, result.judgment!);
 			callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
 			if (gameSocket) {
-				gameSocket.send({
-					op: 'score_update',
-					data: {
-						score: engine.state.score,
-						combo: engine.state.combo,
-						maxCombo: engine.state.maxCombo,
-						noteId: result.noteId,
-						judgment: result.judgment || 'Miss'
-					}
+				gameSocket.send('score_update', {
+					score: engine.state.score,
+					combo: engine.state.combo,
+					maxCombo: engine.state.maxCombo,
+					noteId: result.noteId,
+					judgment: result.judgment || 'Miss'
 				});
 			}
 		}
@@ -228,10 +222,7 @@ export async function createGame(
 		setPhase('finished');
 		callbacks.onSongEnd();
 		if (gameSocket) {
-			gameSocket.send({
-				op: 'match_finished',
-				data: { score: engine.state.score, maxCombo: engine.state.maxCombo }
-			});
+			gameSocket.send('match_finished', { score: engine.state.score, maxCombo: engine.state.maxCombo });
 		}
 		setTimeout(() => setPhase('summary'), 2000);
 	};

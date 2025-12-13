@@ -1,7 +1,18 @@
 import { writable } from 'svelte/store';
-import { type ClientPacket, assertServerPacket, type ServerPacket } from '@mug/contract';
 import { type } from 'arktype';
+import {
+    ClientPacketSchema,
+    ServerPacketSchema,
+    type ClientPacketOp,
+    type ServerPacketOp,
+    type ClientPacketData,
+    type ServerPacketData
+} from '@mug/contract';
 import type { RoomSummary, RoomState } from './types';
+
+// Type aliases for ArkType schemas
+type ClientPacket = typeof ClientPacketSchema.infer;
+type ServerPacket = typeof ServerPacketSchema.infer;
 
 export const socketStatus = writable<'disconnected' | 'connecting' | 'connected'>('disconnected');
 export const lobbyRooms = writable<RoomSummary[]>([]);
@@ -25,11 +36,9 @@ class GameSocket {
 	private shouldReconnect = true;
 	private reconnectDelayMs = 2000;
 	private url: string;
-	private ackWaiters: Array<(packet: ServerPacket) => boolean> = [];
+	private packetWaiters: Array<(packet: ServerPacket) => boolean> = [];
 	private messageQueue: ClientPacket[] = [];
-	private requestRoomState(roomId: string) {
-		this.send({ op: 'get_room_state', data: { roomId } });
-	}
+	private pongCallback: ((data: any) => void) | null = null;
 
 	constructor(url: string) {
 		this.url = url;
@@ -65,69 +74,39 @@ class GameSocket {
 			try {
 				console.log('[ws] raw message', event.data);
 				const raw = JSON.parse(event.data);
-				if (raw?.op === 'peer_score_update') {
-					console.log('[ws] incoming peer_score_update raw', raw);
-					const userId = raw?.data?.userId;
-					const score = raw?.data?.score;
-					if (
-						typeof userId !== 'string' ||
-						userId.length === 0 ||
-						typeof score !== 'number' ||
-						Number.isNaN(score)
-					) {
-						console.warn('Dropping invalid peer_score_update packet from server (client guard)', raw);
-						return;
-					}
-					// Manually handle valid peer_score_update to avoid global assert failure
-					this.handlePacket(raw as ServerPacket);
+
+				// 1. Validate with ArkType
+				const result = ServerPacketSchema(raw);
+
+				if (result instanceof type.errors) {
+					console.warn('Ignoring invalid packet:', result.summary, raw);
 					return;
 				}
-				if (raw?.op === 'peer_match_finished') {
-					const userId = raw?.data?.userId;
-					const finalScore = raw?.data?.finalScore;
-					if (typeof userId !== 'string' || typeof finalScore !== 'number' || Number.isNaN(finalScore)) {
-						console.warn('Dropping invalid peer_match_finished packet from server', raw);
-						return;
-					}
-					// Manually handle to avoid assert failure on malformed packets
-					this.handlePacket(raw as ServerPacket);
-					return;
-				}
-				if (raw?.op === 'room_list' || raw?.op === 'room_state') {
-					this.handlePacket(raw as ServerPacket);
-					return;
-				}
-				if (raw?.op === 'score_update') {
-					const score = raw?.data?.score;
-					if (typeof score !== 'number' || Number.isNaN(score)) {
-						console.warn('Dropping invalid score_update packet from server', raw);
-						return;
-					}
-				}
-				assertServerPacket(raw);
-				const packet = raw as ServerPacket;
-				this.handlePacket(packet);
-				if (packet.op === 'ack') {
-					this.ackWaiters = this.ackWaiters.filter((fn) => !fn(packet));
-				}
-			} catch (e: any) {
-				console.error('WS packet parse/validate error; raw data:', event.data);
-				if (e instanceof type.errors) {
-					console.error('Invalid server packet:', e.summary);
-				} else {
-					console.error('Packet parse error', e);
-				}
+
+				// 2. Result is now typed as the discriminated union
+				const packet = result;
+
+				// 2. Handle validated packet
+				this.handleValidatedPacket(packet);
+
+				// 3. Handle packet waiters - call for ALL validated packets
+				this.packetWaiters = this.packetWaiters.filter((fn) => !fn(packet));
+			} catch (err) {
+				console.error('[ws] message processing error', err);
 			}
 		};
 	}
 
-	send(packet: ClientPacket) {
+	// Type-safe send method
+	send<Op extends ClientPacketOp>(op: Op, data?: ClientPacketData<Op>) {
+		const packet = { op, data };
+
 		if (this.ws?.readyState === WebSocket.OPEN) {
 			console.log('[ws] sending packet', packet);
 			this.ws.send(JSON.stringify(packet));
 		} else {
 			console.log('[ws] queueing packet (socket not ready)', packet);
-			this.messageQueue.push(packet);
+			this.messageQueue.push(packet as ClientPacket);
 		}
 	}
 
@@ -136,11 +115,15 @@ class GameSocket {
 		this.ws?.close();
 	}
 
-	waitForAck<T = any>(predicate: (packet: ServerPacket) => T | null | false, timeoutMs = 2000) {
+	setPongCallback(callback: (data: any) => void) {
+		this.pongCallback = callback;
+	}
+
+	waitForPacket<T = any>(predicate: (packet: ServerPacket) => T | null | false, timeoutMs = 2000) {
 		return new Promise<T>((resolve, reject) => {
 			const timer = setTimeout(() => {
-				this.ackWaiters = this.ackWaiters.filter((fn) => fn !== handler);
-				reject(new Error('Ack timeout'));
+				this.packetWaiters = this.packetWaiters.filter((fn) => fn !== handler);
+				reject(new Error('Packet timeout'));
 			}, timeoutMs);
 			const handler = (packet: ServerPacket) => {
 				try {
@@ -151,15 +134,15 @@ class GameSocket {
 						return true;
 					}
 				} catch (err) {
-					console.error('Ack handler error', err);
+					console.error('Packet handler error', err);
 				}
 				return false;
 			};
-			this.ackWaiters.push(handler);
+			this.packetWaiters.push(handler);
 		});
 	}
 
-	handlePacket(packet: ServerPacket) {
+	handleValidatedPacket(packet: ServerPacket) {
 		switch (packet.op) {
 			case 'ack': {
 				const lobby = (packet.data as { lobby?: unknown })?.lobby;
@@ -199,54 +182,49 @@ class GameSocket {
 				break;
 			}
 			case 'room_state': {
-				const state = packet.data;
-				if (state && typeof state.id === 'string' && Array.isArray(state.players)) {
-					currentRoomState.set(state as RoomState);
-				}
+				// ArkType guarantees the data structure
+				currentRoomState.set(packet.data as RoomState);
 				break;
 			}
 			case 'peer_score_update': {
-				const payload = (packet.data ?? packet) as ServerPacket['data'];
-				const { userId, username, score, combo, maxCombo, health } = payload as any;
-				if (typeof userId !== 'string' || typeof score !== 'number' || Number.isNaN(score)) {
-					console.warn('Dropping invalid peer_score_update', payload);
-					return;
-				}
+				// ArkType guarantees userId and score are present and correct types
+				const { userId, username, score, combo, maxCombo, health } = packet.data;
 				matchState.update((state) => ({
 					...state,
 					[userId]: {
 						...(state[userId] ?? { userId, finished: false, combo: 0 }),
 						userId,
-						username: typeof username === 'string' ? username : state[userId]?.username,
+						username: username ?? state[userId]?.username,
 						score,
-						combo: typeof combo === 'number' ? combo : state[userId]?.combo ?? 0,
-						maxCombo: typeof maxCombo === 'number' ? maxCombo : state[userId]?.maxCombo,
-						health: typeof health === 'number' ? health : state[userId]?.health,
+						combo: combo ?? state[userId]?.combo ?? 0,
+						maxCombo: maxCombo ?? state[userId]?.maxCombo,
+						health: health ?? state[userId]?.health,
 						finished: false
 					}
 				}));
 				break;
 			}
 			case 'peer_match_finished': {
-				const payload = (packet.data ?? packet) as ServerPacket['data'];
-				const { userId, finalScore, maxCombo } = payload as any;
-				if (typeof userId !== 'string' || typeof finalScore !== 'number' || Number.isNaN(finalScore)) {
-					console.warn('Dropping invalid peer_match_finished', payload);
-					return;
-				}
+				// ArkType guarantees userId and finalScore are present and correct types
+				const { userId, finalScore, maxCombo } = packet.data;
 				matchState.update((state) => ({
 					...state,
 					[userId]: {
 						...(state[userId] ?? { userId, combo: 0 }),
 						userId,
 						score: finalScore,
-						maxCombo: typeof maxCombo === 'number' ? maxCombo : state[userId]?.maxCombo,
+						maxCombo: maxCombo ?? state[userId]?.maxCombo,
 						finished: true
 					}
 				}));
 				break;
 			}
 			case 'pong':
+				// ArkType guarantees the pong data structure
+				if (this.pongCallback) {
+					this.pongCallback(packet.data);
+				}
+				break;
 			case 'error':
 			default:
 				break;

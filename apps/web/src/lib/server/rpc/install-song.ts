@@ -180,6 +180,6 @@ export const installSongProcedure = routerBaseContext
 			// Consider cleaning up S3 objects if DB transaction failed
 			const statusCode = err.message?.startsWith('Processed') || err.message?.startsWith('Invalid') ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR';
 			const displayMessage = err.message || 'Failed to install song due to an internal error.';
-			throw new ORPCError(statusCode as any, { message: displayMessage });
+			throw new ORPCError(statusCode, { message: displayMessage });
 		}
 	}); 

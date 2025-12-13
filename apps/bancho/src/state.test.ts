@@ -128,7 +128,7 @@ describe("RoomManager Logic", () => {
 
 		const mockSetTimeout = (callback: () => void, delay: number) => {
 			timeoutCallback = callback;
-			return timeoutId++ as any;
+			return timeoutId++;
 		};
 
 		const mockClearTimeout = (id: number) => {

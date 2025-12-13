@@ -6,6 +6,7 @@ import { NotePool } from './rendering/NotePool';
 import { updateNotes } from './rendering/updateNotes';
 import { redrawNoteGraphicsOnResize } from './rendering/redrawNoteGraphicsOnResize';
 import type { GameState } from './types';
+import type { ChartHitObject } from '$lib/types';
 import { Application, Container } from 'pixi.js';
 import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
 
@@ -87,7 +88,7 @@ export class GameRenderer {
 			return {
 				...n,
 				isActivelyHeld: n.isHolding
-			};
+			} as ChartHitObject & { isActivelyHeld?: boolean };
 		});
 
 		updateNotes(
@@ -99,8 +100,8 @@ export class GameRenderer {
 			metrics.receptorYPosition,
 			this.scrollSpeed ?? 1,
 			this.app.screen.height,
-			visible as any,
-			judged as any
+			visible,
+			judged
 		);
 
 		// Animate and clean up judgment texts
@@ -108,9 +109,9 @@ export class GameRenderer {
 			const lane = Number(laneKey);
 			const jt = this.judgmentTextsByLane[lane];
 			if (!jt) continue;
-			(jt as any).updateAnimation?.(deltaMs);
+			jt.updateAnimation(deltaMs);
 			// Fallback absolute lifetime of 800ms even if alpha doesn't reach 0 (safety)
-			if (jt.alpha <= 0.01 || (jt as any).creationTime + 800 <= timeMs) {
+			if (jt.alpha <= 0.01 || (jt).creationTime + 800 <= timeMs) {
 				jt.parent?.removeChild(jt);
 				jt.destroy();
 				this.judgmentTextsByLane[lane] = null;
@@ -185,7 +186,7 @@ export class GameRenderer {
 
 	destroy() {
 		this.highway?.destroy?.();
-		this.app?.destroy({ children: true, texture: true, baseTexture: true } as any);
+		this.app.destroy();
 	}
 }
 

@@ -1,6 +1,8 @@
-import { assertClientPacket, ErrorCode } from '@mug/contract';
+import { ClientPacketSchema, ErrorCode } from '@mug/contract';
 import { validateSession, getRedis } from '@mug/db';
 import { RoomManager, type PlayerData } from './state';
+import { TypedSocket } from './socket-helper';
+import { type } from 'arktype';
 import type { ServerWebSocket } from 'bun';
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -58,117 +60,126 @@ const server = Bun.serve<PlayerData>({
 		return success ? undefined : new Response('Upgrade failed', { status: 400 });
 	},
 	websocket: {
-		open(ws) {
-			console.log(`User connected: ${ws.data.user.id}`);
-			connections.add(ws);
-			ws.send(JSON.stringify({ op: 'ack', data: { message: 'connected' } }));
-			ws.send(JSON.stringify({ op: 'room_list', data: roomManager.getLobbyList() }));
-		},
-		message(ws, msg) {
-			console.log('[bancho] received message from', ws.data?.user, 'message', msg);
-			try {
-				const parsedRaw = typeof msg === 'string' ? JSON.parse(msg) : JSON.parse(msg.toString());
-				assertClientPacket(parsedRaw);
-				const parsed = parsedRaw as import('@mug/contract').ClientPacket;
+		open(rawWs) {
+			console.log(`User connected: ${rawWs.data.user.id}`);
+			connections.add(rawWs);
 
-				switch (parsed.op) {
+			// Wrap the raw socket
+			const socket = new TypedSocket(rawWs);
+
+			socket.send('ack', { message: 'connected' });
+			socket.send('room_list', roomManager.getLobbyList());
+		},
+		message(rawWs, msg) {
+			const socket = new TypedSocket(rawWs);
+			console.log('[bancho] received message from', socket.data?.user, 'message', msg);
+			try {
+				// 1. Parse JSON
+				const rawJson = typeof msg === 'string' ? JSON.parse(msg) : JSON.parse(msg.toString());
+
+				// 2. Validate with ArkType
+				const result = ClientPacketSchema(rawJson);
+
+				if (result instanceof type.errors) {
+					console.error('Validation failed:', result.summary);
+					socket.send('error', { code: 'BAD_REQUEST', message: result.summary });
+					return;
+				}
+
+				// 3. Result is now typed as the discriminated union
+				const packet = result;
+
+				// 4. Handle Types safely
+				switch (packet.op) {
 					case 'ping':
-						ws.send(JSON.stringify({ op: 'pong', data: { message: 'pong' } }));
+						socket.send('pong', {
+							message: 'pong',
+							serverTime: Date.now(),
+							t1: packet.data?.t1
+						});
 						break;
 					case 'noop':
 						break;
 					case 'create_room': {
-						if (ws.data.roomId) roomManager.leaveRoom(ws);
-						const payload = parsed.data?.name ?? '';
-						const name = payload.toString().trim() || 'Room';
-						const room = roomManager.createRoom(ws, name);
-						ws.send(JSON.stringify({ op: 'ack', data: { message: 'room_created', roomId: room.id, name: room.name } }));
+						if (socket.data.roomId) roomManager.leaveRoom(rawWs);
+						const name = packet.data?.name ?? 'Room';
+						const room = roomManager.createRoom(rawWs, name);
+						socket.send('ack', { message: 'room_created' });
+
 						// Send updated lobby list to all
 						const lobby = roomManager.getLobbyList();
 						for (const client of connections) {
-							if (client.readyState === 1) client.send(JSON.stringify({ op: 'room_list', data: lobby }));
+							if (client.readyState === 1) {
+								const clientSocket = new TypedSocket(client);
+								clientSocket.send('room_list', lobby);
+							}
 						}
+
 						// Send room_state to members
 						const state = roomManager.getRoomState(room.id);
 						if (state) roomManager.broadcastToRoom(room.id, { op: 'room_state', data: state });
 						break;
 					}
 					case 'join_room': {
-						const roomId = parsed.data?.roomId;
-						if (!roomId) {
-							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'roomId required' } }));
-							break;
-						}
+						const roomId = packet.data.roomId; // ArkType guarantees this exists
 						try {
-							if (ws.data.roomId && ws.data.roomId !== roomId) roomManager.leaveRoom(ws);
-							roomManager.joinRoom(ws, roomId);
-							ws.send(JSON.stringify({ op: 'ack', data: { message: 'room_joined', roomId } }));
+							if (socket.data.roomId && socket.data.roomId !== roomId) roomManager.leaveRoom(rawWs);
+							roomManager.joinRoom(rawWs, roomId);
+							socket.send('ack', { message: 'room_joined' });
 							const state = roomManager.getRoomState(roomId);
 							if (state) roomManager.broadcastToRoom(roomId, { op: 'room_state', data: state });
 						} catch (err: any) {
-							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.NOT_FOUND, message: err?.message ?? 'join failed' } }));
+							socket.send('error', { code: 'NOT_FOUND', message: err?.message ?? 'join failed' });
 						}
 						break;
 					}
 					case 'leave_room': {
-						roomManager.leaveRoom(ws);
-						ws.send(JSON.stringify({ op: 'ack', data: { message: 'left_room' } }));
+						roomManager.leaveRoom(rawWs);
+						socket.send('ack', { message: 'left_room' });
 						const lobby = roomManager.getLobbyList();
 						for (const client of connections) {
-							if (client.readyState === 1) client.send(JSON.stringify({ op: 'room_list', data: lobby }));
+							if (client.readyState === 1) {
+								const clientSocket = new TypedSocket(client);
+								clientSocket.send('room_list', lobby);
+							}
 						}
 						break;
 					}
 					case 'get_room_state': {
-						const roomId = parsed.data?.roomId;
-						if (roomId && typeof roomId === 'string') {
-							const state = roomManager.getRoomState(roomId);
-							if (state) ws.send(JSON.stringify({ op: 'room_state', data: state }));
-							else ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.NOT_FOUND, message: 'room not found' } }));
-						}
+						const roomId = packet.data.roomId; // ArkType guarantees this exists
+						const state = roomManager.getRoomState(roomId);
+						if (state) socket.send('room_state', state);
+						else socket.send('error', { code: 'NOT_FOUND', message: 'room not found' });
 						break;
 					}
 					case 'score_update': {
-						const payload = parsed.data;
-						if (!payload || typeof payload.score !== 'number' || Number.isNaN(payload.score)) {
-							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'invalid score_update payload' } }));
-							break;
-						}
 						// Inject authoritative identity to avoid missing userId/username downstream
 						const normalizedPayload = {
-							...payload,
-							userId: ws.data?.user?.id,
-							username: ws.data?.user?.username
+							...packet.data,
+							userId: socket.data?.user?.id,
+							username: socket.data?.user?.username
 						};
-						console.log('[bancho] received score_update from', ws.data?.user, 'payload', normalizedPayload);
-						roomManager.broadcastScore(ws, normalizedPayload);
+						console.log('[bancho] received score_update from', socket.data?.user, 'payload', normalizedPayload);
+						roomManager.broadcastScore(rawWs, normalizedPayload);
 						break;
 					}
 					case 'match_finished': {
-						const payload = parsed.data;
 						const normalizedPayload = {
-							...(payload ?? {}),
-							userId: ws.data?.user?.id,
-							username: ws.data?.user?.username
+							...(packet.data ?? {}),
+							userId: socket.data?.user?.id,
+							username: socket.data?.user?.username
 						};
-						console.log('[bancho] received match_finished from', ws.data?.user, 'payload', normalizedPayload);
-						roomManager.broadcastMatchFinish(ws, normalizedPayload);
+						console.log('[bancho] received match_finished from', socket.data?.user, 'payload', normalizedPayload);
+						roomManager.broadcastMatchFinish(rawWs, normalizedPayload);
 						break;
 					}
 					case 'update_room': {
-						const payload = parsed.data;
-						const roomId = payload?.roomId;
-						const currentChart = payload?.currentChart;
-
-						if (!roomId || !currentChart) {
-							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'roomId and currentChart required' } }));
-							break;
-						}
+						const { roomId, currentChart } = packet.data; // ArkType guarantees these exist
 
 						// Validate that the sender is the host
 						const room = roomManager.getRoomById(roomId);
-						if (!room || room.hostId !== ws.data?.user?.id) {
-							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'only host can update room' } }));
+						if (!room || room.hostId !== socket.data?.user?.id) {
+							socket.send('error', { code: 'BAD_REQUEST', message: 'only host can update room' });
 							break;
 						}
 
@@ -182,16 +193,90 @@ const server = Bun.serve<PlayerData>({
 							roomManager.broadcastToRoom(roomId, { op: 'room_state', data: state });
 						}
 
-						ws.send(JSON.stringify({ op: 'ack', data: { message: 'room_updated' } }));
+						socket.send('ack', { message: 'room_updated' });
+						break;
+					}
+					case 'start_match': {
+						const roomId = packet.data.roomId; // ArkType guarantees this exists
+
+						// Validate that the sender is the host
+						const room = roomManager.getRoomById(roomId);
+						if (!room || room.hostId !== socket.data?.user?.id) {
+							socket.send('error', { code: 'BAD_REQUEST', message: 'only host can start match' });
+							break;
+						}
+
+						// Calculate target start time (3 seconds from now)
+						const startTime = Date.now() + 3000;
+
+						// Update room status and start time
+						room.status = 'starting';
+						room.startTime = startTime;
+
+						console.log('[bancho] starting match in room', roomId, 'at', new Date(startTime).toISOString());
+
+						// Broadcast the starting state to all clients
+						const state = roomManager.getRoomState(roomId);
+						if (state) {
+							roomManager.broadcastToRoom(roomId, { op: 'room_state', data: state });
+						}
+
+						// Schedule automatic transition to 'playing' after 3 seconds
+						setTimeout(() => {
+							room.status = 'playing';
+							const finalState = roomManager.getRoomState(roomId);
+							if (finalState) {
+								roomManager.broadcastToRoom(roomId, { op: 'room_state', data: finalState });
+							}
+						}, 3000);
+
+						socket.send('ack', { message: 'match_starting' });
+						break;
+					}
+					case 'start_match': {
+						const roomId = packet.data.roomId; // ArkType guarantees this exists
+
+						// Validate that the sender is the host
+						const room = roomManager.getRoomById(roomId);
+						if (!room || room.hostId !== socket.data?.user?.id) {
+							socket.send('error', { code: 'BAD_REQUEST', message: 'only host can start match' });
+							break;
+						}
+
+						// Calculate target start time (3 seconds from now)
+						const startTime = Date.now() + 3000;
+
+						// Update room status and start time
+						room.status = 'starting';
+						room.startTime = startTime;
+
+						console.log('[bancho] starting match in room', roomId, 'at', new Date(startTime).toISOString());
+
+						// Broadcast the starting state to all clients
+						const state = roomManager.getRoomState(roomId);
+						if (state) {
+							roomManager.broadcastToRoom(roomId, { op: 'room_state', data: state });
+						}
+
+						// Schedule automatic transition to 'playing' after 3 seconds
+						setTimeout(() => {
+							room.status = 'playing';
+							const finalState = roomManager.getRoomState(roomId);
+							if (finalState) {
+								roomManager.broadcastToRoom(roomId, { op: 'room_state', data: finalState });
+							}
+						}, 3000);
+
+						socket.send('ack', { message: 'match_starting' });
 						break;
 					}
 					default:
-						ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'unsupported op' } }));
+						socket.send('error', { code: 'BAD_REQUEST', message: 'unsupported op' });
 						break;
 				}
 			} catch (err) {
 				console.error('Packet error', err);
-				ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'invalid packet' } }));
+				socket.send('error', { code: 'BAD_REQUEST', message: 'invalid packet' });
 			}
 		},
 		close(ws) {

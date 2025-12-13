@@ -270,6 +270,6 @@ export async function processFileAndExtractData(fileBlob: Blob): Promise<Process
 		throw new Error('Failed to process file into a valid and complete song data structure.');
 	}
 
-	return mugData as ProcessedSongData;
+	return mugData;
 }
 

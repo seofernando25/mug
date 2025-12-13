@@ -21,15 +21,39 @@
     let isLeaving = $state(false);
     let connectionStatus = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
+    // Countdown and time sync state
+    let countdownValue = $state<number | null>(null);
+    let timeOffset = $state<number>(0); // Offset between client and server time
+
     // Derived State
     let isHost = $derived(
         roomDetails?.hostId === data.session?.user?.id
     );
-    let isReady = $state(false); // Local ready state
 
+    let showCountdownOverlay = $derived(roomDetails?.status === 'starting');
     // Song selection overlay state
     let isSongSelectOpen = $state(false);
     let availableSongs = $state<any[]>([]);
+
+    // Time synchronization
+    function syncTimeWithServer() {
+        const t1 = Date.now();
+        // Send ping with our timestamp
+        gameSocket.send('ping', { t1 });
+    }
+
+    function handlePong(data: any) {
+        if (data.t1 && data.serverTime) {
+            const t2 = Date.now();
+            const latency = (t2 - data.t1) / 2;
+            timeOffset = data.serverTime - (data.t1 + latency);
+            console.log(`[Time Sync] Offset: ${timeOffset}ms, Latency: ${latency}ms`);
+        }
+    }
+
+    function getServerTime(): number {
+        return Date.now() + timeOffset;
+    }
 
     function initializeRoom(id: string) {
         roomId = id;
@@ -37,15 +61,15 @@
         isLoading = true;
         error = null;
         gameSocket.connect();
-        gameSocket.send({ op: 'join_room', data: { roomId: id } } as any);
-        gameSocket.send({ op: 'get_room_state', data: { roomId: id } } as any);
+        gameSocket.send('join_room', { roomId: id });
+        gameSocket.send('get_room_state', { roomId: id });
     }
 
     async function handleLeaveRoom() {
         if (!roomId) return;
         isLeaving = true;
         try {
-            gameSocket.send({ op: 'leave_room', data: { roomId } } as any);
+            gameSocket.send('leave_room', { roomId });
             await goto('/multiplayer');
         } catch (e) {
             console.error(e);
@@ -53,15 +77,19 @@
         isLeaving = false;
     }
 
-    function toggleReady() {
-        isReady = !isReady;
-        // gameSocket.send({ op: 'toggle_ready' }); // Coming soon
-    }
-
     function startGame() {
-        if (!isHost) return;
-        console.log('Starting match...');
-        // gameSocket.send({ op: 'start_match' }); // Coming soon
+        if (!isHost || !roomId) return;
+
+        // Validation: Make sure a song is actually selected before starting!
+        if (!roomDetails?.currentChart) {
+            alert("Please select a song first!");
+            return;
+        }
+
+        console.log('Host requesting start match...');
+
+        // Send the command to the server
+        gameSocket.send('start_match', { roomId });
     }
 
     function openSongSelect() {
@@ -79,20 +107,17 @@
 
         try {
             // Send the selected song data to the server to update room state
-            gameSocket.send({
-                op: 'update_room',
-                data: {
-                    roomId,
-                    currentChart: {
-                        coverUrl: song.imageUrl,
-                        name: song.title,
-                        artist: song.artist,
-                        difficulty: song.difficulties?.[0] || 'Unknown', // Default to first difficulty
-                        songId: song.id, // Include song ID for future chart resolution
-                        difficulties: song.difficulties // Include all difficulties for future use
-                    }
+            gameSocket.send('update_room', {
+                roomId,
+                currentChart: {
+                    coverUrl: song.imageUrl,
+                    name: song.title,
+                    artist: song.artist,
+                    difficulty: song.difficulties?.[0] || 'Unknown', // Default to first difficulty
+                    songId: song.id, // Include song ID for future chart resolution
+                    difficulties: song.difficulties // Include all difficulties for future use
                 }
-            } as any);
+            });
 
             console.log("Sent update_room message for song:", song.title);
 
@@ -115,13 +140,45 @@
             // Fall back to empty array, overlay will use mock data
         });
 
+        // Set up time sync pong handler
+        gameSocket.setPongCallback(handlePong);
+
+        // Sync time with server on connection
+        const unsubStatus = socketStatus.subscribe((status) => {
+            connectionStatus = status;
+            if (status === 'connected') {
+                syncTimeWithServer();
+            }
+        });
+
         const unsubRoom = currentRoomState.subscribe((state) => {
             if (state && state.id === roomId) {
                 roomDetails = { ...state, players: state.players ?? [] };
+
+                // Handle countdown logic
+                if (state.status === 'starting' && state.startTime) {
+                    // Start countdown timer
+                    const updateCountdown = () => {
+                        const secondsLeft = Math.ceil((state.startTime! - getServerTime()) / 1000);
+                        countdownValue = Math.max(0, secondsLeft);
+
+                        if (countdownValue > 0) {
+                            requestAnimationFrame(updateCountdown);
+                        } else {
+                            countdownValue = null;
+                        }
+                    };
+                    updateCountdown();
+                }
+
+                // Handle game start
+                if (state.status === 'playing') {
+                    goto(`/game/${roomId}`);
+                }
+
                 isLoading = false;
             }
         });
-        const unsubStatus = socketStatus.subscribe((v) => (connectionStatus = v));
         return () => {
             unsubRoom();
             unsubStatus();
@@ -137,6 +194,19 @@
         onSelect={handleSongSelection}
         songs={availableSongs}
     />
+
+    {#if showCountdownOverlay}
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div class="text-center">
+                <div class="text-8xl font-black text-white mb-4 animate-pulse">
+                    {countdownValue ?? 3}
+                </div>
+                <div class="text-xl text-cyan-400 font-bold tracking-widest">
+                    GET READY!
+                </div>
+            </div>
+        </div>
+    {/if}
 
     {#if isLoading}
         <div class="z-10 animate-pulse text-2xl font-light tracking-widest text-cyan-400">CONNECTING...</div>
@@ -166,8 +236,6 @@
             handleLeaveRoom={handleLeaveRoom}
             isLeaving={isLeaving}
             isHost={isHost}
-            isReady={isReady}
-            toggleReady={toggleReady}
             startGame={startGame}
         />
     {/if}
