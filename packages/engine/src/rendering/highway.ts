@@ -1,12 +1,16 @@
-import { Colors, GameplaySizingConstants } from './constants';
-import { Application, Container, Graphics } from 'pixi.js';
-import { get, type Readable } from 'svelte/store';
-import { LaneIllumination } from './LaneIllumination'; // Added import
+import { Colors, GameplaySizingConstants } from "./constants";
+import { Application, Container, Graphics } from "pixi.js";
+import { get, type Readable } from "svelte/store";
+import { LaneIllumination } from "./LaneIllumination"; // Added import
 
 const DEFAULT_RECEPTOR_AREA_HEIGHT_PROPORTION = 0.15; // 15% of canvas height from bottom
 
 // Get metrics for the note highway
-export function getHighwayMetrics(numLanes: number, canvasWidth: number, canvasHeight: number) {
+export function getHighwayMetrics(
+	numLanes: number,
+	canvasWidth: number,
+	canvasHeight: number,
+) {
 	// Use provided canvas dimensions, or fall back to defaults
 	const effectiveCanvasWidth = canvasWidth;
 	const effectiveCanvasHeight = canvasHeight;
@@ -15,11 +19,13 @@ export function getHighwayMetrics(numLanes: number, canvasWidth: number, canvasH
 	// but ensure it's not excessively wide or narrow. Max of 100px, min of 60px for example.
 	// Or, a certain percentage of total width dedicated to highway.
 	// Let's say highway takes up 50% of canvas width for 4 lanes, 60% for 6 lanes, etc.
-	const highwayWidthProportion = numLanes <= 4 ? 0.5 : numLanes <= 6 ? 0.6 : 0.75;
+	const highwayWidthProportion =
+		numLanes <= 4 ? 0.5 : numLanes <= 6 ? 0.6 : 0.75;
 	const totalHighwayWidth = effectiveCanvasWidth * highwayWidthProportion;
 	const laneWidth = totalHighwayWidth / numLanes;
 
-	const receptorY = effectiveCanvasHeight * (1 - DEFAULT_RECEPTOR_AREA_HEIGHT_PROPORTION);
+	const receptorY =
+		effectiveCanvasHeight * (1 - DEFAULT_RECEPTOR_AREA_HEIGHT_PROPORTION);
 
 	return {
 		x: (effectiveCanvasWidth - totalHighwayWidth) / 2, // Centered highway
@@ -29,14 +35,14 @@ export function getHighwayMetrics(numLanes: number, canvasWidth: number, canvasH
 		numLanes: numLanes,
 		laneWidth: laneWidth,
 		receptorYPosition: receptorY,
-		judgmentLineYPosition: receptorY - (effectiveCanvasHeight * 0.05) // Judgment text 5% of canvas height above receptors
+		judgmentLineYPosition: receptorY - effectiveCanvasHeight * 0.05, // Judgment text 5% of canvas height above receptors
 	};
 }
 
 export function drawHighway(
 	app: Application,
 	parentContainer: Container,
-	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>
+	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>,
 ) {
 	const highwayContainer = new Container();
 	const initialMetrics = get(highwayMetrics); // Get initial metrics for positioning container
@@ -54,7 +60,7 @@ export function drawHighway(
 		const illumination = new LaneIllumination(
 			metricsSnapshot.laneWidth,
 			metricsSnapshot.height, // Use full highway height
-			Colors.LANE_COLORS[i % Colors.LANE_COLORS.length] // Use lane background color
+			Colors.LANE_COLORS[i % Colors.LANE_COLORS.length], // Use lane background color
 		);
 		// Position it at the start of the lane, relative to the highwayContainer
 		illumination.updatePosition(i * metricsSnapshot.laneWidth, 0);
@@ -76,14 +82,24 @@ export function drawHighway(
 
 		for (let i = 0; i < metrics.numLanes; i++) {
 			// Draw rects relative to highwayContainer (x is 0 for the first lane inside container)
-			mainRectsGraphics.rect(i * metrics.laneWidth, 0, metrics.laneWidth, metrics.height)
-				.fill({ color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length], alpha: Colors.LANE_BACKGROUND_ALPHA });
+			mainRectsGraphics
+				.rect(i * metrics.laneWidth, 0, metrics.laneWidth, metrics.height)
+				.fill({
+					color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length],
+					alpha: Colors.LANE_BACKGROUND_ALPHA,
+				});
 		}
 		lineGraphics.clear();
 		for (let i = 0; i < metrics.numLanes + 1; i++) {
 			// Draw lines relative to highwayContainer
 			const xPos = i * metrics.laneWidth;
-			lineGraphics.rect(xPos - GameplaySizingConstants.HIGHWAY_LINE_THICKNESS / 2, 0, GameplaySizingConstants.HIGHWAY_LINE_THICKNESS, metrics.height)
+			lineGraphics
+				.rect(
+					xPos - GameplaySizingConstants.HIGHWAY_LINE_THICKNESS / 2,
+					0,
+					GameplaySizingConstants.HIGHWAY_LINE_THICKNESS,
+					metrics.height,
+				)
 				.fill({ color: Colors.HIGHWAY_LINE });
 		}
 	}
@@ -113,7 +129,7 @@ export function drawHighway(
 			highwayContainer.destroy({ children: true, texture: true });
 		},
 		laneIlluminations, // Expose for direct access if needed
-		triggerLaneIllumination // Expose the trigger function
+		triggerLaneIllumination, // Expose the trigger function
 	};
 }
 
@@ -122,13 +138,19 @@ export function drawHighwayLines(
 	stageHeight: number, // This might now be metrics.height
 	lanes: number,
 	highwayX: number, // This might be 0 if graphics are children of positioned highwayContainer
-	laneWidth: number
+	laneWidth: number,
 ) {
 	lineGraphics.clear();
 	for (let i = 0; i < lanes + 1; i++) {
 		// Assuming lineGraphics is a child of highwayContainer which is already at global highwayX
 		const xPos = highwayX + i * laneWidth; // If highwayX is 0 (because parent is positioned), then this is just i * laneWidth
-		lineGraphics.rect(xPos - GameplaySizingConstants.HIGHWAY_LINE_THICKNESS / 2, 0, GameplaySizingConstants.HIGHWAY_LINE_THICKNESS, stageHeight)
+		lineGraphics
+			.rect(
+				xPos - GameplaySizingConstants.HIGHWAY_LINE_THICKNESS / 2,
+				0,
+				GameplaySizingConstants.HIGHWAY_LINE_THICKNESS,
+				stageHeight,
+			)
 			.fill({ color: Colors.HIGHWAY_LINE });
 	}
-} 
+}

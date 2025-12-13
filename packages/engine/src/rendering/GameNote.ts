@@ -1,7 +1,7 @@
-import type { ChartHitObject } from '$lib/types';
-import { Colors, GameplaySizingConstants } from './constants';
-import { Container, Graphics } from 'pixi.js';
-import { getNoteYPosition } from './noteUtils';
+import type { ChartHitObject } from "$lib/types";
+import { Colors, GameplaySizingConstants } from "./constants";
+import { Container, Graphics } from "pixi.js";
+import { getNoteYPosition } from "./noteUtils";
 
 export class GameNote {
 	id: number;
@@ -9,7 +9,7 @@ export class GameNote {
 	lane: number;
 	originalTime: number;
 	effectiveScrollTime: number;
-	note_type: 'tap' | 'hold';
+	note_type: "tap" | "hold";
 	isVisible: boolean = false;
 	isJudged: boolean = false;
 	isActivelyHeld: boolean = false;
@@ -35,8 +35,9 @@ export class GameNote {
 	}
 
 	protected _createOrUpdateHeadGraphics() {
-		const noteVisualWidth = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-		const noteRadius = 3 * noteVisualWidth / 4;
+		const noteVisualWidth =
+			this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+		const noteRadius = (3 * noteVisualWidth) / 4;
 		const headColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 
 		this.headGraphics.clear();
@@ -88,29 +89,44 @@ export class GameNote {
 		hitZoneY: number,
 		receptorYPosition: number,
 		scrollSpeed: number,
-		canvasHeight: number
+		canvasHeight: number,
 	) {
-		const laneCenterX = highwayX + (this.lane * this.laneWidth) + (this.laneWidth / 2);
+		const laneCenterX =
+			highwayX + this.lane * this.laneWidth + this.laneWidth / 2;
 		let idealHeadY: number;
 
-		if (this.note_type === 'hold') {
+		if (this.note_type === "hold") {
 			if (this.isActivelyHeld) {
 				idealHeadY = hitZoneY;
 			} else {
 				if (this.prevIsActivelyHeld) {
 					const scrollPixelsPerSecond = canvasHeight * 0.6 * scrollSpeed;
 					if (scrollPixelsPerSecond > 0) {
-						this.effectiveScrollTime = songTimeMs + ((receptorYPosition - hitZoneY) * 1000 / scrollPixelsPerSecond);
+						this.effectiveScrollTime =
+							songTimeMs +
+							((receptorYPosition - hitZoneY) * 1000) / scrollPixelsPerSecond;
 					} else {
 						// Fallback if scroll speed is zero, should not happen in normal gameplay.
 					}
 					idealHeadY = hitZoneY;
 				} else {
-					idealHeadY = getNoteYPosition(this.effectiveScrollTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
+					idealHeadY = getNoteYPosition(
+						this.effectiveScrollTime,
+						songTimeMs,
+						receptorYPosition,
+						scrollSpeed,
+						canvasHeight,
+					);
 				}
 			}
 		} else {
-			idealHeadY = getNoteYPosition(this.effectiveScrollTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
+			idealHeadY = getNoteYPosition(
+				this.effectiveScrollTime,
+				songTimeMs,
+				receptorYPosition,
+				scrollSpeed,
+				canvasHeight,
+			);
 		}
 
 		this.headGraphics.x = laneCenterX;
@@ -119,14 +135,40 @@ export class GameNote {
 		this.prevIsActivelyHeld = this.isActivelyHeld;
 	}
 
-	onResize(newLaneWidth: number, highwayX: number, songTimeMs: number, hitZoneY: number, receptorYPosition: number, scrollSpeed: number, canvasHeight: number) {
+	onResize(
+		newLaneWidth: number,
+		highwayX: number,
+		songTimeMs: number,
+		hitZoneY: number,
+		receptorYPosition: number,
+		scrollSpeed: number,
+		canvasHeight: number,
+	) {
 		this.laneWidth = newLaneWidth;
 		this._createOrUpdateHeadGraphics();
-		this.reposition(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
+		this.reposition(
+			highwayX,
+			songTimeMs,
+			hitZoneY,
+			receptorYPosition,
+			scrollSpeed,
+			canvasHeight,
+		);
 	}
 
-	isOffscreen(canvasHeight: number, receptorYPosition: number, songTimeMs: number, scrollSpeed: number): boolean {
-		const headY = getNoteYPosition(this.effectiveScrollTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
+	isOffscreen(
+		canvasHeight: number,
+		receptorYPosition: number,
+		songTimeMs: number,
+		scrollSpeed: number,
+	): boolean {
+		const headY = getNoteYPosition(
+			this.effectiveScrollTime,
+			songTimeMs,
+			receptorYPosition,
+			scrollSpeed,
+			canvasHeight,
+		);
 		// A small visual buffer might be needed if notes are large.
 		return headY > canvasHeight;
 	}
@@ -134,4 +176,4 @@ export class GameNote {
 	getChartHitObject(): ChartHitObject {
 		return this.noteData;
 	}
-} 
+}

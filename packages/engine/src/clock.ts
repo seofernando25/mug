@@ -1,4 +1,4 @@
-import type { Sound, IMediaInstance } from '@pixi/sound';
+import type { Sound, IMediaInstance } from "@pixi/sound";
 
 /**
  * Thin wrapper to expose an authoritative time source.
@@ -28,13 +28,13 @@ export class AudioClock {
 
 	pause() {
 		if (this.instance) {
-			this.instance.set('paused', true);
+			this.instance.set("paused", true);
 		}
 	}
 
 	resume() {
 		if (this.instance) {
-			this.instance.set('paused', false);
+			this.instance.set("paused", false);
 		}
 	}
 
@@ -45,7 +45,11 @@ export class AudioClock {
 
 	get currentTimeMs(): number {
 		// Prefer authoritative audio progress
-		if (this.instance && typeof this.instance.progress === 'number' && this.sound.duration) {
+		if (
+			this.instance &&
+			typeof this.instance.progress === "number" &&
+			this.sound.duration
+		) {
 			return this.instance.progress * this.sound.duration * 1000;
 		}
 
@@ -57,4 +61,3 @@ export class AudioClock {
 		return !!(this.instance && !this.instance.paused);
 	}
 }
-

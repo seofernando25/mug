@@ -1,70 +1,75 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { authClient } from '$lib/auth-client';
-	import { orpcClient } from '$lib/rpc/client';
-	import { stretchIn } from '$lib/transitions/stretchIn';
-	import { onMount, tick } from 'svelte';
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
+import { authClient } from "$lib/auth-client";
+import { orpcClient } from "$lib/rpc/client";
+import { stretchIn } from "$lib/transitions/stretchIn";
+import { onMount, tick } from "svelte";
 
-	let usernameInput = $state(page.url.searchParams.get('username') || '');
-	let isLoading = $state(false);
-	let error = $state<string | null>(null);
+let usernameInput = $state(page.url.searchParams.get("username") || "");
+let isLoading = $state(false);
+let error = $state<string | null>(null);
 
-	// References to DOM elements
-	let usernameInputElement = $state<HTMLInputElement | undefined>();
+// References to DOM elements
+let usernameInputElement = $state<HTMLInputElement | undefined>();
 
-	let showPanel = $state(false); // For the main join form animation
+let showPanel = $state(false); // For the main join form animation
 
-	onMount(() => {
-		const urlUsername = page.url.searchParams.get('username');
-		if (urlUsername) {
-			usernameInput = urlUsername;
-		}
-		showPanel = true;
-		tick().then(() => {
-			usernameInputElement?.focus();
-		});
+onMount(() => {
+	const urlUsername = page.url.searchParams.get("username");
+	if (urlUsername) {
+		usernameInput = urlUsername;
+	}
+	showPanel = true;
+	tick().then(() => {
+		usernameInputElement?.focus();
 	});
+});
 
-	async function handleMainJoin(event?: Event) {
-		event?.preventDefault();
-		if (isLoading) return;
-		isLoading = true;
-		error = null;
+async function handleMainJoin(event?: Event) {
+	event?.preventDefault();
+	if (isLoading) return;
+	isLoading = true;
+	error = null;
 
-		if (usernameInput.trim() === '') {
-			const { data: signInData, error: anonError } = await authClient.signIn.anonymous();
-			if (anonError) {
-				error = anonError.message || null;
-			} else if (signInData?.user) {
-				goto('/home');
-			} else {
-				error = 'Failed to create guest session.';
-			}
+	if (usernameInput.trim() === "") {
+		const { data: signInData, error: anonError } =
+			await authClient.signIn.anonymous();
+		if (anonError) {
+			error = anonError.message || null;
+		} else if (signInData?.user) {
+			goto("/home");
 		} else {
-			try {
-				const res = await orpcClient.user.checkUsername({
-					username: usernameInput.trim()
-				});
+			error = "Failed to create guest session.";
+		}
+	} else {
+		try {
+			const res = await orpcClient.user.checkUsername({
+				username: usernameInput.trim(),
+			});
 
-				if (!res.available) {
-					goto(`/login?username=${encodeURIComponent(usernameInput.trim())}`);
-				} else {
-					goto(`/claim-username?username=${encodeURIComponent(usernameInput.trim())}`);
-				}
-			} catch (e: any) {
-				error = e.message || 'Failed to check username.';
-				goto(`/claim-username?username=${encodeURIComponent(usernameInput.trim())}`);
+			if (!res.available) {
+				goto(`/login?username=${encodeURIComponent(usernameInput.trim())}`);
+			} else {
+				goto(
+					`/claim-username?username=${encodeURIComponent(usernameInput.trim())}`,
+				);
 			}
+		} catch (e: any) {
+			error = e.message || "Failed to check username.";
+			goto(
+				`/claim-username?username=${encodeURIComponent(usernameInput.trim())}`,
+			);
 		}
-		isLoading = false;
 	}
+	isLoading = false;
+}
 
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			handleMainJoin();
-		}
+function handleKeydown(event: KeyboardEvent) {
+	if (event.key === "Enter") {
+		handleMainJoin();
 	}
+}
 </script>
 
 <svelte:head>

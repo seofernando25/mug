@@ -50,9 +50,9 @@ describe("Contract Integrity", () => {
 					artist: "Test Artist",
 					difficulty: "Hard",
 					songId: "song123",
-					difficulties: ["Easy", "Hard"]
-				}
-			}
+					difficulties: ["Easy", "Hard"],
+				},
+			},
 		};
 		const result = ClientPacketSchema(payload);
 		expect(result instanceof type.errors).toBe(false);
@@ -61,7 +61,7 @@ describe("Contract Integrity", () => {
 	it("rejects update_room with missing roomId", () => {
 		const payload = {
 			op: "update_room",
-			data: { currentChart: {} }
+			data: { currentChart: {} },
 		};
 		const result = ClientPacketSchema(payload);
 		expect(result instanceof type.errors).toBe(true);
@@ -70,7 +70,7 @@ describe("Contract Integrity", () => {
 	it("rejects update_room with invalid currentChart", () => {
 		const payload = {
 			op: "update_room",
-			data: { roomId: "room123", currentChart: "invalid" }
+			data: { roomId: "room123", currentChart: "invalid" },
 		};
 		const result = ClientPacketSchema(payload);
 		expect(result instanceof type.errors).toBe(true);
@@ -79,9 +79,7 @@ describe("Contract Integrity", () => {
 	it("validates a room_list packet", () => {
 		const pkt = {
 			op: "room_list",
-			data: [
-				{ id: "r1", name: "Room", playerCount: 2, status: "idle" }
-			]
+			data: [{ id: "r1", name: "Room", playerCount: 2, status: "idle" }],
 		};
 		const result = ServerPacketSchema(pkt);
 		expect(result instanceof type.errors).toBe(false);
@@ -90,7 +88,10 @@ describe("Contract Integrity", () => {
 	it("validates a room_event packet", () => {
 		const pkt = {
 			op: "room_event",
-			data: { type: "add", room: { id: "r1", name: "New", hostId: "u1", hostName: "host" } }
+			data: {
+				type: "add",
+				room: { id: "r1", name: "New", hostId: "u1", hostName: "host" },
+			},
 		};
 		const result = ServerPacketSchema(pkt);
 		expect(result instanceof type.errors).toBe(false);
@@ -99,7 +100,11 @@ describe("Contract Integrity", () => {
 	it("validates a room_state packet", () => {
 		const pkt = {
 			op: "room_state",
-			data: { id: "r1", hostId: "u1", players: [{ userId: "u1", username: "host" }] }
+			data: {
+				id: "r1",
+				hostId: "u1",
+				players: [{ userId: "u1", username: "host" }],
+			},
 		};
 		const result = ServerPacketSchema(pkt);
 		expect(result instanceof type.errors).toBe(false);
@@ -112,8 +117,8 @@ describe("Contract Integrity", () => {
 				userId: "u123",
 				username: "peppy",
 				score: 500000,
-				combo: 100
-			}
+				combo: 100,
+			},
 		};
 		const result = ServerPacketSchema(pkt);
 		expect(result instanceof type.errors).toBe(false);
@@ -124,8 +129,8 @@ describe("Contract Integrity", () => {
 			op: "peer_score_update",
 			data: {
 				username: "peppy",
-				score: 500000
-			}
+				score: 500000,
+			},
 		};
 		const result = ServerPacketSchema(pkt);
 		expect(result instanceof type.errors).toBe(true);
@@ -134,7 +139,8 @@ describe("Contract Integrity", () => {
 	it("rejects invalid packets", () => {
 		expect(ClientPacketSchema(null) instanceof type.errors).toBe(true);
 		expect(ClientPacketSchema({}) instanceof type.errors).toBe(true);
-		expect(ServerPacketSchema({ op: "invalid" }) instanceof type.errors).toBe(true);
+		expect(ServerPacketSchema({ op: "invalid" }) instanceof type.errors).toBe(
+			true,
+		);
 	});
 });
-

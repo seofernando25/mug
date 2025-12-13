@@ -1,3 +1,5 @@
 import { orpcClient } from "$lib/rpc/client";
 
-export type SongListItem = Awaited<ReturnType<typeof orpcClient.song.list>>['items'][number];
+export type SongListItem = Awaited<
+	ReturnType<typeof orpcClient.song.list>
+>["items"][number];

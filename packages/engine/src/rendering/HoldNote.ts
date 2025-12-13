@@ -1,8 +1,8 @@
-import type { ChartHitObject } from '$lib/types';
-import { Colors, GameplaySizingConstants } from './constants';
-import { Container, Graphics } from 'pixi.js';
-import { GameNote } from './GameNote';
-import { getNoteYPosition } from './noteUtils';
+import type { ChartHitObject } from "$lib/types";
+import { Colors, GameplaySizingConstants } from "./constants";
+import { Container, Graphics } from "pixi.js";
+import { GameNote } from "./GameNote";
+import { getNoteYPosition } from "./noteUtils";
 
 export class HoldNote extends GameNote {
 	bodyGraphics: Graphics;
@@ -11,8 +11,14 @@ export class HoldNote extends GameNote {
 
 	constructor(noteData: ChartHitObject, laneWidth: number) {
 		super(noteData, laneWidth);
-		if (noteData.note_type !== 'hold' || typeof noteData.duration !== 'number' || noteData.duration <= 0) {
-			console.warn(`HoldNote created with invalid data: ID ${noteData.id}. Duration: ${noteData.duration}`);
+		if (
+			noteData.note_type !== "hold" ||
+			typeof noteData.duration !== "number" ||
+			noteData.duration <= 0
+		) {
+			console.warn(
+				`HoldNote created with invalid data: ID ${noteData.id}. Duration: ${noteData.duration}`,
+			);
 			this.duration = 0;
 		} else {
 			this.duration = noteData.duration;
@@ -26,12 +32,15 @@ export class HoldNote extends GameNote {
 	}
 
 	protected _createOrUpdateHoldPartsGraphics() {
-		const noteVisualWidth = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-		const laneNoteColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
+		const noteVisualWidth =
+			this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+		const laneNoteColor =
+			Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 
 		this.bodyGraphics.clear();
 		const bodyWidth = noteVisualWidth * 0.5;
-		this.bodyGraphics.rect(-bodyWidth / 2, 0, bodyWidth, 1)
+		this.bodyGraphics
+			.rect(-bodyWidth / 2, 0, bodyWidth, 1)
 			.fill({ color: laneNoteColor });
 
 		this.tailGraphics.clear();
@@ -47,8 +56,10 @@ export class HoldNote extends GameNote {
 
 	removeFromStage() {
 		super.removeFromStage();
-		if (this.bodyGraphics.parent) this.bodyGraphics.parent.removeChild(this.bodyGraphics);
-		if (this.tailGraphics.parent) this.tailGraphics.parent.removeChild(this.tailGraphics);
+		if (this.bodyGraphics.parent)
+			this.bodyGraphics.parent.removeChild(this.bodyGraphics);
+		if (this.tailGraphics.parent)
+			this.tailGraphics.parent.removeChild(this.tailGraphics);
 	}
 
 	show() {
@@ -65,8 +76,14 @@ export class HoldNote extends GameNote {
 
 	reset(newNoteData: ChartHitObject, newLaneWidth: number) {
 		super.reset(newNoteData, newLaneWidth);
-		if (newNoteData.note_type !== 'hold' || typeof newNoteData.duration !== 'number' || newNoteData.duration <= 0) {
-			console.warn(`HoldNote reset with invalid data: ID ${newNoteData.id}. Duration: ${newNoteData.duration}`);
+		if (
+			newNoteData.note_type !== "hold" ||
+			typeof newNoteData.duration !== "number" ||
+			newNoteData.duration <= 0
+		) {
+			console.warn(
+				`HoldNote reset with invalid data: ID ${newNoteData.id}. Duration: ${newNoteData.duration}`,
+			);
 			this.duration = 0;
 		} else {
 			this.duration = newNoteData.duration;
@@ -82,15 +99,29 @@ export class HoldNote extends GameNote {
 		hitZoneY: number,
 		receptorYPosition: number,
 		scrollSpeed: number,
-		canvasHeight: number
+		canvasHeight: number,
 	) {
-		super.reposition(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
+		super.reposition(
+			highwayX,
+			songTimeMs,
+			hitZoneY,
+			receptorYPosition,
+			scrollSpeed,
+			canvasHeight,
+		);
 
-		const laneCenterX = highwayX + (this.lane * this.laneWidth) + (this.laneWidth / 2);
+		const laneCenterX =
+			highwayX + this.lane * this.laneWidth + this.laneWidth / 2;
 		const noteEndTime = this.originalTime + this.duration;
 
 		let currentHeadY = this.headGraphics.y;
-		const currentTailY = getNoteYPosition(noteEndTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
+		const currentTailY = getNoteYPosition(
+			noteEndTime,
+			songTimeMs,
+			receptorYPosition,
+			scrollSpeed,
+			canvasHeight,
+		);
 
 		// Visually clamp head to not go past the tail if actively held
 		if (this.isActivelyHeld && currentHeadY < currentTailY) {
@@ -111,26 +142,61 @@ export class HoldNote extends GameNote {
 
 		this.bodyGraphics.clear();
 		if (visualBodyHeight > 0 && this.duration > 0) {
-			const noteVisualWidthForBody = this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+			const noteVisualWidthForBody =
+				this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
 			const bodyRectWidth = noteVisualWidthForBody * 0.5;
-			this.bodyGraphics.rect(-bodyRectWidth / 2, 0, bodyRectWidth, visualBodyHeight)
-				.fill({ color: Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length] });
+			this.bodyGraphics
+				.rect(-bodyRectWidth / 2, 0, bodyRectWidth, visualBodyHeight)
+				.fill({
+					color: Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length],
+				});
 		}
 	}
 
-	onResize(newLaneWidth: number, highwayX: number, songTimeMs: number, hitZoneY: number, receptorYPosition: number, scrollSpeed: number, canvasHeight: number) {
+	onResize(
+		newLaneWidth: number,
+		highwayX: number,
+		songTimeMs: number,
+		hitZoneY: number,
+		receptorYPosition: number,
+		scrollSpeed: number,
+		canvasHeight: number,
+	) {
 		this.laneWidth = newLaneWidth;
 		this._createOrUpdateHeadGraphics();
 		this._createOrUpdateHoldPartsGraphics();
-		this.reposition(highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
+		this.reposition(
+			highwayX,
+			songTimeMs,
+			hitZoneY,
+			receptorYPosition,
+			scrollSpeed,
+			canvasHeight,
+		);
 	}
 
-	isOffscreen(canvasHeight: number, receptorYPosition: number, songTimeMs: number, scrollSpeed: number): boolean {
+	isOffscreen(
+		canvasHeight: number,
+		receptorYPosition: number,
+		songTimeMs: number,
+		scrollSpeed: number,
+	): boolean {
 		if (this.duration <= 0) {
-			return super.isOffscreen(canvasHeight, receptorYPosition, songTimeMs, scrollSpeed);
+			return super.isOffscreen(
+				canvasHeight,
+				receptorYPosition,
+				songTimeMs,
+				scrollSpeed,
+			);
 		}
 		const noteEndTime = this.originalTime + this.duration;
-		const tailY = getNoteYPosition(noteEndTime, songTimeMs, receptorYPosition, scrollSpeed, canvasHeight);
+		const tailY = getNoteYPosition(
+			noteEndTime,
+			songTimeMs,
+			receptorYPosition,
+			scrollSpeed,
+			canvasHeight,
+		);
 		return tailY > canvasHeight;
 	}
-} 
+}

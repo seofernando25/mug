@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { fly } from 'svelte/transition';
+import { fly } from "svelte/transition";
 
-    interface Props {
-        roomId: string | null;
-        connectionStatus: string;
-    }
+interface Props {
+	roomId: string | null;
+	connectionStatus: string;
+}
 
-    let { roomId, connectionStatus }: Props = $props();
+let { roomId, connectionStatus }: Props = $props();
 </script>
 
 <div class="w-1/4 h-full flex flex-col justify-center pr-8 items-end gap-4 opacity-50 pointer-events-none" in:fly={{ x: 50, duration: 500 }}>

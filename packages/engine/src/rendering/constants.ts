@@ -13,11 +13,11 @@ export const Colors = {
 export const GameplaySizingConstants = {
 	NOTE_WIDTH_RATIO: 0.9,
 	HIT_ZONE_Y_RATIO: 0.85,
-	HIGHWAY_LINE_THICKNESS: 0.6
+	HIGHWAY_LINE_THICKNESS: 0.6,
 };
 
 // Custom type for PIXI.Text objects used for judgments
-import type { Text } from 'pixi.js';
+import type { Text } from "pixi.js";
 export interface JudgmentText extends Text {
 	creationTime: number;
 	lane: number;

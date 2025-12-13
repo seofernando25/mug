@@ -1,34 +1,34 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { authClient } from '$lib/auth-client';
-	import { stretchIn } from '$lib/transitions/stretchIn';
-	import { onMount } from 'svelte';
-	const { data } = $props();
+import { goto } from "$app/navigation";
+import { authClient } from "$lib/auth-client";
+import { stretchIn } from "$lib/transitions/stretchIn";
+import { onMount } from "svelte";
+const { data } = $props();
 
-	let joinButtonElement = $state<HTMLButtonElement | undefined>();
-	let isLoading = $state(false);
-	let error = $state<string | null>(null);
+let joinButtonElement = $state<HTMLButtonElement | undefined>();
+let isLoading = $state(false);
+let error = $state<string | null>(null);
 
-	async function handleLogout() {
-		isLoading = true;
-		error = null;
-		const { error: signOutError } = await authClient.signOut();
-		if (signOutError) {
-			error = signOutError.message || null;
-			isLoading = false;
-		} else {
-			window.location.href = '/'; // Redirect to home after logout
-		}
+async function handleLogout() {
+	isLoading = true;
+	error = null;
+	const { error: signOutError } = await authClient.signOut();
+	if (signOutError) {
+		error = signOutError.message || null;
+		isLoading = false;
+	} else {
+		window.location.href = "/"; // Redirect to home after logout
 	}
+}
 
-	function handleJoinGame() {
-		console.log('join game');
-		goto('/home'); // Navigate to the actual game/home screen
-	}
+function handleJoinGame() {
+	console.log("join game");
+	goto("/home"); // Navigate to the actual game/home screen
+}
 
-	onMount(() => {
-		if (joinButtonElement) joinButtonElement.focus();
-	});
+onMount(() => {
+	if (joinButtonElement) joinButtonElement.focus();
+});
 </script>
 
 <svelte:head>

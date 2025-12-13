@@ -1,22 +1,27 @@
-import { RPCHandler } from '@orpc/server/fetch'
-import { checkUsernameProcedure } from './check-username'
-import { getSongProcedure } from './get-song'
-import { installSongProcedure } from './install-song'
-import { listSongsProcedure } from './list-songs'
-import { createRoomProcedure, deleteRoomProcedure, getRoomProcedure, joinRoomProcedure, leaveRoomProcedure, listRoomsProcedure, updateRoomProcedure, subscribeToRoomEvents } from './multiplayer/room'
-
-
-
-
+import { RPCHandler } from "@orpc/server/fetch";
+import { checkUsernameProcedure } from "./check-username";
+import { getSongProcedure } from "./get-song";
+import { installSongProcedure } from "./install-song";
+import { listSongsProcedure } from "./list-songs";
+import {
+	createRoomProcedure,
+	deleteRoomProcedure,
+	getRoomProcedure,
+	joinRoomProcedure,
+	leaveRoomProcedure,
+	listRoomsProcedure,
+	updateRoomProcedure,
+	subscribeToRoomEvents,
+} from "./multiplayer/room";
 
 export const router = {
 	song: {
 		install: installSongProcedure,
 		get: getSongProcedure,
-		list: listSongsProcedure
+		list: listSongsProcedure,
 	},
 	user: {
-		checkUsername: checkUsernameProcedure
+		checkUsername: checkUsernameProcedure,
 	},
 	multiplayer: {
 		room: {
@@ -27,13 +32,13 @@ export const router = {
 			get: getRoomProcedure,
 			delete: deleteRoomProcedure,
 			update: updateRoomProcedure,
-			subscribeToRoomEvents: subscribeToRoomEvents
-		}
-	}
-}
+			subscribeToRoomEvents: subscribeToRoomEvents,
+		},
+	},
+};
 
 export const handler = new RPCHandler(router, {
 	eventIteratorKeepAliveEnabled: true,
 	eventIteratorKeepAliveInterval: 1000, // 1 second
-	eventIteratorKeepAliveComment: '',
-})
+	eventIteratorKeepAliveComment: "",
+});

@@ -1,24 +1,24 @@
 <script lang="ts">
-    interface Chart {
-        coverUrl?: string;
-        name?: string;
-        artist?: string;
-        difficulty?: string;
-    }
+interface Chart {
+	coverUrl?: string;
+	name?: string;
+	artist?: string;
+	difficulty?: string;
+}
 
-    interface Props {
-        currentChart?: Chart | null;
-        isHost: boolean;
-        openSongSelect: () => void;
-    }
+interface Props {
+	currentChart?: Chart | null;
+	isHost: boolean;
+	openSongSelect: () => void;
+}
 
-    let { currentChart, isHost, openSongSelect }: Props = $props();
+let { currentChart, isHost, openSongSelect }: Props = $props();
 
-    function handleClick() {
-        if (isHost) {
-            openSongSelect();
-        }
-    }
+function handleClick() {
+	if (isHost) {
+		openSongSelect();
+	}
+}
 </script>
 
 <div class="flex-1 flex flex-col items-center justify-center relative">

@@ -1,37 +1,37 @@
 <script lang="ts">
-	type RoomListItem = {
-		id: string;
-		name: string;
-		playerCount?: number;
-		status?: string;
-		hostId?: string | null;
-		hostName?: string | null;
-		currentChart?: {
-			coverUrl?: string | null;
-			name?: string | null;
-			artist?: string | null;
-			difficultyName?: string | null;
-		} | null;
-		owner?: { id: string; name?: string | null; avatarUrl?: string | null };
-		isPasswordProtected?: boolean;
-	};
+type RoomListItem = {
+	id: string;
+	name: string;
+	playerCount?: number;
+	status?: string;
+	hostId?: string | null;
+	hostName?: string | null;
+	currentChart?: {
+		coverUrl?: string | null;
+		name?: string | null;
+		artist?: string | null;
+		difficultyName?: string | null;
+	} | null;
+	owner?: { id: string; name?: string | null; avatarUrl?: string | null };
+	isPasswordProtected?: boolean;
+};
 
-	const { room }: { room: RoomListItem } = $props();
+const { room }: { room: RoomListItem } = $props();
 
-	// TODO: Later, more sophisticated status/game mode icons or colors
-	const getStatusColor = (status: string | undefined | null) => {
-		if (status === 'Playing') return 'bg-red-500';
-		if (status === 'Freestyle') return 'bg-blue-500';
-		return 'bg-green-500'; // Open
-	};
+// TODO: Later, more sophisticated status/game mode icons or colors
+const getStatusColor = (status: string | undefined | null) => {
+	if (status === "Playing") return "bg-red-500";
+	if (status === "Freestyle") return "bg-blue-500";
+	return "bg-green-500"; // Open
+};
 
-	const isPasswordProtected = $derived(room.isPasswordProtected);
-	const coverUrl = $derived(room.currentChart?.coverUrl ?? null);
-	const beatmapName = $derived(room.currentChart?.name ?? 'No beatmap selected');
-	const beatmapArtist = $derived(room.currentChart?.artist ?? '');
-	const difficultyName = $derived(room.currentChart?.difficultyName ?? '');
-	const ownerName = $derived(room.hostName ?? room.owner?.name ?? 'Unknown Host');
-	const ownerAvatar = $derived(room.owner?.avatarUrl ?? null);
+const isPasswordProtected = $derived(room.isPasswordProtected);
+const coverUrl = $derived(room.currentChart?.coverUrl ?? null);
+const beatmapName = $derived(room.currentChart?.name ?? "No beatmap selected");
+const beatmapArtist = $derived(room.currentChart?.artist ?? "");
+const difficultyName = $derived(room.currentChart?.difficultyName ?? "");
+const ownerName = $derived(room.hostName ?? room.owner?.name ?? "Unknown Host");
+const ownerAvatar = $derived(room.owner?.avatarUrl ?? null);
 </script>
 
 <div

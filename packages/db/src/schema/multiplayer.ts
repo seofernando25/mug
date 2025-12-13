@@ -1,32 +1,51 @@
-import { pgTable, text, timestamp, serial, integer, primaryKey, uuid } from 'drizzle-orm/pg-core';
-import { user } from './auth';
-import { chart } from './music';
-import { relations } from 'drizzle-orm';
+import {
+	pgTable,
+	text,
+	timestamp,
+	serial,
+	integer,
+	primaryKey,
+	uuid,
+} from "drizzle-orm/pg-core";
+import { user } from "./auth";
+import { chart } from "./music";
+import { relations } from "drizzle-orm";
 
-export const room = pgTable('room', {
-	id: serial('id').primaryKey(),
-	name: text('name').notNull().unique(),
-	passwordHash: text('password_hash'),
-	ownerId: text('owner_id').references(() => user.id, { onDelete: 'set null', onUpdate: 'cascade' }),
-	createdAt: timestamp('created_at').defaultNow().notNull(),
-	lastActivityAt: timestamp('last_activity_at').defaultNow().notNull(),
-	currentChartId: uuid('current_chart_id').references(() => chart.id, { onDelete: 'set null' }),
+export const room = pgTable("room", {
+	id: serial("id").primaryKey(),
+	name: text("name").notNull().unique(),
+	passwordHash: text("password_hash"),
+	ownerId: text("owner_id").references(() => user.id, {
+		onDelete: "set null",
+		onUpdate: "cascade",
+	}),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+	lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
+	currentChartId: uuid("current_chart_id").references(() => chart.id, {
+		onDelete: "set null",
+	}),
 });
 
-export const roomPlayer = pgTable('room_player', {
-	roomId: integer('room_id').notNull().references(() => room.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-	userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-	joinedAt: timestamp('joined_at').defaultNow().notNull(),
-}, (table) => [
-	primaryKey({ columns: [table.roomId, table.userId] }),
-]);
+export const roomPlayer = pgTable(
+	"room_player",
+	{
+		roomId: integer("room_id")
+			.notNull()
+			.references(() => room.id, { onDelete: "cascade", onUpdate: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade", onUpdate: "cascade" }),
+		joinedAt: timestamp("joined_at").defaultNow().notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.roomId, table.userId] })],
+);
 
 export const roomRelations = relations(room, (helpers) => ({
 	currentChart: helpers.one(chart, {
 		fields: [room.currentChartId],
 		references: [chart.id],
 	}),
-	players: helpers.many(roomPlayer)
+	players: helpers.many(roomPlayer),
 }));
 
 export const roomPlayerRelations = relations(roomPlayer, (helpers) => ({
@@ -39,4 +58,3 @@ export const roomPlayerRelations = relations(roomPlayer, (helpers) => ({
 		references: [user.id],
 	}),
 }));
-

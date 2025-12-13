@@ -1,34 +1,34 @@
-import { writable } from 'svelte/store';
-import { type } from 'arktype';
+import { writable } from "svelte/store";
+import { type } from "arktype";
 import {
-    ClientPacketSchema,
-    ServerPacketSchema,
-    type ClientPacketOp,
-    type ClientPacketData,
-    type RoomSummary
-} from '@mug/contract';
+	ClientPacketSchema,
+	ServerPacketSchema,
+	type ClientPacketOp,
+	type ClientPacketData,
+	type RoomSummary,
+} from "@mug/contract";
 
 // Type alias for room state data from room_state packet
 type RoomState = {
-    id: string;
-    name?: string;
-    hostId?: string | null;
-    hostName?: string | null;
-    status?: string;
-    startTime?: number;
-    currentChart?: {
-        coverUrl?: string;
-        name?: string;
-        artist?: string;
-        difficulty?: string;
-        songId?: string;
-        difficulties?: string[];
-    };
-    players: Array<{
-        userId: string;
-        username?: string | null;
-        avatarUrl?: string | null;
-    }>;
+	id: string;
+	name?: string;
+	hostId?: string | null;
+	hostName?: string | null;
+	status?: string;
+	startTime?: number;
+	currentChart?: {
+		coverUrl?: string;
+		name?: string;
+		artist?: string;
+		difficulty?: string;
+		songId?: string;
+		difficulties?: string[];
+	};
+	players: Array<{
+		userId: string;
+		username?: string | null;
+		avatarUrl?: string | null;
+	}>;
 };
 // RoomSummary is now RoomInfo from contract, RoomState is the data from room_state packet
 
@@ -36,7 +36,9 @@ type RoomState = {
 type ClientPacket = typeof ClientPacketSchema.infer;
 type ServerPacket = typeof ServerPacketSchema.infer;
 
-export const socketStatus = writable<'disconnected' | 'connecting' | 'connected'>('disconnected');
+export const socketStatus = writable<
+	"disconnected" | "connecting" | "connected"
+>("disconnected");
 export const lobbyRooms = writable<RoomSummary[]>([]);
 export const currentRoomState = writable<RoomState | null>(null);
 
@@ -67,24 +69,28 @@ class GameSocket {
 	}
 
 	connect() {
-		if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+		if (
+			this.ws &&
+			(this.ws.readyState === WebSocket.OPEN ||
+				this.ws.readyState === WebSocket.CONNECTING)
+		) {
 			return;
 		}
-		socketStatus.set('connecting');
+		socketStatus.set("connecting");
 		this.ws = new WebSocket(this.url);
 
 		this.ws.onopen = () => {
-			socketStatus.set('connected');
+			socketStatus.set("connected");
 			// Send any queued messages now that we're connected
 			while (this.messageQueue.length > 0) {
 				const packet = this.messageQueue.shift()!;
 				this.ws!.send(JSON.stringify(packet));
-				console.log('[ws] sent queued packet', packet);
+				console.log("[ws] sent queued packet", packet);
 			}
 		};
 
 		this.ws.onclose = () => {
-			socketStatus.set('disconnected');
+			socketStatus.set("disconnected");
 			// Clear message queue on disconnect to avoid sending stale messages
 			this.messageQueue.length = 0;
 			if (this.shouldReconnect) {
@@ -94,14 +100,14 @@ class GameSocket {
 
 		this.ws.onmessage = (event) => {
 			try {
-				console.log('[ws] raw message', event.data);
+				console.log("[ws] raw message", event.data);
 				const raw = JSON.parse(event.data);
 
 				// 1. Validate with ArkType
 				const result = ServerPacketSchema(raw);
 
 				if (result instanceof type.errors) {
-					console.warn('Ignoring invalid packet:', result.summary, raw);
+					console.warn("Ignoring invalid packet:", result.summary, raw);
 					return;
 				}
 
@@ -114,7 +120,7 @@ class GameSocket {
 				// 3. Handle packet waiters - call for ALL validated packets
 				this.packetWaiters = this.packetWaiters.filter((fn) => !fn(packet));
 			} catch (err) {
-				console.error('[ws] message processing error', err);
+				console.error("[ws] message processing error", err);
 			}
 		};
 	}
@@ -124,10 +130,10 @@ class GameSocket {
 		const packet = { op, data };
 
 		if (this.ws?.readyState === WebSocket.OPEN) {
-			console.log('[ws] sending packet', packet);
+			console.log("[ws] sending packet", packet);
 			this.ws.send(JSON.stringify(packet));
 		} else {
-			console.log('[ws] queueing packet (socket not ready)', packet);
+			console.log("[ws] queueing packet (socket not ready)", packet);
 			this.messageQueue.push(packet as ClientPacket);
 		}
 	}
@@ -141,11 +147,14 @@ class GameSocket {
 		this.pongCallback = callback;
 	}
 
-	waitForPacket<T = any>(predicate: (packet: ServerPacket) => T | null | false, timeoutMs = 2000) {
+	waitForPacket<T = any>(
+		predicate: (packet: ServerPacket) => T | null | false,
+		timeoutMs = 2000,
+	) {
 		return new Promise<T>((resolve, reject) => {
 			const timer = setTimeout(() => {
 				this.packetWaiters = this.packetWaiters.filter((fn) => fn !== handler);
-				reject(new Error('Packet timeout'));
+				reject(new Error("Packet timeout"));
 			}, timeoutMs);
 			const handler = (packet: ServerPacket) => {
 				try {
@@ -156,7 +165,7 @@ class GameSocket {
 						return true;
 					}
 				} catch (err) {
-					console.error('Packet handler error', err);
+					console.error("Packet handler error", err);
 				}
 				return false;
 			};
@@ -166,27 +175,38 @@ class GameSocket {
 
 	handleValidatedPacket(packet: ServerPacket) {
 		switch (packet.op) {
-			case 'ack': {
+			case "ack": {
 				const lobby = (packet.data as { lobby?: unknown })?.lobby;
 				if (Array.isArray(lobby)) {
 					lobbyRooms.set(lobby as RoomSummary[]);
 				}
 				break;
 			}
-			case 'room_event': {
-				const ev = (packet.data ?? packet) as { type?: string; room?: RoomSummary };
+			case "room_event": {
+				const ev = (packet.data ?? packet) as {
+					type?: string;
+					room?: RoomSummary;
+				};
 				lobbyRooms.update((rooms) => {
 					if (!ev || !ev.type) return rooms;
 					switch (ev.type) {
-						case 'add': {
+						case "add": {
 							const next = rooms.filter((r) => r.id !== ev.room?.id);
-							if (ev.room?.id) next.push({ id: ev.room.id, name: ev.room.name, playerCount: ev.room.playerCount, status: ev.room.status, hostId: ev.room.hostId, hostName: ev.room.hostName });
+							if (ev.room?.id)
+								next.push({
+									id: ev.room.id,
+									name: ev.room.name,
+									playerCount: ev.room.playerCount,
+									status: ev.room.status,
+									hostId: ev.room.hostId,
+									hostName: ev.room.hostName,
+								});
 							return next;
 						}
-						case 'remove': {
+						case "remove": {
 							return rooms.filter((r) => r.id !== ev.room?.id);
 						}
-						case 'update': {
+						case "update": {
 							// server only sends id; trigger refetch on next ack or leave as-is
 							return rooms;
 						}
@@ -196,21 +216,22 @@ class GameSocket {
 				});
 				break;
 			}
-			case 'room_list': {
+			case "room_list": {
 				const list = packet.data;
 				if (Array.isArray(list)) {
 					lobbyRooms.set(list as RoomSummary[]);
 				}
 				break;
 			}
-			case 'room_state': {
+			case "room_state": {
 				// ArkType guarantees the data structure
 				currentRoomState.set(packet.data as RoomState);
 				break;
 			}
-			case 'peer_score_update': {
+			case "peer_score_update": {
 				// ArkType guarantees userId and score are present and correct types
-				const { userId, username, score, combo, maxCombo, health } = packet.data;
+				const { userId, username, score, combo, maxCombo, health } =
+					packet.data;
 				matchState.update((state) => ({
 					...state,
 					[userId]: {
@@ -221,12 +242,12 @@ class GameSocket {
 						combo: combo ?? state[userId]?.combo ?? 0,
 						maxCombo: maxCombo ?? state[userId]?.maxCombo,
 						health: health ?? state[userId]?.health,
-						finished: false
-					}
+						finished: false,
+					},
 				}));
 				break;
 			}
-			case 'peer_match_finished': {
+			case "peer_match_finished": {
 				// ArkType guarantees userId and finalScore are present and correct types
 				const { userId, finalScore, maxCombo } = packet.data;
 				matchState.update((state) => ({
@@ -236,35 +257,36 @@ class GameSocket {
 						userId,
 						score: finalScore,
 						maxCombo: maxCombo ?? state[userId]?.maxCombo,
-						finished: true
-					}
+						finished: true,
+					},
 				}));
 				break;
 			}
-			case 'pong':
+			case "pong":
 				// ArkType guarantees the pong data structure
 				if (this.pongCallback) {
 					this.pongCallback(packet.data);
 				}
 				break;
-			case 'error':
+			case "error":
 			default:
 				break;
 		}
 	}
 }
 
-let BANCHO_URL = 'ws://localhost:3001';
+let BANCHO_URL = "ws://localhost:3001";
 try {
 	// @ts-ignore dynamic import only available at build, ignored in tests
-	const env = await import('$env/static/public') as { PUBLIC_WS_URL?: string };
+	const env = (await import("$env/static/public")) as {
+		PUBLIC_WS_URL?: string;
+	};
 	if (env?.PUBLIC_WS_URL) BANCHO_URL = env.PUBLIC_WS_URL;
 } catch {
 	// Not in Svelte/Vite env (e.g., tests); fall back to default/local env
-	if (typeof process !== 'undefined' && process.env?.PUBLIC_WS_URL) {
+	if (typeof process !== "undefined" && process.env?.PUBLIC_WS_URL) {
 		BANCHO_URL = process.env.PUBLIC_WS_URL;
 	}
 }
 
 export const gameSocket = new GameSocket(BANCHO_URL);
-

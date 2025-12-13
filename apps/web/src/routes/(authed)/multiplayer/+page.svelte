@@ -1,80 +1,87 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import MultiplayerRoomListItem from './MultiplayerRoomListItem.svelte';
-	import { goto } from '$app/navigation';
-	import { gameSocket, lobbyRooms, socketStatus } from '$lib/network/socket';
+import { onMount } from "svelte";
+import MultiplayerRoomListItem from "./MultiplayerRoomListItem.svelte";
+import { goto } from "$app/navigation";
+import { gameSocket, lobbyRooms, socketStatus } from "$lib/network/socket";
 
-	let isLoading = $state(true);
-	let rooms = $state<any[]>([]);
-	let error = $state<string | null>(null);
-	let status = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
+let isLoading = $state(true);
+let rooms = $state<any[]>([]);
+let error = $state<string | null>(null);
+let status = $state<"disconnected" | "connecting" | "connected">(
+	"disconnected",
+);
 
-	// Modal state
-	let newRoomName = $state('');
-	let newRoomPassword = $state('');
-	let isCreatingRoom = $state(false);
-	let createRoomError = $state<string | null>(null);
-	let createRoomDialog: HTMLDialogElement;
+// Modal state
+let newRoomName = $state("");
+let newRoomPassword = $state("");
+let isCreatingRoom = $state(false);
+let createRoomError = $state<string | null>(null);
+let createRoomDialog: HTMLDialogElement;
 
-	onMount(() => {
-		const unsubLobby = lobbyRooms.subscribe((v) => {
-			rooms = v ?? [];
-			isLoading = false;
-		});
-		const unsubStatus = socketStatus.subscribe((v) => {
-			status = v;
-		});
-		gameSocket.connect();
-		return () => {
-			unsubLobby();
-			unsubStatus();
-		};
+onMount(() => {
+	const unsubLobby = lobbyRooms.subscribe((v) => {
+		rooms = v ?? [];
+		isLoading = false;
 	});
+	const unsubStatus = socketStatus.subscribe((v) => {
+		status = v;
+	});
+	gameSocket.connect();
+	return () => {
+		unsubLobby();
+		unsubStatus();
+	};
+});
 
-	function openCreateRoomModal() {
-		newRoomName = '';
-		newRoomPassword = '';
-		createRoomError = null;
-		createRoomDialog?.showModal();
+function openCreateRoomModal() {
+	newRoomName = "";
+	newRoomPassword = "";
+	createRoomError = null;
+	createRoomDialog?.showModal();
+}
+
+function closeCreateRoomModal() {
+	createRoomDialog?.close();
+}
+
+async function handleCreateRoomSubmit() {
+	if (!newRoomName.trim()) {
+		createRoomError = "Room name is required.";
+		return;
 	}
+	isCreatingRoom = true;
+	createRoomError = null;
 
-	function closeCreateRoomModal() {
-		createRoomDialog?.close();
-	}
+	try {
+		gameSocket.send("create_room", { name: newRoomName.trim() });
 
-	async function handleCreateRoomSubmit() {
-		if (!newRoomName.trim()) {
-			createRoomError = 'Room name is required.';
-			return;
+		await gameSocket.waitForPacket((pkt) => {
+			return (
+				(pkt?.op === "ack" && pkt.data?.message === "room_created") || null
+			);
+		});
+
+		const roomState = await gameSocket.waitForPacket((pkt) => {
+			return pkt?.op === "room_state" && pkt.data?.name === newRoomName.trim()
+				? pkt.data
+				: null;
+		}, 3000);
+
+		closeCreateRoomModal();
+		if (roomState?.id) {
+			await goto(`/multiplayer/room/${roomState.id}`);
 		}
-		isCreatingRoom = true;
-		createRoomError = null;
-
-		try {
-			gameSocket.send('create_room', { name: newRoomName.trim() });
-
-			await gameSocket.waitForPacket((pkt) => {
-				return pkt?.op === 'ack' && pkt.data?.message === 'room_created' || null;
-			});
-
-			const roomState = await gameSocket.waitForPacket((pkt) => {
-				return pkt?.op === 'room_state' && pkt.data?.name === newRoomName.trim() ? pkt.data : null;
-			}, 3000);
-
-			closeCreateRoomModal();
-			if (roomState?.id) {
-				await goto(`/multiplayer/room/${roomState.id}`);
-			}
-		} catch (e: any) {
-			console.error('Exception creating room:', e);
-			createRoomError = e?.message ?? 'An exception occurred while creating the room.';
-		}
-		isCreatingRoom = false;
+	} catch (e: any) {
+		console.error("Exception creating room:", e);
+		createRoomError =
+			e?.message ?? "An exception occurred while creating the room.";
 	}
+	isCreatingRoom = false;
+}
 
-	function handleRoomClick(roomId: string) {
-		goto(`/multiplayer/room/${roomId}`);
-	}
+function handleRoomClick(roomId: string) {
+	goto(`/multiplayer/room/${roomId}`);
+}
 </script>
 
 <div class="container mx-auto p-4 md:p-8">

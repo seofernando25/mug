@@ -1,4 +1,4 @@
-import { S3Client } from 'bun';
+import { S3Client } from "bun";
 
 const {
 	S3_ENDPOINT,
@@ -9,15 +9,17 @@ const {
 } = process.env;
 
 const missing = [
-	!S3_ENDPOINT && 'S3_ENDPOINT',
-	!S3_ACCESS_KEY_ID && 'S3_ACCESS_KEY_ID',
-	!S3_SECRET_ACCESS_KEY && 'S3_SECRET_ACCESS_KEY',
-	!S3_REGION && 'S3_REGION',
-	!S3_BUCKET && 'S3_BUCKET',
+	!S3_ENDPOINT && "S3_ENDPOINT",
+	!S3_ACCESS_KEY_ID && "S3_ACCESS_KEY_ID",
+	!S3_SECRET_ACCESS_KEY && "S3_SECRET_ACCESS_KEY",
+	!S3_REGION && "S3_REGION",
+	!S3_BUCKET && "S3_BUCKET",
 ].filter(Boolean);
 
 if (missing.length) {
-	throw new Error(`S3 environment variables are missing: ${missing.join(', ')}`);
+	throw new Error(
+		`S3 environment variables are missing: ${missing.join(", ")}`,
+	);
 }
 
 export const s3 = new S3Client({
@@ -27,4 +29,3 @@ export const s3 = new S3Client({
 	region: S3_REGION,
 	bucket: S3_BUCKET,
 });
-

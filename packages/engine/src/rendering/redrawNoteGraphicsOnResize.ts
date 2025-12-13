@@ -1,4 +1,4 @@
-import type { NotePool } from './NotePool';
+import type { NotePool } from "./NotePool";
 
 export function redrawNoteGraphicsOnResize(
 	notePool: NotePool,
@@ -8,7 +8,15 @@ export function redrawNoteGraphicsOnResize(
 	hitZoneY: number,
 	receptorYPosition: number,
 	scrollSpeed: number,
-	canvasHeight: number
+	canvasHeight: number,
 ) {
-	notePool.updateGraphicsOnResize(laneWidth, highwayX, songTimeMs, hitZoneY, receptorYPosition, scrollSpeed, canvasHeight);
-} 
+	notePool.updateGraphicsOnResize(
+		laneWidth,
+		highwayX,
+		songTimeMs,
+		hitZoneY,
+		receptorYPosition,
+		scrollSpeed,
+		canvasHeight,
+	);
+}

@@ -1,16 +1,16 @@
 <!-- Placeholder for PauseScreen component -->
 <script lang="ts">
-	import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
+import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
 
-	let {
-		onResume = () => {},
-		onRetry = () => {},
-		onExit = () => {}
-	}: {
-		onResume?: () => void;
-		onRetry?: () => void;
-		onExit?: () => void;
-	} = $props();
+let {
+	onResume = () => {},
+	onRetry = () => {},
+	onExit = () => {},
+}: {
+	onResume?: () => void;
+	onRetry?: () => void;
+	onExit?: () => void;
+} = $props();
 </script>
 
 <div class="overlay-container pause-overlay">

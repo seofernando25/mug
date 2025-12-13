@@ -8,7 +8,6 @@ import { $ } from "bun";
 //     $`bun run --cwd apps/web dev`,
 // ])
 
-
 // bun run --env-file=.env --filter '*' dev
 
 await $`bun run --env-file=.env --filter '*' dev`;

@@ -1,4 +1,3 @@
-export * from './auth';
-export * from './music';
-export * from './multiplayer';
-
+export * from "./auth";
+export * from "./music";
+export * from "./multiplayer";

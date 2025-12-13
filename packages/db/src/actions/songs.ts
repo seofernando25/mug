@@ -1,7 +1,7 @@
-import type { UploadJob } from '@mug/contract';
-import { processFileAndExtractData } from '@mug/game-logic';
-import { randomUUIDv7 } from 'bun';
-import { chart, chartHitObject, db, getRedis, s3, song } from '../index';
+import type { UploadJob } from "@mug/contract";
+import { processFileAndExtractData } from "@mug/game-logic";
+import { randomUUIDv7 } from "bun";
+import { chart, chartHitObject, db, getRedis, s3, song } from "../index";
 
 /**
  * Installs a song by processing the file, uploading assets to S3, and storing metadata in the database.
@@ -11,14 +11,19 @@ import { chart, chartHitObject, db, getRedis, s3, song } from '../index';
  * @param uploaderId - The ID of the user uploading the song
  * @returns Promise resolving to the installation result
  */
-export async function installSong(file: File, uploaderId: string): Promise<{
+export async function installSong(
+	file: File,
+	uploaderId: string,
+): Promise<{
 	success: true;
 	message: string;
 	title: string;
 	songId: string;
 }> {
 	// Process the uploaded file
-	let processedData: Awaited<ReturnType<typeof processFileAndExtractData>> | null = null;
+	let processedData: Awaited<
+		ReturnType<typeof processFileAndExtractData>
+	> | null = null;
 	try {
 		processedData = await processFileAndExtractData(file);
 	} catch (err) {
@@ -27,7 +32,7 @@ export async function installSong(file: File, uploaderId: string): Promise<{
 	}
 
 	if (!processedData) {
-		throw new Error('Failed to process file');
+		throw new Error("Failed to process file");
 	}
 
 	// Generate UUID for the song
@@ -37,25 +42,39 @@ export async function installSong(file: File, uploaderId: string): Promise<{
 	const audioFilename = processedData.metadata.audioFilename;
 	const audioContent = processedData.audioContent;
 	const audioS3Key = `songs/${songUUID}/audio/${audioFilename}`;
-	let audioContentType = 'application/octet-stream'; // Default
-	if (audioFilename.toLowerCase().endsWith('.mp3')) audioContentType = 'audio/mpeg';
-	else if (audioFilename.toLowerCase().endsWith('.wav')) audioContentType = 'audio/wav';
-	else if (audioFilename.toLowerCase().endsWith('.ogg')) audioContentType = 'audio/ogg';
+	let audioContentType = "application/octet-stream"; // Default
+	if (audioFilename.toLowerCase().endsWith(".mp3"))
+		audioContentType = "audio/mpeg";
+	else if (audioFilename.toLowerCase().endsWith(".wav"))
+		audioContentType = "audio/wav";
+	else if (audioFilename.toLowerCase().endsWith(".ogg"))
+		audioContentType = "audio/ogg";
 
 	// Handle image upload (optional)
 	let imageS3Key: string | null = null;
 	if (processedData.imageContent && processedData.metadata.imageFilename) {
 		const imageFilename = processedData.metadata.imageFilename;
 		imageS3Key = `songs/${songUUID}/image/${imageFilename}`;
-		let imageContentType = 'application/octet-stream';
-		if (imageFilename.toLowerCase().endsWith('.jpg') || imageFilename.toLowerCase().endsWith('.jpeg')) imageContentType = 'image/jpeg';
-		else if (imageFilename.toLowerCase().endsWith('.png')) imageContentType = 'image/png';
-		else if (imageFilename.toLowerCase().endsWith('.gif')) imageContentType = 'image/gif';
+		let imageContentType = "application/octet-stream";
+		if (
+			imageFilename.toLowerCase().endsWith(".jpg") ||
+			imageFilename.toLowerCase().endsWith(".jpeg")
+		)
+			imageContentType = "image/jpeg";
+		else if (imageFilename.toLowerCase().endsWith(".png"))
+			imageContentType = "image/png";
+		else if (imageFilename.toLowerCase().endsWith(".gif"))
+			imageContentType = "image/gif";
 
 		try {
-			await s3.write(imageS3Key, processedData.imageContent, { type: imageContentType });
+			await s3.write(imageS3Key, processedData.imageContent, {
+				type: imageContentType,
+			});
 		} catch (s3Err: any) {
-			console.warn(`Warning: Failed to upload image ${imageS3Key} to S3:`, s3Err.message);
+			console.warn(
+				`Warning: Failed to upload image ${imageS3Key} to S3:`,
+				s3Err.message,
+			);
 			imageS3Key = null; // Proceed without image if upload fails
 		}
 	}
@@ -64,7 +83,7 @@ export async function installSong(file: File, uploaderId: string): Promise<{
 	try {
 		await s3.write(audioS3Key, audioContent, { type: audioContentType });
 	} catch (s3Err: any) {
-		const errorMessage = s3Err.message || 'Unknown S3 error';
+		const errorMessage = s3Err.message || "Unknown S3 error";
 		throw new Error(`Failed to upload audio file to storage: ${errorMessage}`);
 	}
 
@@ -84,7 +103,10 @@ export async function installSong(file: File, uploaderId: string): Promise<{
 	// Execute database transaction
 	try {
 		await db.transaction(async (tx) => {
-			const newSong = await tx.insert(song).values(validatedSongData).returning({ id: song.id });
+			const newSong = await tx
+				.insert(song)
+				.values(validatedSongData)
+				.returning({ id: song.id });
 			const newSongId = newSong[0].id;
 
 			// Process each chart
@@ -95,22 +117,35 @@ export async function installSong(file: File, uploaderId: string): Promise<{
 				// Validate chart data (basic validation)
 				const validatedChartData = {
 					songId: newSongId,
-					difficultyName: chartData.difficultyName || 'Unknown Difficulty',
+					difficultyName: chartData.difficultyName || "Unknown Difficulty",
 					lanes: chartData.lanes || 4,
 					noteScrollSpeed: chartData.noteScrollSpeed ?? 1.0,
-					lyrics: chartData.lyrics ? (typeof chartData.lyrics === 'string' ? JSON.parse(chartData.lyrics) : chartData.lyrics) : null,
+					lyrics: chartData.lyrics
+						? typeof chartData.lyrics === "string"
+							? JSON.parse(chartData.lyrics)
+							: chartData.lyrics
+						: null,
 				};
 
 				// Insert chart
-				const newChart = await tx.insert(chart).values(validatedChartData).returning({ id: chart.id });
+				const newChart = await tx
+					.insert(chart)
+					.values(validatedChartData)
+					.returning({ id: chart.id });
 				const newChartId = newChart[0].id;
 
 				// Insert hit objects if present
-				if (hitObjectsForChart && Array.isArray(hitObjectsForChart) && hitObjectsForChart.length > 0) {
+				if (
+					hitObjectsForChart &&
+					Array.isArray(hitObjectsForChart) &&
+					hitObjectsForChart.length > 0
+				) {
 					const hitObjectInserts = hitObjectsForChart.map((ho) => {
 						// Warn about holds without duration
-						if (ho.type === 'hold' && ho.duration === null) {
-							console.warn(`Hold with no duration at time ${ho.time} for chart ${i}`);
+						if (ho.type === "hold" && ho.duration === null) {
+							console.warn(
+								`Hold with no duration at time ${ho.time} for chart ${i}`,
+							);
 						}
 
 						return {
@@ -131,11 +166,13 @@ export async function installSong(file: File, uploaderId: string): Promise<{
 			success: true,
 			message: `Song "${processedData.metadata.title}" installed successfully!`,
 			title: processedData.metadata.title,
-			songId: songUUID
+			songId: songUUID,
 		};
-
 	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Failed to install song due to an internal error.';
+		const errorMessage =
+			err instanceof Error
+				? err.message
+				: "Failed to install song due to an internal error.";
 		throw new Error(errorMessage);
 	}
 }
@@ -152,7 +189,7 @@ export async function installSong(file: File, uploaderId: string): Promise<{
 export async function queueSongUpload(
 	file: File,
 	uploaderId: string,
-	queueKey: string = 'upload-jobs'
+	queueKey: string = "upload-jobs",
 ): Promise<{
 	success: true;
 	message: string;
@@ -164,7 +201,9 @@ export async function queueSongUpload(
 	try {
 		// Upload raw file to S3 for processing
 		const buffer = new Uint8Array(await file.arrayBuffer());
-		await s3.write(s3Key, buffer, { type: file.type || 'application/octet-stream' });
+		await s3.write(s3Key, buffer, {
+			type: file.type || "application/octet-stream",
+		});
 
 		// Create job data
 		const job: UploadJob = {
@@ -179,8 +218,8 @@ export async function queueSongUpload(
 
 		return {
 			success: true,
-			message: 'Processing started',
-			jobId
+			message: "Processing started",
+			jobId,
 		};
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);

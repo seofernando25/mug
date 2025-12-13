@@ -1,189 +1,197 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { page } from '$app/state';
-    import { goto } from '$app/navigation';
-    import { gameSocket, currentRoomState, socketStatus } from '$lib/network/socket';
-    import { fade } from 'svelte/transition';
-    import PlayerList from '../components/PlayerList.svelte';
-    import SongSelector from '../components/SongSelector.svelte';
-    import RoomInfo from '../components/RoomInfo.svelte';
-    import RoomControls from '../components/RoomControls.svelte';
-    import SongSelectOverlay from '$lib/components/SongSelectOverlay.svelte';
-    import { orpcClient } from '$lib/rpc/client';
+import { onMount } from "svelte";
+import { page } from "$app/state";
+import { goto } from "$app/navigation";
+import {
+	gameSocket,
+	currentRoomState,
+	socketStatus,
+} from "$lib/network/socket";
+import { fade } from "svelte/transition";
+import PlayerList from "../components/PlayerList.svelte";
+import SongSelector from "../components/SongSelector.svelte";
+import RoomInfo from "../components/RoomInfo.svelte";
+import RoomControls from "../components/RoomControls.svelte";
+import SongSelectOverlay from "$lib/components/SongSelectOverlay.svelte";
+import { orpcClient } from "$lib/rpc/client";
 
-    const { data } = $props();
+const { data } = $props();
 
-    // State
-    let roomId = $state<string | null>(null);
-    let roomDetails = $state<any | null>(null);
-    let isLoading = $state(true);
-    let error = $state<string | null>(null);
-    let isLeaving = $state(false);
-    let connectionStatus = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
+// State
+let roomId = $state<string | null>(null);
+let roomDetails = $state<any | null>(null);
+let isLoading = $state(true);
+let error = $state<string | null>(null);
+let isLeaving = $state(false);
+let connectionStatus = $state<"disconnected" | "connecting" | "connected">(
+	"disconnected",
+);
 
-    // Countdown and time sync state
-    let countdownValue = $state<number | null>(null);
-    let timeOffset = $state<number>(0); // Offset between client and server time
+// Countdown and time sync state
+let countdownValue = $state<number | null>(null);
+let timeOffset = $state<number>(0); // Offset between client and server time
 
-    // Derived State
-    let isHost = $derived(
-        roomDetails?.hostId === data.session?.user?.id
-    );
+// Derived State
+let isHost = $derived(roomDetails?.hostId === data.session?.user?.id);
 
-    let showCountdownOverlay = $derived(roomDetails?.status === 'starting');
-    // Song selection overlay state
-    let isSongSelectOpen = $state(false);
-    let availableSongs = $state<any[]>([]);
+let showCountdownOverlay = $derived(roomDetails?.status === "starting");
+// Song selection overlay state
+let isSongSelectOpen = $state(false);
+let availableSongs = $state<any[]>([]);
 
-    // Time synchronization
-    function syncTimeWithServer() {
-        const t1 = Date.now();
-        // Send ping with our timestamp
-        gameSocket.send('ping', { t1 });
-    }
+// Time synchronization
+function syncTimeWithServer() {
+	const t1 = Date.now();
+	// Send ping with our timestamp
+	gameSocket.send("ping", { t1 });
+}
 
-    function handlePong(data: any) {
-        if (data.t1 && data.serverTime) {
-            const t2 = Date.now();
-            const latency = (t2 - data.t1) / 2;
-            timeOffset = data.serverTime - (data.t1 + latency);
-            console.log(`[Time Sync] Offset: ${timeOffset}ms, Latency: ${latency}ms`);
-        }
-    }
+function handlePong(data: any) {
+	if (data.t1 && data.serverTime) {
+		const t2 = Date.now();
+		const latency = (t2 - data.t1) / 2;
+		timeOffset = data.serverTime - (data.t1 + latency);
+		console.log(`[Time Sync] Offset: ${timeOffset}ms, Latency: ${latency}ms`);
+	}
+}
 
-    function getServerTime(): number {
-        return Date.now() + timeOffset;
-    }
+function getServerTime(): number {
+	return Date.now() + timeOffset;
+}
 
-    function initializeRoom(id: string) {
-        roomId = id;
-        roomDetails = null;
-        isLoading = true;
-        error = null;
-        gameSocket.connect();
-        gameSocket.send('join_room', { roomId: id });
-        gameSocket.send('get_room_state', { roomId: id });
-    }
+function initializeRoom(id: string) {
+	roomId = id;
+	roomDetails = null;
+	isLoading = true;
+	error = null;
+	gameSocket.connect();
+	gameSocket.send("join_room", { roomId: id });
+	gameSocket.send("get_room_state", { roomId: id });
+}
 
-    async function handleLeaveRoom() {
-        if (!roomId) return;
-        isLeaving = true;
-        try {
-            gameSocket.send('leave_room', { roomId });
-            await goto('/multiplayer');
-        } catch (e) {
-            console.error(e);
-        }
-        isLeaving = false;
-    }
+async function handleLeaveRoom() {
+	if (!roomId) return;
+	isLeaving = true;
+	try {
+		gameSocket.send("leave_room", { roomId });
+		await goto("/multiplayer");
+	} catch (e) {
+		console.error(e);
+	}
+	isLeaving = false;
+}
 
-    function startGame() {
-        if (!isHost || !roomId) return;
+function startGame() {
+	if (!isHost || !roomId) return;
 
-        // Validation: Make sure a song is actually selected before starting!
-        if (!roomDetails?.currentChart) {
-            alert("Please select a song first!");
-            return;
-        }
+	// Validation: Make sure a song is actually selected before starting!
+	if (!roomDetails?.currentChart) {
+		alert("Please select a song first!");
+		return;
+	}
 
-        console.log('Host requesting start match...');
+	console.log("Host requesting start match...");
 
-        // Send the command to the server
-        gameSocket.send('start_match', { roomId });
-    }
+	// Send the command to the server
+	gameSocket.send("start_match", { roomId });
+}
 
-    function openSongSelect() {
-        if (!isHost) return;
-        isSongSelectOpen = true;
-    }
+function openSongSelect() {
+	if (!isHost) return;
+	isSongSelectOpen = true;
+}
 
-    async function handleSongSelection(song: any) {
-        console.log("Selected:", song.title, "with difficulties:", song.difficulties);
+async function handleSongSelection(song: any) {
+	console.log("Selected:", song.title, "with difficulties:", song.difficulties);
 
-        if (!roomId || !roomDetails?.name) {
-            console.error("No room information available");
-            return;
-        }
+	if (!roomId || !roomDetails?.name) {
+		console.error("No room information available");
+		return;
+	}
 
-        try {
-            // Send the selected song data to the server to update room state
-            gameSocket.send('update_room', {
-                roomId,
-                currentChart: {
-                    coverUrl: song.imageUrl,
-                    name: song.title,
-                    artist: song.artist,
-                    difficulty: song.difficulties?.[0] || 'Unknown', // Default to first difficulty
-                    songId: song.id, // Include song ID for future chart resolution
-                    difficulties: song.difficulties // Include all difficulties for future use
-                }
-            });
+	try {
+		// Send the selected song data to the server to update room state
+		gameSocket.send("update_room", {
+			roomId,
+			currentChart: {
+				coverUrl: song.imageUrl,
+				name: song.title,
+				artist: song.artist,
+				difficulty: song.difficulties?.[0] || "Unknown", // Default to first difficulty
+				songId: song.id, // Include song ID for future chart resolution
+				difficulties: song.difficulties, // Include all difficulties for future use
+			},
+		});
 
-            console.log("Sent update_room message for song:", song.title);
+		console.log("Sent update_room message for song:", song.title);
+	} catch (error) {
+		console.error("Error selecting song:", error);
+	}
 
-        } catch (error) {
-            console.error("Error selecting song:", error);
-        }
+	isSongSelectOpen = false;
+}
 
-        isSongSelectOpen = false;
-    }
+onMount(() => {
+	const idStr = page.params.roomId;
+	if (idStr) initializeRoom(idStr);
 
-    onMount(() => {
-        const idStr = page.params.roomId;
-        if (idStr) initializeRoom(idStr);
+	// Fetch available songs for the song selector (async, no await)
+	orpcClient.song
+		.list({})
+		.then((result) => {
+			availableSongs = result.items || [];
+		})
+		.catch((error) => {
+			console.error("Failed to fetch songs:", error);
+			// Fall back to empty array, overlay will use mock data
+		});
 
-        // Fetch available songs for the song selector (async, no await)
-        orpcClient.song.list({}).then((result) => {
-            availableSongs = result.items || [];
-        }).catch((error) => {
-            console.error('Failed to fetch songs:', error);
-            // Fall back to empty array, overlay will use mock data
-        });
+	// Set up time sync pong handler
+	gameSocket.setPongCallback(handlePong);
 
-        // Set up time sync pong handler
-        gameSocket.setPongCallback(handlePong);
+	// Sync time with server on connection
+	const unsubStatus = socketStatus.subscribe((status) => {
+		connectionStatus = status;
+		if (status === "connected") {
+			syncTimeWithServer();
+		}
+	});
 
-        // Sync time with server on connection
-        const unsubStatus = socketStatus.subscribe((status) => {
-            connectionStatus = status;
-            if (status === 'connected') {
-                syncTimeWithServer();
-            }
-        });
+	const unsubRoom = currentRoomState.subscribe((state) => {
+		if (state && state.id === roomId) {
+			roomDetails = { ...state, players: state.players ?? [] };
 
-        const unsubRoom = currentRoomState.subscribe((state) => {
-            if (state && state.id === roomId) {
-                roomDetails = { ...state, players: state.players ?? [] };
+			// Handle countdown logic
+			if (state.status === "starting" && state.startTime) {
+				// Start countdown timer
+				const updateCountdown = () => {
+					const secondsLeft = Math.ceil(
+						(state.startTime! - getServerTime()) / 1000,
+					);
+					countdownValue = Math.max(0, secondsLeft);
 
-                // Handle countdown logic
-                if (state.status === 'starting' && state.startTime) {
-                    // Start countdown timer
-                    const updateCountdown = () => {
-                        const secondsLeft = Math.ceil((state.startTime! - getServerTime()) / 1000);
-                        countdownValue = Math.max(0, secondsLeft);
+					if (countdownValue > 0) {
+						requestAnimationFrame(updateCountdown);
+					} else {
+						countdownValue = null;
+					}
+				};
+				updateCountdown();
+			}
 
-                        if (countdownValue > 0) {
-                            requestAnimationFrame(updateCountdown);
-                        } else {
-                            countdownValue = null;
-                        }
-                    };
-                    updateCountdown();
-                }
+			// Handle game start
+			if (state.status === "playing") {
+				goto(`/game/${roomId}`);
+			}
 
-                // Handle game start
-                if (state.status === 'playing') {
-                    goto(`/game/${roomId}`);
-                }
-
-                isLoading = false;
-            }
-        });
-        return () => {
-            unsubRoom();
-            unsubStatus();
-        };
-    });
+			isLoading = false;
+		}
+	});
+	return () => {
+		unsubRoom();
+		unsubStatus();
+	};
+});
 </script>
 
 <div class="flex-1 w-full bg-gray-900 text-white overflow-hidden flex flex-col items-center justify-center font-sans">

@@ -1,14 +1,24 @@
-import { drawHighway, getHighwayMetrics } from './rendering/highway';
-import { drawJudgmentText } from './rendering/judgment';
-import { drawKeyPressEffects } from './rendering/keypress';
-import { drawReceptor, getReceptorPositions, getReceptorSize } from './rendering/receptor';
-import { NotePool } from './rendering/NotePool';
-import { updateNotes } from './rendering/updateNotes';
-import { redrawNoteGraphicsOnResize } from './rendering/redrawNoteGraphicsOnResize';
-import type { GameState } from './types';
-import type { ChartHitObject } from './types';
-import { Application, Container } from 'pixi.js';
-import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
+import { drawHighway, getHighwayMetrics } from "./rendering/highway";
+import { drawJudgmentText } from "./rendering/judgment";
+import { drawKeyPressEffects } from "./rendering/keypress";
+import {
+	drawReceptor,
+	getReceptorPositions,
+	getReceptorSize,
+} from "./rendering/receptor";
+import { NotePool } from "./rendering/NotePool";
+import { updateNotes } from "./rendering/updateNotes";
+import { redrawNoteGraphicsOnResize } from "./rendering/redrawNoteGraphicsOnResize";
+import type { GameState } from "./types";
+import type { ChartHitObject } from "./types";
+import { Application, Container } from "pixi.js";
+import {
+	derived,
+	get,
+	writable,
+	type Readable,
+	type Writable,
+} from "svelte/store";
 
 interface RendererOptions {
 	canvas: HTMLCanvasElement;
@@ -26,7 +36,10 @@ export class GameRenderer {
 	private highway: ReturnType<typeof drawHighway> | null = null;
 	private receptors: ReturnType<typeof drawReceptor> | null = null;
 	private keyPressEffects: ReturnType<typeof drawKeyPressEffects> | null = null;
-	private judgmentTextsByLane: Record<number, ReturnType<typeof drawJudgmentText> | null> = {};
+	private judgmentTextsByLane: Record<
+		number,
+		ReturnType<typeof drawJudgmentText> | null
+	> = {};
 	private scrollSpeed: number;
 	private initialized = false;
 	private opts: RendererOptions;
@@ -54,23 +67,35 @@ export class GameRenderer {
 			resolution: window.devicePixelRatio || 1,
 			autoDensity: true,
 			backgroundColor: 0x000000,
-			backgroundAlpha: 0.0
+			backgroundAlpha: 0.0,
 		});
 
 		this.appWidth = writable(this.app.screen.width);
 		this.appHeight = writable(this.app.screen.height);
 		this.highwayMetricsStore = derived(
 			[this.appHeight, this.appWidth],
-			([height, width]: [number, number]) => getHighwayMetrics(this.lanes, width, height)
+			([height, width]: [number, number]) =>
+				getHighwayMetrics(this.lanes, width, height),
 		);
 		const initialMetrics = get(this.highwayMetricsStore);
 		this.notePool = new NotePool(this.mainContainer, initialMetrics.laneWidth);
 		this.receptorPositions = getReceptorPositions(this.highwayMetricsStore);
-		this.receptorSize = derived([this.appHeight, this.appWidth], ([height, width]: [number, number]) => getReceptorSize(width, height));
+		this.receptorSize = derived(
+			[this.appHeight, this.appWidth],
+			([height, width]: [number, number]) => getReceptorSize(width, height),
+		);
 
 		this.app.stage.addChild(this.mainContainer);
-		this.highway = drawHighway(this.app, this.mainContainer, this.highwayMetricsStore);
-		this.receptors = drawReceptor(this.mainContainer, this.receptorPositions, this.receptorSize);
+		this.highway = drawHighway(
+			this.app,
+			this.mainContainer,
+			this.highwayMetricsStore,
+		);
+		this.receptors = drawReceptor(
+			this.mainContainer,
+			this.receptorPositions,
+			this.receptorSize,
+		);
 		this.keyPressEffects = drawKeyPressEffects(this.mainContainer, this.lanes);
 		this.initialized = true;
 	}
@@ -78,7 +103,9 @@ export class GameRenderer {
 	render(state: GameState, timeMs: number) {
 		if (!this.initialized || !this.notePool) return;
 		const deltaMs =
-			this.lastRenderTimeMs === null ? 0 : Math.max(0, timeMs - this.lastRenderTimeMs);
+			this.lastRenderTimeMs === null
+				? 0
+				: Math.max(0, timeMs - this.lastRenderTimeMs);
 		this.lastRenderTimeMs = timeMs;
 
 		const metrics = get(this.highwayMetricsStore);
@@ -87,7 +114,7 @@ export class GameRenderer {
 			if (n.isHit || n.isMissed || n.holdBroken) judged.add(Number(n.id));
 			return {
 				...n,
-				isActivelyHeld: n.isHolding
+				isActivelyHeld: n.isHolding,
 			} as ChartHitObject & { isActivelyHeld?: boolean };
 		});
 
@@ -101,7 +128,7 @@ export class GameRenderer {
 			this.scrollSpeed ?? 1,
 			this.app.screen.height,
 			visible,
-			judged
+			judged,
 		);
 
 		// Animate and clean up judgment texts
@@ -111,7 +138,7 @@ export class GameRenderer {
 			if (!jt) continue;
 			jt.updateAnimation(deltaMs);
 			// Fallback absolute lifetime of 800ms even if alpha doesn't reach 0 (safety)
-			if (jt.alpha <= 0.01 || (jt).creationTime + 800 <= timeMs) {
+			if (jt.alpha <= 0.01 || jt.creationTime + 800 <= timeMs) {
 				jt.parent?.removeChild(jt);
 				jt.destroy();
 				this.judgmentTextsByLane[lane] = null;
@@ -143,7 +170,7 @@ export class GameRenderer {
 			lane,
 			metrics?.x ?? 0,
 			metrics?.laneWidth ?? 0,
-			yPos
+			yPos,
 		);
 		this.judgmentTextsByLane[lane] = text;
 	}
@@ -173,7 +200,7 @@ export class GameRenderer {
 				metrics.receptorYPosition,
 				metrics.receptorYPosition,
 				this.scrollSpeed,
-				metrics.height
+				metrics.height,
 			);
 		}
 
@@ -189,4 +216,3 @@ export class GameRenderer {
 		this.app.destroy();
 	}
 }
-

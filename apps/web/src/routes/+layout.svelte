@@ -1,44 +1,44 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { authClient } from '$lib/auth-client';
-	import MusicPlayer from '$lib/components/MusicPlayer.svelte';
-	import { isPaused } from '$lib/stores/settingsStore';
-	import '../app.css';
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
+import { authClient } from "$lib/auth-client";
+import MusicPlayer from "$lib/components/MusicPlayer.svelte";
+import { isPaused } from "$lib/stores/settingsStore";
+import "../app.css";
 
-	let { children, data } = $props();
+let { children, data } = $props();
 
-	// Use client-side session store, but it will be initialized with server data
-	let sessionData = authClient.useSession();
+// Use client-side session store, but it will be initialized with server data
+let sessionData = authClient.useSession();
 
-	let isAuthRoute = $derived(
-		page.url.pathname === '/' ||
-			page.url.pathname === '/login' ||
-			page.url.pathname === '/register' ||
-			page.url.pathname === '/claim-username' ||
-			page.url.pathname === '/express'
-	);
-	let isGameplayPage = $derived(page.url.pathname.startsWith('/solo/play/'));
-	let isFullScreenPage = $derived(
-		isAuthRoute ||
+let isAuthRoute = $derived(
+	page.url.pathname === "/" ||
+		page.url.pathname === "/login" ||
+		page.url.pathname === "/register" ||
+		page.url.pathname === "/claim-username" ||
+		page.url.pathname === "/express",
+);
+let isGameplayPage = $derived(page.url.pathname.startsWith("/solo/play/"));
+let isFullScreenPage = $derived(
+	isAuthRoute ||
 		isGameplayPage ||
-		page.url.pathname.startsWith('/multiplayer/room/')
-	);
+		page.url.pathname.startsWith("/multiplayer/room/"),
+);
 
-	// Effect for keyboard listeners
-	$effect(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.code === 'Escape') {
-				if (isGameplayPage) {
-					isPaused.update((p) => !p);
-				}
+// Effect for keyboard listeners
+$effect(() => {
+	const handleKeyDown = (event: KeyboardEvent) => {
+		if (event.code === "Escape") {
+			if (isGameplayPage) {
+				isPaused.update((p) => !p);
 			}
-		};
-		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
-	});
+		}
+	};
+	window.addEventListener("keydown", handleKeyDown);
+	return () => window.removeEventListener("keydown", handleKeyDown);
+});
 
-	let currentUser = $derived($sessionData.data?.user);
+let currentUser = $derived($sessionData.data?.user);
 </script>
 
 <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col font-mono">

@@ -1,12 +1,17 @@
-import { RhythmEngine, AudioClock, GameRenderer } from '@mug/engine';
-import { gameSocket } from '$lib/network/socket';
-import { Preferences } from '@mug/common';
-import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
-import type { ClientChart, ClientSong, ChartHitObject } from '$lib/types';
-import { Sound } from '@pixi/sound';
-import { get } from 'svelte/store';
+import { RhythmEngine, AudioClock, GameRenderer } from "@mug/engine";
+import { gameSocket } from "$lib/network/socket";
+import { Preferences } from "@mug/common";
+import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
+import type { ClientChart, ClientSong, ChartHitObject } from "$lib/types";
+import { Sound } from "@pixi/sound";
+import { get } from "svelte/store";
 
-export type GamePhase = 'loading' | 'countdown' | 'playing' | 'finished' | 'summary';
+export type GamePhase =
+	| "loading"
+	| "countdown"
+	| "playing"
+	| "finished"
+	| "summary";
 
 export async function createGame(
 	songData: ClientSong,
@@ -23,19 +28,22 @@ export async function createGame(
 		getIsPaused: () => boolean;
 		getCountdownValue: () => number;
 		onTimeUpdate?: (time: number) => void;
-	}
+	},
 ) {
-	console.log(`[MUG] 1. Initializing Game. Chart has ${chartData.hitObjects.length} notes.`);
-	if (chartData.hitObjects.length === 0) console.warn('[MUG] ⚠️ WARNING: Chart has 0 notes!');
+	console.log(
+		`[MUG] 1. Initializing Game. Chart has ${chartData.hitObjects.length} notes.`,
+	);
+	if (chartData.hitObjects.length === 0)
+		console.warn("[MUG] ⚠️ WARNING: Chart has 0 notes!");
 	// 1) Initialize modules
 	const engine = new RhythmEngine(chartData.hitObjects as ChartHitObject[], {
 		timingWindows: {
 			perfect: Preferences.prefs.gameplay.perfectWindowMs ?? 30,
 			excellent: Preferences.prefs.gameplay.excellentWindowMs ?? 60,
 			good: Preferences.prefs.gameplay.goodWindowMs ?? 90,
-			meh: Preferences.prefs.gameplay.mehWindowMs ?? 150
+			meh: Preferences.prefs.gameplay.mehWindowMs ?? 150,
 		},
-		scrollSpeed: chartData.noteScrollSpeed ?? 1.0
+		scrollSpeed: chartData.noteScrollSpeed ?? 1.0,
 	});
 
 	let sound: Sound | null = null;
@@ -49,10 +57,10 @@ export async function createGame(
 			if (isResolved) return;
 			isResolved = true;
 			if (err) {
-				console.error('[MUG] ❌ Audio Failed to Load:', err);
-				console.warn('[MUG] Continuing without audio...');
+				console.error("[MUG] ❌ Audio Failed to Load:", err);
+				console.warn("[MUG] Continuing without audio...");
 			} else {
-				console.log('[MUG] 2c. Audio loaded successfully.');
+				console.log("[MUG] 2c. Audio loaded successfully.");
 			}
 			resolve();
 		};
@@ -60,11 +68,11 @@ export async function createGame(
 		sound = Sound.from({
 			url: songData.audioUrl,
 			preload: true,
-			loaded: (err) => finish(err)
+			loaded: (err) => finish(err),
 		});
 
 		if (sound.isLoaded) {
-			console.log('[MUG] 2a. Fast path loaded.');
+			console.log("[MUG] 2a. Fast path loaded.");
 			finish(null);
 			return;
 		}
@@ -72,13 +80,16 @@ export async function createGame(
 		// Timeout safety valve
 		setTimeout(() => {
 			if (!isResolved) {
-				console.warn('[MUG] ⚠️ Audio Load Timed Out (3s). Force starting game...');
+				console.warn(
+					"[MUG] ⚠️ Audio Load Timed Out (3s). Force starting game...",
+				);
 				finish(null);
 			}
 		}, 3000);
 	});
 	// Ensure we have a concrete sound instance for the rest of the flow
-	const soundInstance = sound ?? Sound.from({ url: songData.audioUrl, preload: true });
+	const soundInstance =
+		sound ?? Sound.from({ url: songData.audioUrl, preload: true });
 	sound = soundInstance;
 	soundInstance.volume = get(masterVolume) * get(musicVolume);
 
@@ -94,14 +105,14 @@ export async function createGame(
 	const renderer = new GameRenderer({
 		canvas: canvasElement,
 		lanes: chartData.lanes ?? 4,
-		scrollSpeed: chartData.noteScrollSpeed ?? 1
+		scrollSpeed: chartData.noteScrollSpeed ?? 1,
 	});
-	console.log('[MUG] 3. Initializing Renderer...');
+	console.log("[MUG] 3. Initializing Renderer...");
 	await renderer.init();
-	console.log('[MUG] 4. Renderer Ready.');
+	console.log("[MUG] 4. Renderer Ready.");
 
 	// 2) State
-	let phase: GamePhase = 'loading';
+	let phase: GamePhase = "loading";
 	let isPaused = false;
 	let countdownTimer: ReturnType<typeof setInterval> | null = null;
 	let rafId = 0;
@@ -116,34 +127,40 @@ export async function createGame(
 	// 3) Loop
 	const loop = () => {
 		if (!hasLoggedFrame) {
-			console.log(`[MUG] 5. Loop active. Phase: ${phase}, Paused: ${isPaused}, Time: ${clock.currentTimeMs}`);
+			console.log(
+				`[MUG] 5. Loop active. Phase: ${phase}, Paused: ${isPaused}, Time: ${clock.currentTimeMs}`,
+			);
 			hasLoggedFrame = true;
 		}
-		if (phase === 'playing' && !isPaused) {
+		if (phase === "playing" && !isPaused) {
 			const time = clock.currentTimeMs;
 			const events = engine.update(time);
 
 			for (const e of events) {
-				if (e.type === 'hit') {
+				if (e.type === "hit") {
 					const note = { id: e.noteId, lane: e.lane };
 					callbacks.onNoteHit(note, e.judgment!);
 					renderer.showJudgment(e.lane, e.judgment!);
 					renderer.flashLane(e.lane);
-				} else if (e.type === 'miss' || e.type === 'hold_broken') {
+				} else if (e.type === "miss" || e.type === "hold_broken") {
 					const note = { id: e.noteId, lane: e.lane };
 					callbacks.onNoteMiss(note);
-					renderer.showJudgment(e.lane, 'Miss');
+					renderer.showJudgment(e.lane, "Miss");
 				}
 
 				// score sync + WS
-				callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
+				callbacks.onScoreUpdate(
+					engine.state.score,
+					engine.state.combo,
+					engine.state.maxCombo,
+				);
 				if (gameSocket) {
-					gameSocket.send('score_update', {
+					gameSocket.send("score_update", {
 						score: engine.state.score,
 						combo: engine.state.combo,
 						maxCombo: engine.state.maxCombo,
 						noteId: e.noteId,
-						judgment: e.judgment || 'Miss'
+						judgment: e.judgment || "Miss",
 					});
 				}
 			}
@@ -161,31 +178,39 @@ export async function createGame(
 
 	// 4) Input
 	const handleKeyPress = (key: string) => {
-		if (isPaused || phase !== 'playing') return;
-		const lane = Preferences.prefs.gameplay.keybindings.indexOf(key.toLowerCase());
+		if (isPaused || phase !== "playing") return;
+		const lane = Preferences.prefs.gameplay.keybindings.indexOf(
+			key.toLowerCase(),
+		);
 		if (lane === -1) return;
 
 		renderer.flashLane(lane);
 		const result = engine.submitInput(lane, clock.currentTimeMs);
-		if (result && result.type === 'hit') {
+		if (result && result.type === "hit") {
 			callbacks.onNoteHit({ id: result.noteId, lane }, result.judgment!);
 			renderer.showJudgment(lane, result.judgment!);
-			callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
+			callbacks.onScoreUpdate(
+				engine.state.score,
+				engine.state.combo,
+				engine.state.maxCombo,
+			);
 			if (gameSocket) {
-				gameSocket.send('score_update', {
+				gameSocket.send("score_update", {
 					score: engine.state.score,
 					combo: engine.state.combo,
 					maxCombo: engine.state.maxCombo,
 					noteId: result.noteId,
-					judgment: result.judgment || 'Miss'
+					judgment: result.judgment || "Miss",
 				});
 			}
 		}
 	};
 
 	const handleKeyRelease = (key: string) => {
-		if (phase !== 'playing') return;
-		const lane = Preferences.prefs.gameplay.keybindings.indexOf(key.toLowerCase());
+		if (phase !== "playing") return;
+		const lane = Preferences.prefs.gameplay.keybindings.indexOf(
+			key.toLowerCase(),
+		);
 		if (lane !== -1) {
 			engine.releaseInput(lane, clock.currentTimeMs);
 		}
@@ -195,7 +220,7 @@ export async function createGame(
 	const startSequence = () => {
 		if (started) return;
 		started = true;
-		setPhase('countdown');
+		setPhase("countdown");
 		let count = 3;
 		callbacks.onCountdownUpdate(count);
 
@@ -205,11 +230,11 @@ export async function createGame(
 			callbacks.onCountdownUpdate(count);
 			if (count <= 0) {
 				clearInterval(countdownTimer!);
-				console.log('[MUG] 3. Countdown finished. Calling clock.play()...');
+				console.log("[MUG] 3. Countdown finished. Calling clock.play()...");
 				countdownTimer = null;
 				await clock.play();
-				console.log('[MUG] 4. clock.play() resolved. Starting loop.');
-				setPhase('playing');
+				console.log("[MUG] 4. clock.play() resolved. Starting loop.");
+				setPhase("playing");
 				loop();
 			}
 		}, 1000);
@@ -217,18 +242,21 @@ export async function createGame(
 
 	const endGame = () => {
 		cancelAnimationFrame(rafId);
-		setPhase('finished');
+		setPhase("finished");
 		callbacks.onSongEnd();
 		if (gameSocket) {
-			gameSocket.send('match_finished', { score: engine.state.score, maxCombo: engine.state.maxCombo });
+			gameSocket.send("match_finished", {
+				score: engine.state.score,
+				maxCombo: engine.state.maxCombo,
+			});
 		}
-		setTimeout(() => setPhase('summary'), 2000);
+		setTimeout(() => setPhase("summary"), 2000);
 	};
 
-	const isTestEnv = typeof process !== 'undefined' && !!process.env?.BUN_TEST;
+	const isTestEnv = typeof process !== "undefined" && !!process.env?.BUN_TEST;
 
 	if (isTestEnv) {
-		setPhase('playing');
+		setPhase("playing");
 		loop(); // Trigger the loop immediately in test mode
 	} else {
 		startSequence();
@@ -248,7 +276,7 @@ export async function createGame(
 		beginGameplaySequence: () => {
 			if (started) return;
 			if (isTestEnv) {
-				setPhase('playing');
+				setPhase("playing");
 				loop();
 			} else {
 				startSequence();
@@ -273,8 +301,7 @@ export async function createGame(
 			__setPhaseForTest: (p: GamePhase) => {
 				phase = p;
 			},
-			__getEngineForTest: () => engine
-		})
+			__getEngineForTest: () => engine,
+		}),
 	};
 }
-

@@ -11,7 +11,7 @@ export type NewSong = typeof song.$inferInsert;
 export type Chart = typeof chart.$inferSelect;
 export type NewChart = typeof chart.$inferInsert;
 
-export type ChartHitObject = typeof chartHitObject.$inferSelect
+export type ChartHitObject = typeof chartHitObject.$inferSelect;
 export type NewChartHitObject = typeof chartHitObject.$inferInsert;
 
 export type Score = typeof score.$inferSelect;
@@ -33,17 +33,13 @@ export type NewAccount = typeof account.$inferInsert;
 export type Verification = typeof verification.$inferSelect;
 export type NewVerification = typeof verification.$inferInsert;
 
-
 // Chart representation for client, including hit objects
-export type ClientSong = Awaited<ReturnType<typeof orpcClient.song.get>>
+export type ClientSong = Awaited<ReturnType<typeof orpcClient.song.get>>;
 export type ClientChart = ClientSong extends { charts: (infer T)[] }
 	? T
 	: ClientSong extends { charts: readonly (infer T)[] }
-	? T
-	: never
-
-
+		? T
+		: never;
 
 // Re-export other specific type modules
-export * from './game';
-
+export * from "./game";

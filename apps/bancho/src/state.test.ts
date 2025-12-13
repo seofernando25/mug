@@ -43,7 +43,9 @@ describe("RoomManager Logic", () => {
 		const host = createMockPlayer("u1", "host");
 		const room = manager.createRoom(host, "Temp");
 		manager.leaveRoom(host);
-		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeUndefined();
+		expect(
+			manager.getLobbyList().find((r) => r.id === room.id),
+		).toBeUndefined();
 		expect(notifier).toHaveBeenCalledTimes(2); // add + remove
 	});
 
@@ -58,7 +60,7 @@ describe("RoomManager Logic", () => {
 		const state = manager.getRoomState(room.id);
 		expect(state?.hostId).toBe("u1");
 		expect(state?.hostName).toBe("peppy");
-		expect(state?.players.find(p => p.userId === "u1")).toBeDefined();
+		expect(state?.players.find((p) => p.userId === "u1")).toBeDefined();
 	});
 
 	it("reassigns host and updates hostName when original host leaves", () => {
@@ -97,7 +99,7 @@ describe("RoomManager Logic", () => {
 		manager.handleDisconnect(player);
 
 		// Room should still exist immediately after disconnect
-		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeDefined();
+		expect(manager.getLobbyList().find((r) => r.id === room.id)).toBeDefined();
 		expect(room.players.has(player)).toBe(true);
 
 		// Timer should be set but not fired yet
@@ -110,7 +112,7 @@ describe("RoomManager Logic", () => {
 		expect(() => manager.joinRoom(newSocket, room.id)).not.toThrow();
 
 		// Room should still exist
-		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeDefined();
+		expect(manager.getLobbyList().find((r) => r.id === room.id)).toBeDefined();
 
 		// Old socket should be gone, new socket should be in the room
 		expect(room.players.has(player)).toBe(false);
@@ -144,19 +146,22 @@ describe("RoomManager Logic", () => {
 		manager.handleDisconnect(player);
 
 		// Room should still exist immediately after disconnect
-		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeDefined();
+		expect(manager.getLobbyList().find((r) => r.id === room.id)).toBeDefined();
 
 		// Simulate timer firing (5 seconds passed)
 		expect(timeoutCallback).toBeTruthy();
 		timeoutCallback!(); // Fire the disconnect timer
 
 		// Room should be deleted automatically
-		expect(manager.getLobbyList().find(r => r.id === room.id)).toBeUndefined();
+		expect(
+			manager.getLobbyList().find((r) => r.id === room.id),
+		).toBeUndefined();
 		expect(notifier).toHaveBeenCalledTimes(2); // add + remove
 
 		// Trying to join should fail
 		const newSocket = createMockPlayer("u1", "test");
-		expect(() => manager.joinRoom(newSocket, room.id)).toThrow("Room not found");
+		expect(() => manager.joinRoom(newSocket, room.id)).toThrow(
+			"Room not found",
+		);
 	});
 });
-

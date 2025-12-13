@@ -1,35 +1,35 @@
 <!-- src/lib/components/songlist/SongSearchSort.svelte -->
 <script lang="ts">
-	let {
-		search,
-		sort,
-		searchTerm = $bindable('')
-	}: {
-		search: (searchTerm: string) => void;
-		sort: (sort: string) => void;
-		searchTerm: string;
-	} = $props();
+let {
+	search,
+	sort,
+	searchTerm = $bindable(""),
+}: {
+	search: (searchTerm: string) => void;
+	sort: (sort: string) => void;
+	searchTerm: string;
+} = $props();
 
-	function updateSearchTerm(event: Event) {
-		const target = event.target as HTMLInputElement;
-		searchTerm = target.value as string;
-		search(searchTerm);
-	}
+function updateSearchTerm(event: Event) {
+	const target = event.target as HTMLInputElement;
+	searchTerm = target.value as string;
+	search(searchTerm);
+}
 
-	// Placeholder functions for other controls
-	function sortByTitle() {
-		console.log('Sort by Title');
-		sort('title');
-	}
-	function sortByArtist() {
-		console.log('Sort by Artist');
-		sort('artist');
-	}
-	function sortByBPM() {
-		console.log('Sort by BPM');
-		sort('bpm');
-	}
-	// ... other sort/filter functions
+// Placeholder functions for other controls
+function sortByTitle() {
+	console.log("Sort by Title");
+	sort("title");
+}
+function sortByArtist() {
+	console.log("Sort by Artist");
+	sort("artist");
+}
+function sortByBPM() {
+	console.log("Sort by BPM");
+	sort("bpm");
+}
+// ... other sort/filter functions
 </script>
 
 <div class="p-4 bg-gray-800 rounded-t-md">

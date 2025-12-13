@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { masterVolume, musicVolume, isPaused } from '$lib/stores/settingsStore';
+import { masterVolume, musicVolume, isPaused } from "$lib/stores/settingsStore";
 
-	function resumeGame() {
-		isPaused.set(false);
-	}
+function resumeGame() {
+	isPaused.set(false);
+}
 </script>
 
 {#if $isPaused}

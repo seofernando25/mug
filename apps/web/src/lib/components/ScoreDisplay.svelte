@@ -1,56 +1,68 @@
 <script lang="ts">
-	let { score = 0 } = $props();
+let { score = 0 } = $props();
 
-	let scoreDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
+let scoreDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
 
-	// Scale based on score magnitude (can be adjusted)
-	let currentScoreMagnitudeScale = $derived(1 + Math.log10(Math.max(1, score / 1000 + 1)) * 0.1); // Adjusted for typical score values
+// Scale based on score magnitude (can be adjusted)
+let currentScoreMagnitudeScale = $derived(
+	1 + Math.log10(Math.max(1, score / 1000 + 1)) * 0.1,
+); // Adjusted for typical score values
 
-	const POP_ANIMATION_DURATION = 300; // ms - match this with CSS animation duration
+const POP_ANIMATION_DURATION = 300; // ms - match this with CSS animation duration
 
-	// Constants for randomization
-	const MAX_POP_TRANSLATE = 3; // px
-	const MAX_POP_ROTATE = 3; // degrees
-	const MIN_POP_EXPLOSION_SCALE_FACTOR = 1.1;
-	const MAX_POP_EXPLOSION_SCALE_FACTOR = 1.3;
+// Constants for randomization
+const MAX_POP_TRANSLATE = 3; // px
+const MAX_POP_ROTATE = 3; // degrees
+const MIN_POP_EXPLOSION_SCALE_FACTOR = 1.1;
+const MAX_POP_EXPLOSION_SCALE_FACTOR = 1.3;
 
-	$effect(() => {
-		if (scoreDisplayElement) {
+$effect(() => {
+	if (scoreDisplayElement) {
+		scoreDisplayElement.style.setProperty(
+			"--current-score-magnitude-scale",
+			String(currentScoreMagnitudeScale),
+		);
+
+		if (score > 0) {
+			// Trigger effect if score is not zero, or on any change if preferred
+			const randomTX = (Math.random() - 0.5) * 2 * MAX_POP_TRANSLATE;
+			const randomTY = (Math.random() - 0.5) * 2 * MAX_POP_TRANSLATE;
+			const randomRot = (Math.random() - 0.5) * 2 * MAX_POP_ROTATE;
+			const randomScaleFactor =
+				MIN_POP_EXPLOSION_SCALE_FACTOR +
+				Math.random() *
+					(MAX_POP_EXPLOSION_SCALE_FACTOR - MIN_POP_EXPLOSION_SCALE_FACTOR);
+
 			scoreDisplayElement.style.setProperty(
-				'--current-score-magnitude-scale',
-				String(currentScoreMagnitudeScale)
+				"--pop-translate-x",
+				`${randomTX}px`,
+			);
+			scoreDisplayElement.style.setProperty(
+				"--pop-translate-y",
+				`${randomTY}px`,
+			);
+			scoreDisplayElement.style.setProperty("--pop-rotate", `${randomRot}deg`);
+			scoreDisplayElement.style.setProperty(
+				"--pop-explosion-scale",
+				String(randomScaleFactor),
 			);
 
-			if (score > 0) {
-				// Trigger effect if score is not zero, or on any change if preferred
-				const randomTX = (Math.random() - 0.5) * 2 * MAX_POP_TRANSLATE;
-				const randomTY = (Math.random() - 0.5) * 2 * MAX_POP_TRANSLATE;
-				const randomRot = (Math.random() - 0.5) * 2 * MAX_POP_ROTATE;
-				const randomScaleFactor =
-					MIN_POP_EXPLOSION_SCALE_FACTOR +
-					Math.random() * (MAX_POP_EXPLOSION_SCALE_FACTOR - MIN_POP_EXPLOSION_SCALE_FACTOR);
+			scoreDisplayElement.classList.remove("score-pop-eff");
+			void scoreDisplayElement.offsetWidth; // Force reflow
+			scoreDisplayElement.classList.add("score-pop-eff");
 
-				scoreDisplayElement.style.setProperty('--pop-translate-x', `${randomTX}px`);
-				scoreDisplayElement.style.setProperty('--pop-translate-y', `${randomTY}px`);
-				scoreDisplayElement.style.setProperty('--pop-rotate', `${randomRot}deg`);
-				scoreDisplayElement.style.setProperty('--pop-explosion-scale', String(randomScaleFactor));
+			const timeoutId = setTimeout(() => {
+				if (scoreDisplayElement) {
+					scoreDisplayElement.classList.remove("score-pop-eff");
+				}
+			}, POP_ANIMATION_DURATION);
 
-				scoreDisplayElement.classList.remove('score-pop-eff');
-				void scoreDisplayElement.offsetWidth; // Force reflow
-				scoreDisplayElement.classList.add('score-pop-eff');
-
-				const timeoutId = setTimeout(() => {
-					if (scoreDisplayElement) {
-						scoreDisplayElement.classList.remove('score-pop-eff');
-					}
-				}, POP_ANIMATION_DURATION);
-
-				return () => clearTimeout(timeoutId);
-			} else {
-				scoreDisplayElement.classList.remove('score-pop-eff');
-			}
+			return () => clearTimeout(timeoutId);
+		} else {
+			scoreDisplayElement.classList.remove("score-pop-eff");
 		}
-	});
+	}
+});
 </script>
 
 {#if score !== undefined}

@@ -1,5 +1,5 @@
-import adapter from '@sveltejs/adapter-auto';
-import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import adapter from "@sveltejs/adapter-auto";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -13,11 +13,11 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
-			'@mug/db': '../../packages/db/src/index.ts',
-			'@mug/contract': '../../packages/contract/src/index.ts',
-			'@mug/game-logic': '../../packages/game-logic/src/index.ts'
-		}
-	}
+			"@mug/db": "../../packages/db/src/index.ts",
+			"@mug/contract": "../../packages/contract/src/index.ts",
+			"@mug/game-logic": "../../packages/game-logic/src/index.ts",
+		},
+	},
 };
 
 export default config;

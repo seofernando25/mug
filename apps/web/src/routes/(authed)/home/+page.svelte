@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Waves from './Waves.svelte';
+import Waves from "./Waves.svelte";
 </script>
 
 <svelte:head>

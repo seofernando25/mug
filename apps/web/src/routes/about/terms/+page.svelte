@@ -1,18 +1,18 @@
 <script lang="ts">
-	const GAME_NAME = 'MUG';
-	const COMPANY_NAME = 'MUG Inc.';
-	const WEBSITE_URL = 'https://mug.rocks';
-	const JURISDICTION = 'Canada';
-	const CONTACT_EMAIL = 'contact@mug.rocks';
-	const LAST_UPDATED = 'May 18, 2025';
+const GAME_NAME = "MUG";
+const COMPANY_NAME = "MUG Inc.";
+const WEBSITE_URL = "https://mug.rocks";
+const JURISDICTION = "Canada";
+const CONTACT_EMAIL = "contact@mug.rocks";
+const LAST_UPDATED = "May 18, 2025";
 
-	let termsContainer: HTMLDivElement | null = $state(null);
+let termsContainer: HTMLDivElement | null = $state(null);
 
-	function downloadTerms() {
-		if (termsContainer) {
-			const printWindow = window.open('', '_blank');
-			if (printWindow) {
-				printWindow.document.write(`
+function downloadTerms() {
+	if (termsContainer) {
+		const printWindow = window.open("", "_blank");
+		if (printWindow) {
+			printWindow.document.write(`
 					<html>
 						<head>
 							<title>${GAME_NAME} - Terms of Service</title>
@@ -28,12 +28,12 @@
 						</body>
 					</html>
 				`);
-				printWindow.document.close();
-				printWindow.print();
-				printWindow.close();
-			}
+			printWindow.document.close();
+			printWindow.print();
+			printWindow.close();
 		}
 	}
+}
 </script>
 
 <svelte:head>

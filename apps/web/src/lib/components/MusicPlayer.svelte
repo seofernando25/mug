@@ -1,43 +1,45 @@
 <script lang="ts">
-	import { slide } from 'svelte/transition';
+import { slide } from "svelte/transition";
 
-	let isPlayerVisible = false;
-	// Placeholder for actual track data later
-	let trackName = 'Eternal Bliss';
-	let artistName = 'Emiru no Aishita Tsukiyo ni Dai San Gensou Kyoku wo';
-	let progress = 30; // Percentage for the progress bar
+let isPlayerVisible = false;
+// Placeholder for actual track data later
+let trackName = "Eternal Bliss";
+let artistName = "Emiru no Aishita Tsukiyo ni Dai San Gensou Kyoku wo";
+let progress = 30; // Percentage for the progress bar
 
-	function togglePlayer() {
-		isPlayerVisible = !isPlayerVisible;
-	}
+function togglePlayer() {
+	isPlayerVisible = !isPlayerVisible;
+}
 
-	function closePlayer() {
-		isPlayerVisible = false;
-	}
+function closePlayer() {
+	isPlayerVisible = false;
+}
 
-	function clickOutside(node: HTMLElement, callback: () => void) {
-		const handleClick = (event: MouseEvent) => {
-			// Check if the player is visible and the click is outside the node and not on the toggle button itself
-			// (We find the button by aria-label, a more robust way would be to pass the button element to the action too)
-			const toggleButton = document.querySelector('[aria-label="Toggle music player"]');
-			if (
-				node &&
-				!node.contains(event.target as Node) &&
-				!(toggleButton && toggleButton.contains(event.target as Node)) &&
-				isPlayerVisible
-			) {
-				callback();
-			}
-		};
+function clickOutside(node: HTMLElement, callback: () => void) {
+	const handleClick = (event: MouseEvent) => {
+		// Check if the player is visible and the click is outside the node and not on the toggle button itself
+		// (We find the button by aria-label, a more robust way would be to pass the button element to the action too)
+		const toggleButton = document.querySelector(
+			'[aria-label="Toggle music player"]',
+		);
+		if (
+			node &&
+			!node.contains(event.target as Node) &&
+			!(toggleButton && toggleButton.contains(event.target as Node)) &&
+			isPlayerVisible
+		) {
+			callback();
+		}
+	};
 
-		document.addEventListener('mousedown', handleClick, true);
+	document.addEventListener("mousedown", handleClick, true);
 
-		return {
-			destroy() {
-				document.removeEventListener('mousedown', handleClick, true);
-			}
-		};
-	}
+	return {
+		destroy() {
+			document.removeEventListener("mousedown", handleClick, true);
+		},
+	};
+}
 </script>
 
 <div class="relative">

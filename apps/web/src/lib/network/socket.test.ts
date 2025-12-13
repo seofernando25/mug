@@ -9,7 +9,7 @@ let matchState: any;
 describe("gameSocket handler", () => {
 	beforeAll(async () => {
 		// Mock svelte/store before importing socket
-		mock.module('svelte/store', () => ({
+		mock.module("svelte/store", () => ({
 			writable: mock((initial: any) => {
 				let value = initial;
 				const subscribers = new Set<Function>();
@@ -22,20 +22,20 @@ describe("gameSocket handler", () => {
 					}),
 					set: mock((newValue: any) => {
 						value = newValue;
-						subscribers.forEach(fn => fn(value));
+						subscribers.forEach((fn) => fn(value));
 					}),
 					update: mock((updater: Function) => {
 						value = updater(value);
-						subscribers.forEach(fn => fn(value));
-					})
+						subscribers.forEach((fn) => fn(value));
+					}),
 				};
 			}),
 			get: mock((store: any) => {
 				let value;
-				const unsub = store.subscribe((v: any) => value = v);
+				const unsub = store.subscribe((v: any) => (value = v));
 				unsub();
 				return value;
-			})
+			}),
 		}));
 
 		// Import after mocking
@@ -124,7 +124,9 @@ describe("gameSocket handler", () => {
 		// Create a mock socket that's not connected
 		const mockSocket = {
 			readyState: WebSocket.CONNECTING,
-			send: (() => { throw new Error("Should not be called"); }) as any,
+			send: (() => {
+				throw new Error("Should not be called");
+			}) as any,
 		} as any;
 
 		// Temporarily replace the internal ws
@@ -147,4 +149,3 @@ describe("gameSocket handler", () => {
 		}
 	});
 });
-

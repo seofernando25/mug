@@ -1,21 +1,21 @@
 <script lang="ts">
-	let {
-		score,
-		maxCombo,
-		songTitle = '',
-		artist = '',
-		difficultyName = '',
-		onRetry = () => {},
-		onExit = () => {}
-	}: {
-		score: number;
-		maxCombo: number;
-		songTitle?: string;
-		artist?: string;
-		difficultyName?: string;
-		onRetry?: () => void;
-		onExit?: () => void;
-	} = $props();
+let {
+	score,
+	maxCombo,
+	songTitle = "",
+	artist = "",
+	difficultyName = "",
+	onRetry = () => {},
+	onExit = () => {},
+}: {
+	score: number;
+	maxCombo: number;
+	songTitle?: string;
+	artist?: string;
+	difficultyName?: string;
+	onRetry?: () => void;
+	onExit?: () => void;
+} = $props();
 </script>
 
 <div class="overlay-container summary-overlay">

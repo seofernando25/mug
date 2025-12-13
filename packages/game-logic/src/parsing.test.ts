@@ -6,7 +6,9 @@ import { processFileAndExtractData } from "./parsing";
 
 describe("Chart Parser", () => {
 	it("rejects invalid file extension", async () => {
-		const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "application/octet-stream" });
+		const blob = new Blob([new Uint8Array([1, 2, 3])], {
+			type: "application/octet-stream",
+		});
 		await expect(processFileAndExtractData(blob)).rejects.toThrow();
 	});
 
@@ -15,9 +17,11 @@ describe("Chart Parser", () => {
 
 		beforeAll(async () => {
 			// Load the test .osz file
-			const testFilePath = join(__dirname, '..', 'test-song.osz');
+			const testFilePath = join(__dirname, "..", "test-song.osz");
 			const fileBuffer = readFileSync(testFilePath);
-			const file = new File([fileBuffer], 'test-song.osz', { type: 'application/octet-stream' });
+			const file = new File([fileBuffer], "test-song.osz", {
+				type: "application/octet-stream",
+			});
 
 			testData = await processFileAndExtractData(file);
 		});
@@ -33,7 +37,9 @@ describe("Chart Parser", () => {
 		it("extracts correct metadata", () => {
 			expect(testData.metadata.title).toBe("Bad Piggies Theme");
 			expect(testData.metadata.artist).toBe("Ilmari Hakkola");
-			expect(testData.metadata.audioFilename).toBe("audio 1.154x (pitch raised).mp3");
+			expect(testData.metadata.audioFilename).toBe(
+				"audio 1.154x (pitch raised).mp3",
+			);
 			expect(typeof testData.metadata.bpm).toBe("number");
 			expect(testData.metadata.bpm).toBeGreaterThan(0);
 		});
@@ -104,7 +110,9 @@ describe("Chart Parser", () => {
 		it("ensures chronological hit object ordering", () => {
 			testData.hitObjects.forEach((chartHitObjects: any[]) => {
 				for (let i = 1; i < chartHitObjects.length; i++) {
-					expect(chartHitObjects[i].time).toBeGreaterThanOrEqual(chartHitObjects[i - 1].time);
+					expect(chartHitObjects[i].time).toBeGreaterThanOrEqual(
+						chartHitObjects[i - 1].time,
+					);
 				}
 			});
 		});
@@ -159,9 +167,13 @@ describe("Chart Parser", () => {
 			const zip = new JSZip();
 			zip.file("audio.mp3", "fake audio content");
 			const zipBlob = await zip.generateAsync({ type: "blob" });
-			const file = new File([zipBlob], "test.osz", { type: "application/octet-stream" });
+			const file = new File([zipBlob], "test.osz", {
+				type: "application/octet-stream",
+			});
 
-			await expect(processFileAndExtractData(file)).rejects.toThrow("No .osu files found");
+			await expect(processFileAndExtractData(file)).rejects.toThrow(
+				"No .osu files found",
+			);
 		});
 
 		it("rejects files without audio", async () => {
@@ -181,10 +193,11 @@ CircleSize:4
 `;
 			zip.file("test.osu", osuContent);
 			const zipBlob = await zip.generateAsync({ type: "blob" });
-			const file = new File([zipBlob], "test.osz", { type: "application/octet-stream" });
+			const file = new File([zipBlob], "test.osz", {
+				type: "application/octet-stream",
+			});
 
 			await expect(processFileAndExtractData(file)).rejects.toThrow();
 		});
 	});
 });
-

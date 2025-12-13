@@ -1,8 +1,8 @@
 <script lang="ts">
-	const GAME_NAME = 'MUG';
-	const CONTACT_EMAIL = 'contact@mug.rocks';
-	const LAST_UPDATED = 'May 18, 2025';
-	const AGE_REQUIREMENT = '13';
+const GAME_NAME = "MUG";
+const CONTACT_EMAIL = "contact@mug.rocks";
+const LAST_UPDATED = "May 18, 2025";
+const AGE_REQUIREMENT = "13";
 </script>
 
 <svelte:head>

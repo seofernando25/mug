@@ -1,64 +1,67 @@
 <script lang="ts">
-	import { fade, fly } from 'svelte/transition';
-	import { cubicOut } from 'svelte/easing';
+import { fade, fly } from "svelte/transition";
+import { cubicOut } from "svelte/easing";
 
-	interface SongItem {
-		id: string;
-		title: string;
-		artist: string;
-		imageUrl?: string;
-		difficulties?: string[];
-	}
+interface SongItem {
+	id: string;
+	title: string;
+	artist: string;
+	imageUrl?: string;
+	difficulties?: string[];
+}
 
-	// Props using Svelte 5 Runes
-	let {
-		isOpen = false,
-		onClose,
-		onSelect,
-		songs = []
-	} = $props<{
-		isOpen: boolean;
-		onClose: () => void;
-		onSelect: (song: SongItem) => void;
-		songs: SongItem[];
-	}>();
+// Props using Svelte 5 Runes
+let {
+	isOpen = false,
+	onClose,
+	onSelect,
+	songs = [],
+} = $props<{
+	isOpen: boolean;
+	onClose: () => void;
+	onSelect: (song: SongItem) => void;
+	songs: SongItem[];
+}>();
 
-	// Local State
-	let searchTerm = $state('');
-	let selectedId = $state<string | null>(null);
-	let sortBy = $state<'title' | 'difficulty'>('title');
+// Local State
+let searchTerm = $state("");
+let selectedId = $state<string | null>(null);
+let sortBy = $state<"title" | "difficulty">("title");
 
-	// Derived
-	let filteredSongs = $derived(
-		songs.filter((s: SongItem) =>
+// Derived
+let filteredSongs = $derived(
+	songs.filter(
+		(s: SongItem) =>
 			s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			s.artist.toLowerCase().includes(searchTerm.toLowerCase())
-		)
-	);
+			s.artist.toLowerCase().includes(searchTerm.toLowerCase()),
+	),
+);
 
-	let activeSong = $derived(songs.find((s: SongItem) => s.id === selectedId) || songs[0]);
+let activeSong = $derived(
+	songs.find((s: SongItem) => s.id === selectedId) || songs[0],
+);
 
-	// Initialize selected song when songs load
-	$effect(() => {
-		if (songs.length > 0 && !selectedId) {
-			selectedId = songs[0].id;
-		}
-	});
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (!isOpen) return;
-		if (e.key === 'Escape') onClose();
+// Initialize selected song when songs load
+$effect(() => {
+	if (songs.length > 0 && !selectedId) {
+		selectedId = songs[0].id;
 	}
+});
 
-	function selectSong(song: SongItem) {
-		if (selectedId === song.id) {
-			// Confirm selection if clicked twice
-			onSelect(song);
-			onClose();
-		} else {
-			selectedId = song.id;
-		}
+function handleKeydown(e: KeyboardEvent) {
+	if (!isOpen) return;
+	if (e.key === "Escape") onClose();
+}
+
+function selectSong(song: SongItem) {
+	if (selectedId === song.id) {
+		// Confirm selection if clicked twice
+		onSelect(song);
+		onClose();
+	} else {
+		selectedId = song.id;
 	}
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

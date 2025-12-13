@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Waves from '../home/Waves.svelte';
-	import ImportLevel from '$lib/components/ImportLevel.svelte';
-	import { goto } from '$app/navigation';
+import Waves from "../home/Waves.svelte";
+import ImportLevel from "$lib/components/ImportLevel.svelte";
+import { goto } from "$app/navigation";
 </script>
 
 <svelte:head>

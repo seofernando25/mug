@@ -1,63 +1,78 @@
 <script lang="ts">
-	// songTimeMs and bpm are no longer needed
-	let { combo = 0 } = $props();
+// songTimeMs and bpm are no longer needed
+let { combo = 0 } = $props();
 
-	let comboDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
+let comboDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
 
-	// New: Scale based on combo magnitude
-	// Adjust the 0.15 factor to control how much the size increases with combo
-	let currentComboMagnitudeScale = $derived(1 + Math.log10(Math.max(1, combo)) * 0.15);
+// New: Scale based on combo magnitude
+// Adjust the 0.15 factor to control how much the size increases with combo
+let currentComboMagnitudeScale = $derived(
+	1 + Math.log10(Math.max(1, combo)) * 0.15,
+);
 
-	const SLING_ANIMATION_DURATION = 500; // ms - match this with CSS animation duration
+const SLING_ANIMATION_DURATION = 500; // ms - match this with CSS animation duration
 
-	// Constants for randomization
-	const MAX_SLING_TRANSLATE = 5; // px
-	const MAX_SLING_ROTATE = 5; // degrees
-	const MIN_SLING_EXPLOSION_SCALE_FACTOR = 1.4;
-	const MAX_SLING_EXPLOSION_SCALE_FACTOR = 1.8;
+// Constants for randomization
+const MAX_SLING_TRANSLATE = 5; // px
+const MAX_SLING_ROTATE = 5; // degrees
+const MIN_SLING_EXPLOSION_SCALE_FACTOR = 1.4;
+const MAX_SLING_EXPLOSION_SCALE_FACTOR = 1.8;
 
-	// Effect to trigger sling animation on combo change & update base combo scale
-	$effect(() => {
-		if (comboDisplayElement) {
-			// Always update the base combo magnitude scale when combo changes
+// Effect to trigger sling animation on combo change & update base combo scale
+$effect(() => {
+	if (comboDisplayElement) {
+		// Always update the base combo magnitude scale when combo changes
+		comboDisplayElement.style.setProperty(
+			"--current-combo-magnitude-scale",
+			String(currentComboMagnitudeScale),
+		);
+
+		if (combo > 0) {
+			// Generate random values for the sling
+			const randomTX = (Math.random() - 0.5) * 2 * MAX_SLING_TRANSLATE;
+			const randomTY = (Math.random() - 0.5) * 2 * MAX_SLING_TRANSLATE;
+			const randomRot = (Math.random() - 0.5) * 2 * MAX_SLING_ROTATE;
+			const randomScaleFactor =
+				MIN_SLING_EXPLOSION_SCALE_FACTOR +
+				Math.random() *
+					(MAX_SLING_EXPLOSION_SCALE_FACTOR - MIN_SLING_EXPLOSION_SCALE_FACTOR);
+
+			// Set CSS variables for the animation
 			comboDisplayElement.style.setProperty(
-				'--current-combo-magnitude-scale',
-				String(currentComboMagnitudeScale)
+				"--sling-translate-x",
+				`${randomTX}px`,
+			);
+			comboDisplayElement.style.setProperty(
+				"--sling-translate-y",
+				`${randomTY}px`,
+			);
+			comboDisplayElement.style.setProperty(
+				"--sling-rotate",
+				`${randomRot}deg`,
+			);
+			comboDisplayElement.style.setProperty(
+				"--sling-explosion-scale",
+				String(randomScaleFactor),
 			);
 
-			if (combo > 0) {
-				// Generate random values for the sling
-				const randomTX = (Math.random() - 0.5) * 2 * MAX_SLING_TRANSLATE;
-				const randomTY = (Math.random() - 0.5) * 2 * MAX_SLING_TRANSLATE;
-				const randomRot = (Math.random() - 0.5) * 2 * MAX_SLING_ROTATE;
-				const randomScaleFactor =
-					MIN_SLING_EXPLOSION_SCALE_FACTOR +
-					Math.random() * (MAX_SLING_EXPLOSION_SCALE_FACTOR - MIN_SLING_EXPLOSION_SCALE_FACTOR);
+			// Trigger animation
+			comboDisplayElement.classList.remove("combo-sling-eff");
+			void comboDisplayElement.offsetWidth; // Force reflow
+			comboDisplayElement.classList.add("combo-sling-eff");
 
-				// Set CSS variables for the animation
-				comboDisplayElement.style.setProperty('--sling-translate-x', `${randomTX}px`);
-				comboDisplayElement.style.setProperty('--sling-translate-y', `${randomTY}px`);
-				comboDisplayElement.style.setProperty('--sling-rotate', `${randomRot}deg`);
-				comboDisplayElement.style.setProperty('--sling-explosion-scale', String(randomScaleFactor));
+			const timeoutId = setTimeout(() => {
+				if (comboDisplayElement) {
+					comboDisplayElement.classList.remove("combo-sling-eff");
+				}
+			}, SLING_ANIMATION_DURATION);
 
-				// Trigger animation
-				comboDisplayElement.classList.remove('combo-sling-eff');
-				void comboDisplayElement.offsetWidth; // Force reflow
-				comboDisplayElement.classList.add('combo-sling-eff');
-
-				const timeoutId = setTimeout(() => {
-					if (comboDisplayElement) {
-						comboDisplayElement.classList.remove('combo-sling-eff');
-					}
-				}, SLING_ANIMATION_DURATION);
-
-				return () => clearTimeout(timeoutId);
-			} else {
-				// Ensure sling class is removed if combo is 0
-				comboDisplayElement.classList.remove('combo-sling-eff');
-			}
+			return () => clearTimeout(timeoutId);
+		} else {
+			// Ensure sling class is removed if combo is 0
+			comboDisplayElement.classList.remove("combo-sling-eff");
 		}
-	});
+	}
+});
 </script>
 
 {#if combo > 0}

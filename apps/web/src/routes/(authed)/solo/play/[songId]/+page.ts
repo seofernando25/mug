@@ -1,13 +1,13 @@
-import { orpcClient } from '$lib/rpc/client';
-import type { ClientSong } from '$lib/types/index.js';
-import { error } from '@sveltejs/kit';
+import { orpcClient } from "$lib/rpc/client";
+import type { ClientSong } from "$lib/types/index.js";
+import { error } from "@sveltejs/kit";
 
 export const ssr = false;
 
 export const load = async ({ params, fetch, url }) => {
 	const songId = params.songId;
 	if (!songId) {
-		throw error(404, { message: 'Song ID not provided' });
+		throw error(404, { message: "Song ID not provided" });
 	}
 
 	let songData: ClientSong;
@@ -23,7 +23,7 @@ export const load = async ({ params, fetch, url }) => {
 	}
 
 	// difficulty from "?difficulty=str"
-	const difficulty = url.searchParams.get('difficulty');
+	const difficulty = url.searchParams.get("difficulty");
 
 	if (!difficulty) {
 		throw error(404, { message: "Difficulty not provided" });
@@ -40,5 +40,4 @@ export const load = async ({ params, fetch, url }) => {
 		songData,
 		chartData,
 	};
-
-}
+};

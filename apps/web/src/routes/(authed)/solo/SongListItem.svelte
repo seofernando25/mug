@@ -1,43 +1,43 @@
 <script lang="ts">
-	import { slide } from 'svelte/transition';
-	import type { SongListItem } from './types';
+import { slide } from "svelte/transition";
+import type { SongListItem } from "./types";
 
-	const {
-		songListItem,
-		selectedSongId,
-		selectedDifficultyId,
-		songselected,
-		difficultyselected
-	}: {
-		songListItem: SongListItem;
-		selectedSongId: string;
-		selectedDifficultyId: string;
-		songselected: () => void;
-		difficultyselected: (difficultyName: string) => void;
-	} = $props();
+const {
+	songListItem,
+	selectedSongId,
+	selectedDifficultyId,
+	songselected,
+	difficultyselected,
+}: {
+	songListItem: SongListItem;
+	selectedSongId: string;
+	selectedDifficultyId: string;
+	songselected: () => void;
+	difficultyselected: (difficultyName: string) => void;
+} = $props();
 
-	let expanded = $state(false);
+let expanded = $state(false);
 
-	function toggleExpand() {
-		expanded = !expanded;
-		if (expanded) {
-			songselected();
-		} else {
-			// Optional: dispatch an event if deselection logic is needed when collapsing
-			// dispatch('songdeselected', { songId: song.id });
-		}
+function toggleExpand() {
+	expanded = !expanded;
+	if (expanded) {
+		songselected();
+	} else {
+		// Optional: dispatch an event if deselection logic is needed when collapsing
+		// dispatch('songdeselected', { songId: song.id });
 	}
+}
 
-	function selectDifficulty(difficultyName: string) {
-		// If difficulties were objects with IDs: selectDifficulty(chartId: string, difficultyName: string)
-		// console.log(`Difficulty selected: ${difficultyName} for song ${song.title}`);
+function selectDifficulty(difficultyName: string) {
+	// If difficulties were objects with IDs: selectDifficulty(chartId: string, difficultyName: string)
+	// console.log(`Difficulty selected: ${difficultyName} for song ${song.title}`);
 
-		difficultyselected(difficultyName);
-		// Construct the href for navigation
-		// The actual navigation will be handled by the parent page, this just signals selection
-	}
+	difficultyselected(difficultyName);
+	// Construct the href for navigation
+	// The actual navigation will be handled by the parent page, this just signals selection
+}
 
-	let isSelected = $derived(songListItem.id === selectedSongId);
+let isSelected = $derived(songListItem.id === selectedSongId);
 </script>
 
 <!-- The song is selected when hovered over -->

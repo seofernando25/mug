@@ -1,93 +1,95 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { authClient } from '$lib/auth-client';
-	import { ArkErrors } from 'arktype';
-	import { onMount } from 'svelte';
-	import { RegisterFormSchema, type RegisterFormData } from './schema';
-	import { stretchIn } from '$lib/transitions/stretchIn';
-	import { orpcClient } from '$lib/rpc/client';
+import { enhance } from "$app/forms";
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
+import { authClient } from "$lib/auth-client";
+import { ArkErrors } from "arktype";
+import { onMount } from "svelte";
+import { RegisterFormSchema, type RegisterFormData } from "./schema";
+import { stretchIn } from "$lib/transitions/stretchIn";
+import { orpcClient } from "$lib/rpc/client";
 
-	let formData = $state<RegisterFormData>({
-		username: '',
-		email: '',
-		password: ''
-	});
+let formData = $state<RegisterFormData>({
+	username: "",
+	email: "",
+	password: "",
+});
 
-	// References to DOM elements
-	let usernameInputElement = $state<HTMLInputElement | undefined>();
-	let emailInputElement = $state<HTMLInputElement | undefined>();
+// References to DOM elements
+let usernameInputElement = $state<HTMLInputElement | undefined>();
+let emailInputElement = $state<HTMLInputElement | undefined>();
 
-	onMount(() => {
-		const urlUsername = page.url.searchParams.get('username');
-		if (urlUsername) {
-			formData.username = urlUsername;
-			// Focus on email field if username is provided
-			emailInputElement?.focus();
-		} else {
-			// Focus on username field if no username is provided
-			usernameInputElement?.focus();
+onMount(() => {
+	const urlUsername = page.url.searchParams.get("username");
+	if (urlUsername) {
+		formData.username = urlUsername;
+		// Focus on email field if username is provided
+		emailInputElement?.focus();
+	} else {
+		// Focus on username field if no username is provided
+		usernameInputElement?.focus();
+	}
+});
+
+let errors = $state<{ [key: string]: string }>({});
+
+let usernameCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+let lastCheckedUsername = "";
+const unavailableUsernames = new Set<string>();
+let asyncUsernameError = "";
+
+$effect(() => {
+	if (formData.username && formData.username !== lastCheckedUsername) {
+		if (unavailableUsernames.has(formData.username)) {
+			asyncUsernameError = "Username is already taken";
+			return;
 		}
-	});
+		if (usernameCheckTimeout) clearTimeout(usernameCheckTimeout);
+		usernameCheckTimeout = setTimeout(async () => {
+			try {
+				const res = await orpcClient.user.checkUsername({
+					username: formData.username,
+				});
 
-	let errors = $state<{ [key: string]: string }>({});
-
-	let usernameCheckTimeout: ReturnType<typeof setTimeout> | null = null;
-	let lastCheckedUsername = '';
-	const unavailableUsernames = new Set<string>();
-	let asyncUsernameError = '';
-
-	$effect(() => {
-		if (formData.username && formData.username !== lastCheckedUsername) {
-			if (unavailableUsernames.has(formData.username)) {
-				asyncUsernameError = 'Username is already taken';
-				return;
-			}
-			if (usernameCheckTimeout) clearTimeout(usernameCheckTimeout);
-			usernameCheckTimeout = setTimeout(async () => {
-				try {
-					const res = await orpcClient.user.checkUsername({
-						username: formData.username
-					});
-
-					lastCheckedUsername = formData.username;
-					if (!res.available) {
-						unavailableUsernames.add(formData.username);
-						asyncUsernameError = 'Username is already taken';
-					} else if (asyncUsernameError === 'Username is already taken') {
-						asyncUsernameError = '';
-					}
-				} catch (e) {
-					// Optionally handle network/API errors
-					console.error(e);
+				lastCheckedUsername = formData.username;
+				if (!res.available) {
+					unavailableUsernames.add(formData.username);
+					asyncUsernameError = "Username is already taken";
+				} else if (asyncUsernameError === "Username is already taken") {
+					asyncUsernameError = "";
 				}
-			}, 400); // 400ms debounce
-		} else if (!formData.username) {
-			asyncUsernameError = '';
-		}
-	});
+			} catch (e) {
+				// Optionally handle network/API errors
+				console.error(e);
+			}
+		}, 400); // 400ms debounce
+	} else if (!formData.username) {
+		asyncUsernameError = "";
+	}
+});
 
-	let isFormValid = $state(false);
+let isFormValid = $state(false);
 
-	$effect(() => {
-		const result = RegisterFormSchema(formData);
-		const currentErrors: { [key in keyof RegisterFormData | 'form']?: string } = {};
-		let valid = true;
-		if (result instanceof Array && result[0] && result[0].message) {
-			// ArkType error array
-			valid = false;
-			result.forEach((problem) => {
-				currentErrors[problem.path.join('.') as keyof RegisterFormData] = problem.message;
-			});
-		}
-		// Merge async username error, never overwrite it if present
-		if (asyncUsernameError) {
-			currentErrors.username = asyncUsernameError;
-		}
-		errors = currentErrors;
-		isFormValid = valid && Object.keys(currentErrors).length === 0;
-	});
+$effect(() => {
+	const result = RegisterFormSchema(formData);
+	const currentErrors: { [key in keyof RegisterFormData | "form"]?: string } =
+		{};
+	let valid = true;
+	if (result instanceof Array && result[0] && result[0].message) {
+		// ArkType error array
+		valid = false;
+		result.forEach((problem) => {
+			currentErrors[problem.path.join(".") as keyof RegisterFormData] =
+				problem.message;
+		});
+	}
+	// Merge async username error, never overwrite it if present
+	if (asyncUsernameError) {
+		currentErrors.username = asyncUsernameError;
+	}
+	errors = currentErrors;
+	isFormValid = valid && Object.keys(currentErrors).length === 0;
+});
 </script>
 
 <div

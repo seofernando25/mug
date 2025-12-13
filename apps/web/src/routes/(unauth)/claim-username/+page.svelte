@@ -1,55 +1,55 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { authClient } from '$lib/auth-client';
-	import { stretchIn } from '$lib/transitions/stretchIn';
-	import { onMount, tick } from 'svelte';
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
+import { authClient } from "$lib/auth-client";
+import { stretchIn } from "$lib/transitions/stretchIn";
+import { onMount, tick } from "svelte";
 
-	let isLoading = $state(false);
-	let error = $state<string | null>(null);
-	let nonExistentUsername = $state('');
+let isLoading = $state(false);
+let error = $state<string | null>(null);
+let nonExistentUsername = $state("");
 
-	// Reference to DOM element
-	let claimButtonElement = $state<HTMLButtonElement | undefined>();
+// Reference to DOM element
+let claimButtonElement = $state<HTMLButtonElement | undefined>();
 
-	onMount(() => {
-		const urlUsername = page.url.searchParams.get('username');
-		if (urlUsername) {
-			nonExistentUsername = urlUsername;
-		} else {
-			// Fallback or redirect if no username is provided,
-			// as this page doesn't make sense without it.
-			goto('/'); // Or show an error message
-		}
-		// Focus on claim button when the panel is shown
-		tick().then(() => {
-			claimButtonElement?.focus();
-		});
+onMount(() => {
+	const urlUsername = page.url.searchParams.get("username");
+	if (urlUsername) {
+		nonExistentUsername = urlUsername;
+	} else {
+		// Fallback or redirect if no username is provided,
+		// as this page doesn't make sense without it.
+		goto("/"); // Or show an error message
+	}
+	// Focus on claim button when the panel is shown
+	tick().then(() => {
+		claimButtonElement?.focus();
 	});
+});
 
-	async function handleStayAnonymous() {
-		if (isLoading) return;
-		isLoading = true;
-		error = null;
-		const { data, error: anonError } = await authClient.signIn.anonymous();
-		if (anonError) {
-			error = anonError.message || null;
-		} else if (data?.user) {
-			goto('/home');
-		} else {
-			error = 'Failed to create guest session.';
-		}
-		isLoading = false;
+async function handleStayAnonymous() {
+	if (isLoading) return;
+	isLoading = true;
+	error = null;
+	const { data, error: anonError } = await authClient.signIn.anonymous();
+	if (anonError) {
+		error = anonError.message || null;
+	} else if (data?.user) {
+		goto("/home");
+	} else {
+		error = "Failed to create guest session.";
 	}
+	isLoading = false;
+}
 
-	function handleRegisterNonExistentUser() {
-		goto(`/register?username=${encodeURIComponent(nonExistentUsername)}`);
-	}
+function handleRegisterNonExistentUser() {
+	goto(`/register?username=${encodeURIComponent(nonExistentUsername)}`);
+}
 
-	function handleGoBack() {
-		// Navigate back to the main page, possibly with the username prefilled
-		goto(`/?username=${encodeURIComponent(nonExistentUsername)}`);
-	}
+function handleGoBack() {
+	// Navigate back to the main page, possibly with the username prefilled
+	goto(`/?username=${encodeURIComponent(nonExistentUsername)}`);
+}
 </script>
 
 <svelte:head>

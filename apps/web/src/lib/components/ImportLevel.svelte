@@ -1,126 +1,145 @@
 <script lang="ts">
-	import { orpcClient } from '$lib/rpc/client';
+import { orpcClient } from "$lib/rpc/client";
 
-	// States related to the import functionality
-	let isDragging = $state(false);
-	let importedFile: File | null = $state(null);
-	let convertedData: string | null = $state(null); // Potentially for a direct .mug download link if server install fails or is optional
-	let errorMessage = $state<string | null>(null);
-	let fileInput: HTMLInputElement;
-	let isConverting = $state(false);
-	let conversionProgress = $state<string>('');
+// States related to the import functionality
+let isDragging = $state(false);
+let importedFile: File | null = $state(null);
+let convertedData: string | null = $state(null); // Potentially for a direct .mug download link if server install fails or is optional
+let errorMessage = $state<string | null>(null);
+let fileInput: HTMLInputElement;
+let isConverting = $state(false);
+let conversionProgress = $state<string>("");
 
-	function handleDragOver(e: DragEvent) {
-		e.preventDefault();
-		e.stopPropagation();
-		isDragging = true;
-	}
+function handleDragOver(e: DragEvent) {
+	e.preventDefault();
+	e.stopPropagation();
+	isDragging = true;
+}
 
-	function handleDragLeave(e: DragEvent) {
-		e.preventDefault();
-		e.stopPropagation();
-		isDragging = false;
-	}
+function handleDragLeave(e: DragEvent) {
+	e.preventDefault();
+	e.stopPropagation();
+	isDragging = false;
+}
 
-	async function uploadAndProcessFile(file: File, onProgress?: (msg: string) => void) {
-		onProgress?.(`Uploading ${file.name}...`);
+async function uploadAndProcessFile(
+	file: File,
+	onProgress?: (msg: string) => void,
+) {
+	onProgress?.(`Uploading ${file.name}...`);
 
-		const formData = new FormData();
-		// Append the raw file under the key 'levelFile' as expected by the server
-		formData.append('levelFile', file, file.name); // Pass file name for the server
+	const formData = new FormData();
+	// Append the raw file under the key 'levelFile' as expected by the server
+	formData.append("levelFile", file, file.name); // Pass file name for the server
 
-		try {
-			const response = await orpcClient.song.install({
-				file: file
-			});
+	try {
+		const response = await orpcClient.song.install({
+			file: file,
+		});
 
-			// The server will send progress updates (if implemented) or just the final result
-			// For now, we just wait for the final response and display its message.
+		// The server will send progress updates (if implemented) or just the final result
+		// For now, we just wait for the final response and display its message.
 
-			if (!response.success) {
-				const errorMessage = response.message;
-				console.error('Server error during processing:', errorMessage);
-				return { success: false, message: `Failed to install song: ${errorMessage}` };
-			}
-
-			onProgress?.(response.message);
-
-			return response;
-		} catch (error: any) {
-			console.error('Network error during upload:', error);
-			onProgress?.(''); // Clear progress message or show network error
-			return { success: false, message: 'Network error or connection issue: ' + error.message };
-		}
-	}
-
-	async function handleFile(file: File) {
-		// Initialize state
-		importedFile = file;
-		isConverting = true;
-		errorMessage = null;
-		conversionProgress = '';
-		convertedData = null;
-
-		// Validate file type
-		if (!file.name.endsWith('.osz') && !file.name.endsWith('.mug')) {
-			errorMessage = 'Invalid file type. Please use .osz or .mug files.';
-			isConverting = false;
-			importedFile = null;
-			return;
+		if (!response.success) {
+			const errorMessage = response.message;
+			console.error("Server error during processing:", errorMessage);
+			return {
+				success: false,
+				message: `Failed to install song: ${errorMessage}`,
+			};
 		}
 
-		// Process file
-		const result = await uploadAndProcessFile(file, (msg) => (conversionProgress = msg));
-		errorMessage = result.message;
+		onProgress?.(response.message);
+
+		return response;
+	} catch (error: any) {
+		console.error("Network error during upload:", error);
+		onProgress?.(""); // Clear progress message or show network error
+		return {
+			success: false,
+			message: "Network error or connection issue: " + error.message,
+		};
+	}
+}
+
+async function handleFile(file: File) {
+	// Initialize state
+	importedFile = file;
+	isConverting = true;
+	errorMessage = null;
+	conversionProgress = "";
+	convertedData = null;
+
+	// Validate file type
+	if (!file.name.endsWith(".osz") && !file.name.endsWith(".mug")) {
+		errorMessage = "Invalid file type. Please use .osz or .mug files.";
 		isConverting = false;
+		importedFile = null;
+		return;
 	}
 
-	function handleDrop(e: DragEvent) {
-		e.preventDefault();
-		e.stopPropagation();
-		isDragging = false;
+	// Process file
+	const result = await uploadAndProcessFile(
+		file,
+		(msg) => (conversionProgress = msg),
+	);
+	errorMessage = result.message;
+	isConverting = false;
+}
 
-		const files = e.dataTransfer?.files;
-		if (files && files.length > 0) {
-			const fileToHandle = files[0];
-			if (fileToHandle.name.endsWith('.osz') || fileToHandle.name.endsWith('.mug')) {
-				handleFile(fileToHandle);
-			} else {
-				errorMessage = 'Please drop a valid .osz or .mug file';
-			}
+function handleDrop(e: DragEvent) {
+	e.preventDefault();
+	e.stopPropagation();
+	isDragging = false;
+
+	const files = e.dataTransfer?.files;
+	if (files && files.length > 0) {
+		const fileToHandle = files[0];
+		if (
+			fileToHandle.name.endsWith(".osz") ||
+			fileToHandle.name.endsWith(".mug")
+		) {
+			handleFile(fileToHandle);
+		} else {
+			errorMessage = "Please drop a valid .osz or .mug file";
 		}
 	}
+}
 
-	function handleFileSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		if (input.files && input.files.length > 0) {
-			const fileToHandle = input.files[0];
-			if (fileToHandle.name.endsWith('.osz') || fileToHandle.name.endsWith('.mug')) {
-				handleFile(fileToHandle);
-			} else {
-				errorMessage = 'Please select a valid .osz or .mug file';
-			}
-			input.value = '';
+function handleFileSelect(e: Event) {
+	const input = e.target as HTMLInputElement;
+	if (input.files && input.files.length > 0) {
+		const fileToHandle = input.files[0];
+		if (
+			fileToHandle.name.endsWith(".osz") ||
+			fileToHandle.name.endsWith(".mug")
+		) {
+			handleFile(fileToHandle);
+		} else {
+			errorMessage = "Please select a valid .osz or .mug file";
 		}
+		input.value = "";
 	}
+}
 
-	function triggerFileInput() {
-		fileInput.click();
-	}
+function triggerFileInput() {
+	fileInput.click();
+}
 
-	function downloadConvertedFile() {
-		if (!convertedData) {
-			console.warn('No data available for download for ImportLevel component.');
-			errorMessage = 'No file data available for download.'; // Inform user
-			return;
-		}
-		const a = document.createElement('a');
-		a.href = convertedData;
-		a.download = importedFile?.name.replace(/\.(osz|mug)$/, '.mug') || 'converted.mug';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
+function downloadConvertedFile() {
+	if (!convertedData) {
+		console.warn("No data available for download for ImportLevel component.");
+		errorMessage = "No file data available for download."; // Inform user
+		return;
 	}
+	const a = document.createElement("a");
+	a.href = convertedData;
+	a.download =
+		importedFile?.name.replace(/\.(osz|mug)$/, ".mug") || "converted.mug";
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+}
 </script>
 
 <div

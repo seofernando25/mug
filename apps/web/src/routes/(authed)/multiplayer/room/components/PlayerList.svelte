@@ -1,18 +1,18 @@
 <script lang="ts">
-    import { fly } from 'svelte/transition';
+import { fly } from "svelte/transition";
 
-    interface Player {
-        userId: string;
-        username?: string | null;
-        avatarUrl?: string | null;
-    }
+interface Player {
+	userId: string;
+	username?: string | null;
+	avatarUrl?: string | null;
+}
 
-    interface Props {
-        players: Player[];
-        hostId?: string | null;
-    }
+interface Props {
+	players: Player[];
+	hostId?: string | null;
+}
 
-    let { players, hostId }: Props = $props();
+let { players, hostId }: Props = $props();
 </script>
 
 <div class="w-1/4 h-full flex flex-col justify-center gap-4 pl-8" in:fly={{ x: -50, duration: 500 }}>

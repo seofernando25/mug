@@ -1,62 +1,63 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { onMount } from 'svelte';
-	import { authClient } from '$lib/auth-client';
-	import { stretchIn } from '$lib/transitions/stretchIn';
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
+import { onMount } from "svelte";
+import { authClient } from "$lib/auth-client";
+import { stretchIn } from "$lib/transitions/stretchIn";
 
-	let username = $state('');
-	let password = $state('');
-	let isLoading = $state(false);
-	let error = $state<string | null>(null);
+let username = $state("");
+let password = $state("");
+let isLoading = $state(false);
+let error = $state<string | null>(null);
 
-	// References to DOM elements
-	let usernameInputElement = $state<HTMLInputElement | undefined>();
-	let passwordInputElement = $state<HTMLInputElement | undefined>();
+// References to DOM elements
+let usernameInputElement = $state<HTMLInputElement | undefined>();
+let passwordInputElement = $state<HTMLInputElement | undefined>();
 
-	onMount(() => {
-		const urlUsername = page.url.searchParams.get('username');
-		if (urlUsername) {
-			username = urlUsername;
-			// Focus on password field if username is provided
-			passwordInputElement?.focus();
-		} else {
-			// Focus on username field if no username is provided
-			usernameInputElement?.focus();
-		}
+onMount(() => {
+	const urlUsername = page.url.searchParams.get("username");
+	if (urlUsername) {
+		username = urlUsername;
+		// Focus on password field if username is provided
+		passwordInputElement?.focus();
+	} else {
+		// Focus on username field if no username is provided
+		usernameInputElement?.focus();
+	}
+});
+
+async function handleLogin(event: Event) {
+	event.preventDefault();
+	if (!username || !password) {
+		error = "Username and password are required.";
+		return;
+	}
+	isLoading = true;
+	error = null;
+
+	const { data, error: loginError } = await authClient.signIn.username({
+		username,
+		password,
 	});
 
-	async function handleLogin(event: Event) {
-		event.preventDefault();
-		if (!username || !password) {
-			error = 'Username and password are required.';
-			return;
-		}
-		isLoading = true;
-		error = null;
-
-		const { data, error: loginError } = await authClient.signIn.username({
-			username,
-			password
-		});
-
-		if (loginError) {
-			error = loginError.message || 'Login failed. Please check your credentials.';
-		} else if (data?.user) {
-			goto('/home');
-		} else {
-			error = 'Login failed. Please try again.';
-		}
-		isLoading = false;
+	if (loginError) {
+		error =
+			loginError.message || "Login failed. Please check your credentials.";
+	} else if (data?.user) {
+		goto("/home");
+	} else {
+		error = "Login failed. Please try again.";
 	}
+	isLoading = false;
+}
 
-	function goBack() {
-		goto('/');
-	}
+function goBack() {
+	goto("/");
+}
 
-	function forgotPassword() {
-		alert('Password recovery with better-auth to be implemented.');
-	}
+function forgotPassword() {
+	alert("Password recovery with better-auth to be implemented.");
+}
 </script>
 
 <svelte:head>

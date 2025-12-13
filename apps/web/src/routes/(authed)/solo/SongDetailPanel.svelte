@@ -1,58 +1,58 @@
 <script lang="ts">
-	import { fade } from 'svelte/transition';
-	import type { SongListItem } from './types';
+import { fade } from "svelte/transition";
+import type { SongListItem } from "./types";
 
-	const {
-		song
-	}: {
-		song: SongListItem;
-	} = $props();
+const {
+	song,
+}: {
+	song: SongListItem;
+} = $props();
 
-	// Dummy leaderboard data - replace with actual data fetching
-	// The structure should now align with LeaderboardEntry from $lib/types
-	let leaderboard = [
-		{
-			rank: 1,
-			user: {
-				id: '1',
-				username: 'Mikayla',
-				displayUsername: 'Mikayla',
-				image: 'https://placekitten.com/32/32?image=1'
-			},
-			score: 1293803,
-			accuracy: 99.1,
-			maxCombo: 668, // Example value
-			playDate: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000) // Approx 2 years ago
-		},
-		{
-			rank: 2,
-			user: {
-				id: '2',
-				username: 'Haxwell',
-				displayUsername: 'Haxwell',
-				image: 'https://placekitten.com/32/32?image=2'
-			},
-			score: 1270072,
-			accuracy: 98.52,
-			maxCombo: 667,
-			playDate: new Date(Date.now() - 7 * 365 * 24 * 60 * 60 * 1000)
-		}
-		// ... Add more entries matching LeaderboardEntry structure
-	];
-
-	let personalBest = {
-		rank: 130000,
+// Dummy leaderboard data - replace with actual data fetching
+// The structure should now align with LeaderboardEntry from $lib/types
+let leaderboard = [
+	{
+		rank: 1,
 		user: {
-			id: 'currentUser',
-			username: 'SeoFernando',
-			displayUsername: 'SeoFernando',
-			image: 'https://placekitten.com/32/32?image=6'
+			id: "1",
+			username: "Mikayla",
+			displayUsername: "Mikayla",
+			image: "https://placekitten.com/32/32?image=1",
 		},
-		score: 726168,
-		accuracy: 96.38,
-		maxCombo: 342,
-		playDate: new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)
-	};
+		score: 1293803,
+		accuracy: 99.1,
+		maxCombo: 668, // Example value
+		playDate: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000), // Approx 2 years ago
+	},
+	{
+		rank: 2,
+		user: {
+			id: "2",
+			username: "Haxwell",
+			displayUsername: "Haxwell",
+			image: "https://placekitten.com/32/32?image=2",
+		},
+		score: 1270072,
+		accuracy: 98.52,
+		maxCombo: 667,
+		playDate: new Date(Date.now() - 7 * 365 * 24 * 60 * 60 * 1000),
+	},
+	// ... Add more entries matching LeaderboardEntry structure
+];
+
+let personalBest = {
+	rank: 130000,
+	user: {
+		id: "currentUser",
+		username: "SeoFernando",
+		displayUsername: "SeoFernando",
+		image: "https://placekitten.com/32/32?image=6",
+	},
+	score: 726168,
+	accuracy: 96.38,
+	maxCombo: 342,
+	playDate: new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000),
+};
 </script>
 
 {#if song}

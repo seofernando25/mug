@@ -1,7 +1,7 @@
-import { writable } from 'svelte/store';
-import { browser } from '$app/environment'; // Import browser check
+import { writable } from "svelte/store";
+import { browser } from "$app/environment"; // Import browser check
 
-const LOCAL_STORAGE_KEY = 'mug_username';
+const LOCAL_STORAGE_KEY = "mug_username";
 
 // Function to get initial value from localStorage (only in browser)
 function getInitialUsername(): string | null {
@@ -14,7 +14,7 @@ const store = writable<string | null>(getInitialUsername());
 
 // Subscribe to store changes to update localStorage (only in browser)
 if (browser) {
-	store.subscribe(value => {
+	store.subscribe((value) => {
 		if (value) {
 			localStorage.setItem(LOCAL_STORAGE_KEY, value);
 		} else {
@@ -30,4 +30,4 @@ function logout() {
 
 // Export the store and the logout function
 export const username = store;
-export { logout }; 
+export { logout };

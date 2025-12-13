@@ -1,1 +1,1 @@
-export * from '@mug/game-logic';
+export * from "@mug/game-logic";

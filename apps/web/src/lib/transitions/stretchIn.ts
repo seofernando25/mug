@@ -1,12 +1,17 @@
-import { quintOut } from 'svelte/easing';
-
+import { quintOut } from "svelte/easing";
 
 export function stretchIn(
 	node: HTMLElement,
-	{ delay = 0, duration = 300, easing = quintOut, startScaleX = 3.0, startScaleY = 0.8 }
+	{
+		delay = 0,
+		duration = 300,
+		easing = quintOut,
+		startScaleX = 3.0,
+		startScaleY = 0.8,
+	},
 ) {
 	const style = getComputedStyle(node);
-	const original_transform = style.transform === 'none' ? '' : style.transform;
+	const original_transform = style.transform === "none" ? "" : style.transform;
 
 	return {
 		delay,
@@ -22,6 +27,6 @@ export function stretchIn(
 				transform-origin: center center;
 				opacity: ${currentOpacity};
 			`;
-		}
+		},
 	};
 }

@@ -1,29 +1,29 @@
 <script lang="ts">
-	import {
-		skipLogin,
-		autoPlay,
-		masterVolume,
-		musicVolume,
-		enableScreenPulse
-	} from '$lib/stores/settingsStore';
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+import {
+	skipLogin,
+	autoPlay,
+	masterVolume,
+	musicVolume,
+	enableScreenPulse,
+} from "$lib/stores/settingsStore";
+import { onMount } from "svelte";
+import { goto } from "$app/navigation";
 
-	onMount(() => {
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') {
-				goto('/home');
-			}
-		};
+onMount(() => {
+	const handleKeyDown = (event: KeyboardEvent) => {
+		if (event.key === "Escape") {
+			goto("/home");
+		}
+	};
 
-		window.addEventListener('keydown', handleKeyDown);
+	window.addEventListener("keydown", handleKeyDown);
 
-		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
-		};
-	});
+	return () => {
+		window.removeEventListener("keydown", handleKeyDown);
+	};
+});
 
-	// Helper for range input if needed, or direct bind
+// Helper for range input if needed, or direct bind
 </script>
 
 <svelte:head>

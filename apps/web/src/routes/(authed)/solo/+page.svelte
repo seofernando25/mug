@@ -1,66 +1,68 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import SongSearchSort from '$lib/components/songlist/SongSearchSort.svelte';
-	import { orpcClient } from '$lib/rpc/client';
-	import SongDetailPanel from './SongDetailPanel.svelte';
-	import SongListItemComponent from './SongListItem.svelte';
-	import type { SongListItem } from './types';
-	import { goto } from '$app/navigation';
+import { onMount } from "svelte";
+import SongSearchSort from "$lib/components/songlist/SongSearchSort.svelte";
+import { orpcClient } from "$lib/rpc/client";
+import SongDetailPanel from "./SongDetailPanel.svelte";
+import SongListItemComponent from "./SongListItem.svelte";
+import type { SongListItem } from "./types";
+import { goto } from "$app/navigation";
 
-	let allSongs = $state<SongListItem[]>([]);
-	let filteredSongs = $derived(allSongs);
-	let currentError = $state<string | null>(null);
-	let isLoadingSongs = $state(true);
-	let isLoadingDetails = $state(false);
+let allSongs = $state<SongListItem[]>([]);
+let filteredSongs = $derived(allSongs);
+let currentError = $state<string | null>(null);
+let isLoadingSongs = $state(true);
+let isLoadingDetails = $state(false);
 
-	let searchTerm = $state('');
-	let selectedSongId = $state<string>('');
-	let selectedSong = $derived(allSongs.find((song) => song.id === selectedSongId));
-	let selectedDifficultyId = $state<string>('');
+let searchTerm = $state("");
+let selectedSongId = $state<string>("");
+let selectedSong = $derived(
+	allSongs.find((song) => song.id === selectedSongId),
+);
+let selectedDifficultyId = $state<string>("");
 
-	onMount(async () => {
-		isLoadingSongs = true;
-		try {
-			const response = await orpcClient.song.list({});
-			allSongs = response.items;
-		} catch (error) {
-			console.error('Error fetching songs:', error);
-			currentError = 'Failed to fetch songs';
-		}
-		filterSongs(); // Initial filter (shows all if searchTerm is empty)
-		isLoadingSongs = false;
-	});
-
-	function filterSongs() {
-		if (!searchTerm) {
-			filteredSongs = allSongs;
-		} else {
-			const lowerSearchTerm = searchTerm.toLowerCase();
-			filteredSongs = allSongs.filter(
-				(song) =>
-					song.title.toLowerCase().includes(lowerSearchTerm) ||
-					song.artist.toLowerCase().includes(lowerSearchTerm)
-			);
-		}
+onMount(async () => {
+	isLoadingSongs = true;
+	try {
+		const response = await orpcClient.song.list({});
+		allSongs = response.items;
+	} catch (error) {
+		console.error("Error fetching songs:", error);
+		currentError = "Failed to fetch songs";
 	}
+	filterSongs(); // Initial filter (shows all if searchTerm is empty)
+	isLoadingSongs = false;
+});
 
-	function handleSearch(searchTerm: string) {
-		searchTerm = searchTerm;
-		filterSongs();
+function filterSongs() {
+	if (!searchTerm) {
+		filteredSongs = allSongs;
+	} else {
+		const lowerSearchTerm = searchTerm.toLowerCase();
+		filteredSongs = allSongs.filter(
+			(song) =>
+				song.title.toLowerCase().includes(lowerSearchTerm) ||
+				song.artist.toLowerCase().includes(lowerSearchTerm),
+		);
 	}
+}
 
-	function handleSort(sortBy: string) {
-		console.log('Sort by:', sortBy);
-		// Implement actual sorting logic here based on `sortBy` value
-		// For example:
-		if (sortBy === 'title') {
-			allSongs.sort((a, b) => a.title.localeCompare(b.title));
-		} else if (sortBy === 'artist') {
-			allSongs.sort((a, b) => a.artist.localeCompare(b.artist));
-		}
-		// Add other sort cases (BPM will need song details if not in SongListItem)
-		filterSongs(); // Re-apply filter after sorting
+function handleSearch(searchTerm: string) {
+	searchTerm = searchTerm;
+	filterSongs();
+}
+
+function handleSort(sortBy: string) {
+	console.log("Sort by:", sortBy);
+	// Implement actual sorting logic here based on `sortBy` value
+	// For example:
+	if (sortBy === "title") {
+		allSongs.sort((a, b) => a.title.localeCompare(b.title));
+	} else if (sortBy === "artist") {
+		allSongs.sort((a, b) => a.artist.localeCompare(b.artist));
 	}
+	// Add other sort cases (BPM will need song details if not in SongListItem)
+	filterSongs(); // Re-apply filter after sorting
+}
 </script>
 
 <svelte:head>

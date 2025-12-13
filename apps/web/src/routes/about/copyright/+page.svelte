@@ -1,19 +1,19 @@
 <script lang="ts">
-	const GAME_NAME = 'MUG';
-	const COMPANY_NAME = 'MUG Inc.';
-	const WEBSITE_URL = 'https://mug.rocks';
-	const CONTACT_EMAIL = 'contact@mug.rocks';
-	const COPYRIGHT_EMAIL = 'copyright@mug.rocks';
-	const LAST_UPDATED = 'May 18, 2025';
-	const JURISDICTION = 'Canada';
+const GAME_NAME = "MUG";
+const COMPANY_NAME = "MUG Inc.";
+const WEBSITE_URL = "https://mug.rocks";
+const CONTACT_EMAIL = "contact@mug.rocks";
+const COPYRIGHT_EMAIL = "copyright@mug.rocks";
+const LAST_UPDATED = "May 18, 2025";
+const JURISDICTION = "Canada";
 
-	let copyrightContainer: HTMLDivElement | null = $state(null);
+let copyrightContainer: HTMLDivElement | null = $state(null);
 
-	function downloadCopyright() {
-		if (copyrightContainer) {
-			const printWindow = window.open('', '_blank');
-			if (printWindow) {
-				printWindow.document.write(`
+function downloadCopyright() {
+	if (copyrightContainer) {
+		const printWindow = window.open("", "_blank");
+		if (printWindow) {
+			printWindow.document.write(`
 					<html>
 						<head>
 							<title>${GAME_NAME} - Copyright Policy</title>
@@ -29,12 +29,12 @@
 						</body>
 					</html>
 				`);
-				printWindow.document.close();
-				printWindow.print();
-				printWindow.close();
-			}
+			printWindow.document.close();
+			printWindow.print();
+			printWindow.close();
 		}
 	}
+}
 </script>
 
 <svelte:head>
