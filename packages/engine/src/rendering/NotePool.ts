@@ -106,6 +106,9 @@ export class NotePool {
 		receptorYPosition: number,
 		scrollSpeed: number,
 		canvasHeight: number,
+		isEditorMode: boolean,
+		editorViewCenterTimeMs: number,
+		editorPixelsPerSecond: number,
 	) {
 		this.currentLaneWidth = newLaneWidth;
 		this.activeNotes.forEach((note) => {
@@ -117,6 +120,9 @@ export class NotePool {
 				receptorYPosition,
 				scrollSpeed,
 				canvasHeight,
+				isEditorMode,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
 			);
 		});
 		this.tapNotePool.forEach((note) => {

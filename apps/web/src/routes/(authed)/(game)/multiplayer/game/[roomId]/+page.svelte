@@ -18,12 +18,17 @@ let chartData = $state<ClientChart | null>(null);
 const roomState = $derived($currentRoomState);
 
 onMount(() => {
-	roomId = page.params.roomId;
+	roomId = page.params.roomId ?? null;
 
 	// Guard clause: If no room state or no chart data, redirect back to room lobby
 	if (!roomState || !roomState.currentChart?.songId) {
 		console.warn("[Multiplayer Game] No room state or chart data found, redirecting to room lobby");
-		goto(`/multiplayer/room/${roomId}`);
+		// Ensure roomId is not null before redirecting
+		if (roomId) {
+			goto(`/multiplayer/room/${roomId}`);
+		} else {
+			goto("/multiplayer"); // Fallback if roomId is null
+		}
 		return;
 	}
 
@@ -97,7 +102,7 @@ function handleMatchFinished(finalScore: number, maxCombo: number) {
 			maxCombo,
 			songId: songData?.id, // Pass only song ID
 			chartDifficultyName: chartData?.difficultyName, // Pass only chart difficulty name
-			roomId, // Pass roomId to fetch full results on the results page
+			roomId: roomId ?? undefined, // Pass roomId to fetch full results on the results page
 		},
 	});
 }

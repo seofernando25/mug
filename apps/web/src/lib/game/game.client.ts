@@ -112,10 +112,11 @@ export async function createGame(
 	let lastNoteTime = 0;
 	if (chartData.hitObjects?.length) {
 		const validStartTimes = chartData.hitObjects
-			.map((ho) => ho.startTime)
+			.map((ho) => ho.time)
 			.filter(
-				(startTime) => typeof startTime === "number" && !isNaN(startTime),
-			);
+									(startTime) =>
+										typeof startTime === "number" && !Number.isNaN(startTime),
+									);
 
 		if (validStartTimes.length > 0) {
 			lastNoteTime = Math.max(...validStartTimes);
@@ -309,7 +310,7 @@ export async function createGame(
 		 * Start the countdown sequence. Used for multiplayer when all players are ready.
 		 * @param durationMs Optional countdown duration in ms (default 3000)
 		 */
-		startCountdown: (durationMs: number = 3000) => {
+		startCountdown: (_durationMs: number = 3000) => {
 			if (started) {
 				return;
 			}

@@ -31,6 +31,15 @@ const {
 
 // Internal search state if not controlled externally
 let internalSearchTerm = $state(searchTerm);
+
+// Effect to keep internalSearchTerm in sync with prop.searchTerm
+// This effect only runs if `onSearchChange` is NOT provided by the parent.
+$effect(() => {
+    if (!onSearchChange) {
+        internalSearchTerm = searchTerm;
+    }
+});
+
 const activeSearchTerm = $derived(onSearchChange ? searchTerm : internalSearchTerm);
 
 const filteredSongs = $derived(

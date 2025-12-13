@@ -2,7 +2,7 @@ import type { ChartHitObject } from "$lib/types";
 import { Colors, GameplaySizingConstants } from "./constants";
 import { type Container, Graphics } from "pixi.js";
 import { GameNote } from "./GameNote";
-import { getNoteYPosition } from "./noteUtils";
+import { getNoteYPosition, getEditorNoteYPosition } from "./noteUtils";
 
 export class HoldNote extends GameNote {
 	bodyGraphics: Graphics;
@@ -100,6 +100,9 @@ export class HoldNote extends GameNote {
 		receptorYPosition: number,
 		scrollSpeed: number,
 		canvasHeight: number,
+		isEditorMode: boolean, // New: Editor mode flag
+		editorViewCenterTimeMs: number, // New: Editor viewport center time
+		editorPixelsPerSecond: number, // New: Editor zoom level
 	) {
 		super.reposition(
 			highwayX,
@@ -108,6 +111,9 @@ export class HoldNote extends GameNote {
 			receptorYPosition,
 			scrollSpeed,
 			canvasHeight,
+			isEditorMode,
+			editorViewCenterTimeMs,
+			editorPixelsPerSecond,
 		);
 
 		const laneCenterX =
@@ -115,16 +121,27 @@ export class HoldNote extends GameNote {
 		const noteEndTime = this.originalTime + this.duration;
 
 		let currentHeadY = this.headGraphics.y;
-		const currentTailY = getNoteYPosition(
-			noteEndTime,
-			songTimeMs,
-			receptorYPosition,
-			scrollSpeed,
-			canvasHeight,
-		);
+		let currentTailY: number;
 
-		// Visually clamp head to not go past the tail if actively held
-		if (this.isActivelyHeld && currentHeadY < currentTailY) {
+		if (isEditorMode) {
+			currentTailY = getEditorNoteYPosition(
+				noteEndTime,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
+				canvasHeight,
+			);
+		} else {
+			currentTailY = getNoteYPosition(
+				noteEndTime,
+				songTimeMs,
+				receptorYPosition,
+				scrollSpeed,
+				canvasHeight,
+			);
+		}
+
+		// Visually clamp head to not go past the tail if actively held (gameplay only)
+		if (!isEditorMode && this.isActivelyHeld && currentHeadY < currentTailY) {
 			currentHeadY = currentTailY;
 			this.headGraphics.y = currentHeadY; // Update the actual graphic position
 		}
@@ -161,6 +178,9 @@ export class HoldNote extends GameNote {
 		receptorYPosition: number,
 		scrollSpeed: number,
 		canvasHeight: number,
+		isEditorMode: boolean,
+		editorViewCenterTimeMs: number,
+		editorPixelsPerSecond: number,
 	) {
 		this.laneWidth = newLaneWidth;
 		this._createOrUpdateHeadGraphics();
@@ -172,6 +192,9 @@ export class HoldNote extends GameNote {
 			receptorYPosition,
 			scrollSpeed,
 			canvasHeight,
+			isEditorMode,
+			editorViewCenterTimeMs,
+			editorPixelsPerSecond,
 		);
 	}
 
@@ -180,6 +203,9 @@ export class HoldNote extends GameNote {
 		receptorYPosition: number,
 		songTimeMs: number,
 		scrollSpeed: number,
+		isEditorMode: boolean,
+		editorViewCenterTimeMs: number,
+		editorPixelsPerSecond: number,
 	): boolean {
 		if (this.duration <= 0) {
 			return super.isOffscreen(
@@ -187,16 +213,41 @@ export class HoldNote extends GameNote {
 				receptorYPosition,
 				songTimeMs,
 				scrollSpeed,
+				isEditorMode,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
 			);
 		}
 		const noteEndTime = this.originalTime + this.duration;
-		const tailY = getNoteYPosition(
-			noteEndTime,
-			songTimeMs,
-			receptorYPosition,
-			scrollSpeed,
-			canvasHeight,
-		);
-		return tailY > canvasHeight;
+		let tailY: number;
+
+		if (isEditorMode) {
+			tailY = getEditorNoteYPosition(
+				noteEndTime,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
+				canvasHeight,
+			);
+			// In editor mode, consider offscreen if both head and tail are significantly outside view
+			const headY = getEditorNoteYPosition(
+				this.originalTime,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
+				canvasHeight,
+			);
+			return (
+				(headY < -100 && tailY < -100) ||
+				(headY > canvasHeight + 100 && tailY > canvasHeight + 100)
+			);
+		} else {
+			tailY = getNoteYPosition(
+				noteEndTime,
+				songTimeMs,
+				receptorYPosition,
+				scrollSpeed,
+				canvasHeight,
+			);
+			return tailY > canvasHeight;
+		}
 	}
 }

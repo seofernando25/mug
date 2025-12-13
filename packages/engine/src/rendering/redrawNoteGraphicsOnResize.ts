@@ -9,6 +9,9 @@ export function redrawNoteGraphicsOnResize(
 	receptorYPosition: number,
 	scrollSpeed: number,
 	canvasHeight: number,
+	isEditorMode: boolean,
+	editorViewCenterTimeMs: number,
+	editorPixelsPerSecond: number,
 ) {
 	notePool.updateGraphicsOnResize(
 		laneWidth,
@@ -18,5 +21,8 @@ export function redrawNoteGraphicsOnResize(
 		receptorYPosition,
 		scrollSpeed,
 		canvasHeight,
+		isEditorMode,
+		editorViewCenterTimeMs,
+		editorPixelsPerSecond,
 	);
 }

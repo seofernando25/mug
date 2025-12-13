@@ -20,6 +20,9 @@ export function updateNotes(
 		ChartHitObject & { isActivelyHeld?: boolean }
 	>,
 	judgedNoteIds: ReadonlySet<number>,
+	isEditorMode: boolean, // New: Editor mode flag
+	editorViewCenterTimeMs: number, // New: Editor viewport center time
+	editorPixelsPerSecond: number, // New: Editor zoom level
 ): void {
 	const lookaheadMs = Timing.LOOKAHEAD_SECONDS * 1000;
 	const minVisibleTime = songTimeMs - Timing.NOTE_RENDER_GRACE_PERIOD_MS;
@@ -51,6 +54,9 @@ export function updateNotes(
 					receptorYPosition,
 					scrollSpeed,
 					canvasHeight,
+					isEditorMode,
+					editorViewCenterTimeMs,
+					editorPixelsPerSecond,
 				);
 				if (
 					activeNote.isOffscreen(
@@ -58,6 +64,9 @@ export function updateNotes(
 						receptorYPosition,
 						songTimeMs,
 						scrollSpeed,
+						isEditorMode,
+						editorViewCenterTimeMs,
+						editorPixelsPerSecond,
 					)
 				) {
 					notePool.releaseNote(activeNote);
@@ -78,6 +87,9 @@ export function updateNotes(
 				receptorYPosition,
 				scrollSpeed,
 				canvasHeight,
+				isEditorMode,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
 			);
 			if (!activeNote.isVisible) {
 				activeNote.show();
@@ -104,6 +116,9 @@ export function updateNotes(
 				receptorYPosition,
 				scrollSpeed,
 				canvasHeight,
+				isEditorMode,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
 			);
 			if (
 				activeNote.isOffscreen(
@@ -111,6 +126,9 @@ export function updateNotes(
 					receptorYPosition,
 					songTimeMs,
 					scrollSpeed,
+					isEditorMode,
+					editorViewCenterTimeMs,
+					editorPixelsPerSecond,
 				)
 			) {
 				notePool.releaseNote(activeNote);
@@ -124,6 +142,9 @@ export function updateNotes(
 				receptorYPosition,
 				scrollSpeed,
 				canvasHeight,
+				isEditorMode,
+				editorViewCenterTimeMs,
+				editorPixelsPerSecond,
 			);
 			if (
 				activeNote.isOffscreen(
@@ -131,6 +152,9 @@ export function updateNotes(
 					receptorYPosition,
 					songTimeMs,
 					scrollSpeed,
+					isEditorMode,
+					editorViewCenterTimeMs,
+					editorPixelsPerSecond,
 				)
 			) {
 				notePool.releaseNote(activeNote);

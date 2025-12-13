@@ -46,6 +46,11 @@ export class GameRenderer {
 	private appHeight!: Writable<number>;
 	private lanes: number;
 
+	// Editor mode properties
+	editorMode: boolean = false;
+	editorViewCenterTimeMs: number = 0;
+	editorPixelsPerSecond: number = 100; // Default: 100 pixels per second
+
 	constructor(opts: RendererOptions) {
 		this.opts = opts;
 		this.scrollSpeed = opts.scrollSpeed ?? 1.0;
@@ -97,6 +102,15 @@ export class GameRenderer {
 		this.initialized = true;
 	}
 
+	setEditorMode(enabled: boolean): void {
+		this.editorMode = enabled;
+	}
+
+	setEditorViewport(centerTimeMs: number, pixelsPerSecond: number): void {
+		this.editorViewCenterTimeMs = centerTimeMs;
+		this.editorPixelsPerSecond = pixelsPerSecond;
+	}
+
 	render(state: GameState, timeMs: number) {
 		if (!this.initialized || !this.notePool) return;
 		const deltaMs =
@@ -126,6 +140,9 @@ export class GameRenderer {
 			this.app.screen.height,
 			visible,
 			judged,
+			this.editorMode, // Pass editor mode flag
+			this.editorViewCenterTimeMs, // Pass editor viewport center time
+			this.editorPixelsPerSecond, // Pass editor pixels per second (zoom)
 		);
 
 		// Animate and clean up judgment texts
@@ -188,16 +205,19 @@ export class GameRenderer {
 		const metrics = get(this.highwayMetricsStore);
 
 		// Redraw notes if we have the current song time
-		if (songTimeMs !== undefined && this.notePool) {
+		if (this.notePool) {
 			redrawNoteGraphicsOnResize(
 				this.notePool,
 				metrics.x,
 				metrics.laneWidth,
-				songTimeMs,
+				songTimeMs ?? 0, // Provide default value 0 for songTimeMs
 				metrics.receptorYPosition,
 				metrics.receptorYPosition,
 				this.scrollSpeed,
 				metrics.height,
+				this.editorMode, // Pass editor mode flag
+				this.editorViewCenterTimeMs, // Pass editor viewport center time
+				this.editorPixelsPerSecond, // Pass editor pixels per second (zoom)
 			);
 		}
 

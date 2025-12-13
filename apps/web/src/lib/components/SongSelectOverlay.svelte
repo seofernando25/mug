@@ -22,7 +22,7 @@ let selectedDifficulty = $state<string>("");
 
 // Derived
 const activeSong = $derived(
-	songs.find((s) => s.id === selectedId) || songs[0],
+	songs.find((s: SongWheelItem) => s.id === selectedId) || songs[0],
 );
 
 // Initialize selected song when songs load
