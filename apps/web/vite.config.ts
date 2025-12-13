@@ -11,6 +11,9 @@ export default defineConfig({
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
 	},
+	resolve: {
+		preserveSymlinks: true 
+	},
 	optimizeDeps: {
 		include: ['pixi.js', '@pixi/sound']
 	},
