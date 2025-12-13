@@ -27,7 +27,6 @@ const server = Bun.serve<PlayerData>({
 	// Default to 3000 to match Coolify/exposed port
 	port: Number(process.env.BANCHO_PORT ?? 3000),
 	async fetch(req, srv) {
-		console.log("[bancho] received fetch request");
 		if (shuttingDown.value) {
 			return new Response("Shutting down", { status: 503 });
 		}
