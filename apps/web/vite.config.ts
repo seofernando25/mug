@@ -11,21 +11,7 @@ export default defineConfig({
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
 	},
-	resolve: {
-		alias: [
-			// Stub pixi.js for SSR builds (browser-only library)
-			{
-				find: "pixi.js",
-				replacement: resolve(__dirname, "src/lib/ssr-stubs/pixi-stub.ts"),
-			},
-			{
-				find: "@pixi/sound",
-				replacement: resolve(__dirname, "src/lib/ssr-stubs/pixi-sound-stub.ts"),
-			},
-		],
-	},
-	ssr: {
-		// Externalize browser-only dependencies for SSR builds
-		external: ["pixi.js", "@pixi/sound"],
+	build: {
+		sourcemap: true,
 	},
 });
