@@ -8,6 +8,7 @@ import { onMount } from "svelte";
 import { RegisterFormSchema, type RegisterFormData } from "./schema";
 import { stretchIn } from "$lib/transitions/stretchIn";
 import { orpcClient } from "$lib/rpc/client";
+import type { SubmitFunction } from "@sveltejs/kit";
 
 const formData = $state<RegisterFormData>({
 	username: "",
@@ -90,6 +91,39 @@ $effect(() => {
 	errors = currentErrors;
 	isFormValid = valid && Object.keys(currentErrors).length === 0;
 });
+
+const handleSubmit: SubmitFunction = async ({ cancel, formData }) => {
+	cancel(); // Never submit the form to server
+	console.log("Form submitted");
+	const entries = Object.fromEntries(formData.entries());
+
+	const result = RegisterFormSchema(entries);
+
+	if (result instanceof ArkErrors) {
+		errors = result.reduce(
+			(acc, p) => {
+				acc[p.path.join(".")] = p.message;
+				return acc;
+			},
+			{} as { [key: string]: string },
+		);
+		console.log(errors);
+		return;
+	}
+
+	// Sign up with api
+	const signUpResult = await authClient.signUp.email({
+		email: result.email,
+		password: result.password,
+		username: result.username,
+		name: result.username,
+	});
+	if (signUpResult.error) {
+		errors.form = signUpResult.error?.message || "An unknown error occurred";
+	}
+
+	goto("/home");
+};
 </script>
 
 <div
@@ -101,41 +135,7 @@ $effect(() => {
 	>
 		<h1 class="text-3xl font-bold text-center text-purple-400">Create Account</h1>
 
-		<form
-			method="POST"
-			use:enhance={async ({ cancel, formData, formElement, controller, submitter }) => {
-				cancel(); // Never submit the form to server
-				console.log('Form submitted');
-				const entries = Object.fromEntries(formData.entries());
-
-				const result = RegisterFormSchema(entries);
-
-				if (result instanceof ArkErrors) {
-					errors = result.reduce(
-						(acc, p) => {
-							acc[p.path.join('.')] = p.message;
-							return acc;
-						},
-						{} as { [key: string]: string }
-					);
-					console.log(errors);
-					return;
-				}
-
-				// Sign up with api
-				const signUpResult = await authClient.signUp.email({
-					email: result.email,
-					password: result.password,
-					username: result.username,
-					name: result.username
-				});
-				if (signUpResult.error) {
-					errors.form = signUpResult.error?.message || 'An unknown error occurred';
-				}
-
-				goto('/home');
-			}}
-		>
+		<form method="POST" use:enhance={handleSubmit}>
 			<div class="mb-4">
 				<label for="username" class="block text-sm font-medium text-gray-300 mb-1">Username</label>
 				<input

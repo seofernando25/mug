@@ -1,9 +1,10 @@
 import { ClientPacketSchema } from "@mug/contract";
-import { validateSession, getRedis } from "@mug/db";
+import { validateSession } from "@mug/db";
 import { RoomManager, type PlayerData } from "./state";
 import { TypedSocket } from "./socket-helper";
 import { type } from "arktype";
 import type { ServerWebSocket } from "bun";
+import { redis } from "bun";
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 const MAX_DB_CONNECTIONS = Number(process.env.BANCHO_DB_POOL_MAX ?? 2);
@@ -11,7 +12,7 @@ const shuttingDown = { value: false };
 
 void MAX_DB_CONNECTIONS;
 
-const redis = getRedis();
+
 const connections = new Set<ServerWebSocket<PlayerData>>();
 const roomManager = new RoomManager((event) => {
 	redis.publish("global-lobby", JSON.stringify(event));

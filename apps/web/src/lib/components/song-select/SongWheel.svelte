@@ -109,7 +109,7 @@ function handleSongClick(song: SongWheelItem) {
 					<div class="h-24 w-full flex overflow-hidden rounded-l-xl border-r-4 shadow-xl backdrop-blur-md
 							  {isSelected ? 'bg-gray-800/90 border-pink-500 ring-1 ring-pink-500/50' : 'bg-gray-900/60 border-blue-500/50 hover:border-blue-400'}"
 					>
-						<div class="w-32 h-full bg-cover bg-center flex-shrink-0" style="background-image: url({song.imageUrl})">
+						<div class="w-32 h-full bg-cover bg-center shrink-0" style="background-image: url({song.imageUrl})">
 							<div class="w-full h-full bg-black/30 group-hover:bg-transparent transition"></div>
 						</div>
 

@@ -5,7 +5,6 @@ import * as auth from "./schema/auth";
 export const schema = { ...music, ...multiplayer, ...auth };
 
 export * from "./auth";
-export * from "./redis";
 export * from "./client";
 export * from "./schema/auth";
 export * from "./schema/music";

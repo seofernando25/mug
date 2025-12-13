@@ -1,7 +1,8 @@
 import type { UploadJob } from "@mug/contract";
 import { processFileAndExtractData } from "@mug/game-logic";
 import { randomUUIDv7 } from "bun";
-import { chart, chartHitObject, db, getRedis, s3, song } from "../index";
+import { chart, chartHitObject, db, s3, song } from "../index";
+import { redis } from "bun";
 
 /**
  * Installs a song by processing the file, uploading assets to S3, and storing metadata in the database.
@@ -213,7 +214,6 @@ export async function queueSongUpload(
 		};
 
 		// Queue job in Redis
-		const redis = getRedis();
 		await redis.rpush(queueKey, JSON.stringify(job));
 
 		return {

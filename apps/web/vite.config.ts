@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
-import path, { resolve } from "node:path";
+import  { resolve } from "node:path";
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
@@ -11,9 +11,9 @@ export default defineConfig({
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
 	},
-	resolve: {
-		alias: {
-		  'pixi.js': path.resolve(__dirname, './node_modules/pixi.js/dist/browser/pixi.mjs')
-		}
-	  },
+	// resolve: {
+	// 	alias: {
+	// 	  'pixi.js': resolve(__dirname, './node_modules/pixi.js/dist/browser/pixi.mjs')
+	// 	}
+	//   },
 });

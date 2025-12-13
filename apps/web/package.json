@@ -41,11 +41,7 @@
 		"drizzle-orm": "^0.45.1",
 		"gsap": "^3.14.1",
 		"jszip": "^3.10.1",
-		"partykit": "^0.0.115",
-		"partysocket": "^1.1.6",
-		"pg": "^8.16.3",
 		"pixi.js": "^8.14.3",
-		"postgres": "^3.4.7",
 		"svelte-adapter-bun": "^1.0.1",
 		"tweakpane": "^4.0.5",
 		"uuid": "^13.0.0"
