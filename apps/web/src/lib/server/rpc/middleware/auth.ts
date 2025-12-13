@@ -4,9 +4,15 @@ import { routerBaseContext } from "../context";
 
 export const requireAuth = routerBaseContext.middleware(
 	async ({ context, next }) => {
-		const sessionPayload = await auth.api.getSession({
-			headers: context.headers,
-		});
+		let sessionPayload: Awaited<ReturnType<typeof auth.api.getSession>> | null = null;
+		try {
+			sessionPayload = await auth.api.getSession({
+				headers: context.headers,
+			});
+		} catch (error) {
+			console.error("getSession error:", error);
+			throw new ORPCError("UNAUTHORIZED");
+		}
 
 		if (
 			sessionPayload?.user.isAnonymous ||

@@ -276,18 +276,6 @@ class GameSocket {
 	}
 }
 
-let BANCHO_URL = "ws://localhost:3001";
-try {
-	// @ts-expect-error dynamic import only available at build, ignored in tests
-	const env = (await import("$env/static/public")) as {
-		PUBLIC_WS_URL?: string;
-	};
-	if (env?.PUBLIC_WS_URL) BANCHO_URL = env.PUBLIC_WS_URL;
-} catch {
-	// Not in Svelte/Vite env (e.g., tests); fall back to default/local env
-	if (typeof process !== "undefined" && process.env?.PUBLIC_WS_URL) {
-		BANCHO_URL = process.env.PUBLIC_WS_URL;
-	}
-}
+const BANCHO_URL = process.env.PUBLIC_WS_URL || "ws://localhost:3001";
 
 export const gameSocket = new GameSocket(BANCHO_URL);

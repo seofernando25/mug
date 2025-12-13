@@ -16,11 +16,26 @@ const generateRandomString = (length: number): string => {
 
 export const auth = betterAuth({
 	secret: process.env.BETTER_AUTH_SECRET,
-	trustedOrigins: [
-		process.env.BETTER_AUTH_URL || "http://localhost:3000",
-		"http://*.sslip.io",
-		"https://*.sslip.io",
-	],
+	trustedOrigins: async (request: Request) => {
+		const origins: string[] = [
+			process.env.BETTER_AUTH_URL || "http://localhost:3000",
+		];
+
+		// Dynamically allow sslip.io domains
+		const origin = request.headers.get("origin");
+		if (origin) {
+			try {
+				const url = new URL(origin);
+				if (url.hostname.endsWith(".sslip.io")) {
+					origins.push(origin);
+				}
+			} catch {
+				// Invalid URL, ignore
+			}
+		}
+
+		return origins;
+	},
 	database: drizzleAdapter(db, {
 		provider: "pg",
 		schema: {
