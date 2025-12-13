@@ -67,6 +67,10 @@ const MatchFinishedPacket = type({
 	op: "'match_finished'",
 	"data?": { "score?": "number", "maxCombo?": "number" },
 });
+const ClientReadyPacket = type({
+	op: "'client_ready'",
+	"data?": { "roomId?": "string" },
+});
 
 // --- Client Packets (Sent by Web Client) ---
 
@@ -78,7 +82,8 @@ export const ClientPacketSchema = PingPacket.or(NoopPacket)
 	.or(UpdateRoomPacket)
 	.or(StartMatchPacket)
 	.or(ScoreUpdatePacket)
-	.or(MatchFinishedPacket);
+	.or(MatchFinishedPacket)
+	.or(ClientReadyPacket);
 
 // --- Server Packet Types ---
 
@@ -147,9 +152,13 @@ export const ServerPacketSchema = PongPacket.or(AckPacket)
 
 // --- Helper Types for Autocomplete ---
 
+// Inferred packet types
+export type ClientPacket = typeof ClientPacketSchema.infer;
+export type ServerPacket = typeof ServerPacketSchema.infer;
+
 // Extract op types from ArkType schemas
-export type ClientPacketOp = (typeof ClientPacketSchema.infer)["op"];
-export type ServerPacketOp = (typeof ServerPacketSchema.infer)["op"];
+export type ClientPacketOp = ClientPacket["op"];
+export type ServerPacketOp = ServerPacket["op"];
 
 // Helper to extract the 'data' type for a specific 'op' from ArkType schemas
 export type ClientPacketData<Op extends ClientPacketOp> =

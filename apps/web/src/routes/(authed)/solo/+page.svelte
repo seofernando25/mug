@@ -1,67 +1,62 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import SongSearchSort from "$lib/components/songlist/SongSearchSort.svelte";
-import { orpcClient } from "$lib/rpc/client";
-import SongDetailPanel from "./SongDetailPanel.svelte";
-import SongListItemComponent from "./SongListItem.svelte";
-import type { SongListItem } from "./types";
 import { goto } from "$app/navigation";
+import { fade } from "svelte/transition";
+import { orpcClient } from "$lib/rpc/client";
+import SongWheel, { type SongWheelItem } from "$lib/components/song-select/SongWheel.svelte";
+import SongDetailPanel from "./SongDetailPanel.svelte";
+import type { SongListItem } from "./types";
 
 let allSongs = $state<SongListItem[]>([]);
-let filteredSongs = $derived(allSongs);
 let currentError = $state<string | null>(null);
 let isLoadingSongs = $state(true);
-const isLoadingDetails = $state(false);
 
 let searchTerm = $state("");
-let selectedSongId = $state<string>("");
+let selectedSongId = $state<string | null>(null);
 const selectedSong = $derived(
 	allSongs.find((song) => song.id === selectedSongId),
 );
-let selectedDifficultyId = $state<string>("");
+
+// Convert to SongWheelItem format
+const wheelSongs = $derived<SongWheelItem[]>(
+	allSongs.map((song) => ({
+		id: song.id,
+		title: song.title,
+		artist: song.artist,
+		imageUrl: song.imageUrl,
+		difficulties: song.difficulties,
+	})),
+);
 
 onMount(async () => {
 	isLoadingSongs = true;
 	try {
 		const response = await orpcClient.song.list({});
 		allSongs = response.items;
+		// Auto-select first song
+		if (allSongs.length > 0 && !selectedSongId) {
+			selectedSongId = allSongs[0].id;
+		}
 	} catch (error) {
 		console.error("Error fetching songs:", error);
 		currentError = "Failed to fetch songs";
 	}
-	filterSongs(); // Initial filter (shows all if searchTerm is empty)
 	isLoadingSongs = false;
 });
 
-function filterSongs() {
-	if (!searchTerm) {
-		filteredSongs = allSongs;
-	} else {
-		const lowerSearchTerm = searchTerm.toLowerCase();
-		filteredSongs = allSongs.filter(
-			(song) =>
-				song.title.toLowerCase().includes(lowerSearchTerm) ||
-				song.artist.toLowerCase().includes(lowerSearchTerm),
-		);
-	}
+function handleSongSelect(song: SongWheelItem) {
+	selectedSongId = song.id;
 }
 
-function handleSearch(term: string) {
+function handleSongConfirm(song: SongWheelItem) {
+	// Navigate to play the first difficulty by default
+	const fullSong = allSongs.find((s) => s.id === song.id);
+	const difficulty = fullSong?.difficulties?.[0] || "Normal";
+	goto(`/solo/play/${song.id}?difficulty=${encodeURIComponent(difficulty)}`);
+}
+
+function handleSearchChange(term: string) {
 	searchTerm = term;
-	filterSongs();
-}
-
-function handleSort(sortBy: string) {
-	console.log("Sort by:", sortBy);
-	// Implement actual sorting logic here based on `sortBy` value
-	// For example:
-	if (sortBy === "title") {
-		allSongs.sort((a, b) => a.title.localeCompare(b.title));
-	} else if (sortBy === "artist") {
-		allSongs.sort((a, b) => a.artist.localeCompare(b.artist));
-	}
-	// Add other sort cases (BPM will need song details if not in SongListItem)
-	filterSongs(); // Re-apply filter after sorting
 }
 </script>
 
@@ -69,84 +64,59 @@ function handleSort(sortBy: string) {
 	<title>Solo - Song Select - MUG</title>
 </svelte:head>
 
-<div class="flex h-screen bg-gray-900 text-white">
-	<!-- Left Panel: Song Details & Scoreboard -->
-	<div class="w-1/3 xl:w-2/5 p-0 border-r border-gray-700 overflow-y-auto">
-		{#if isLoadingDetails}
-			<div class="flex items-center justify-center h-full">
-				<p class="text-xl text-gray-500">Loading song details...</p>
-			</div>
-		{:else if selectedSong}
-			<SongDetailPanel song={selectedSong} />
-		{:else}
-			<div class="flex items-center justify-center h-full">
-				<p class="text-xl text-gray-500">No song selected</p>
-			</div>
-		{/if}
-	</div>
+<div class="fixed inset-0 flex overflow-hidden bg-gray-900 text-white font-sans select-none">
+	<!-- Dynamic Background -->
+	{#key selectedSong?.id}
+		<div
+			class="absolute inset-0 bg-cover bg-center transition-all duration-700 transform scale-105"
+			style="background-image: url({selectedSong?.imageUrl}); filter: blur(24px) brightness(0.3);"
+			transition:fade={{ duration: 500 }}
+		></div>
+		<div class="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/80 to-transparent"></div>
+	{/key}
 
-	<!-- Right Panel: Song List -->
-	<div class="w-2/3 xl:w-3/5 flex flex-col">
-		<SongSearchSort bind:searchTerm search={handleSearch} sort={handleSort} />
-
-		<div class="grow p-4 overflow-y-auto">
-			{#if isLoadingSongs}
-				<p class="text-center text-gray-400">Loading songs...</p>
-			{:else if currentError && allSongs.length === 0}
-				<div class="text-center text-red-400 p-4 bg-red-900/30 rounded-md">
-					<p>Error loading songs: {currentError}</p>
-					<p>Please check the API endpoint or server logs.</p>
-				</div>
-			{:else if filteredSongs.length === 0 && searchTerm}
-				<p class="text-center text-gray-400">No songs found matching "{searchTerm}".</p>
-			{:else if filteredSongs.length === 0}
-				<p class="text-center text-gray-400">
-					No songs available. Import some songs in the Level Creator!
-				</p>
+	{#if isLoadingSongs}
+		<div class="relative z-10 flex-1 flex items-center justify-center">
+			<div class="animate-pulse text-2xl font-light tracking-widest text-cyan-400">
+				LOADING SONGS...
+			</div>
+		</div>
+	{:else if currentError && allSongs.length === 0}
+		<div class="relative z-10 flex-1 flex items-center justify-center">
+			<div class="bg-red-900/80 border border-red-500 p-6 rounded-xl text-center backdrop-blur-sm">
+				<h2 class="text-xl font-bold mb-2">Error</h2>
+				<p class="text-red-200">{currentError}</p>
+				<button
+					onclick={() => goto('/home')}
+					class="mt-4 px-6 py-2 bg-white text-red-900 font-bold rounded hover:bg-gray-200"
+				>
+					RETURN HOME
+				</button>
+			</div>
+		</div>
+	{:else}
+		<!-- Left Panel: Song Details -->
+		<div class="relative z-10 w-[40%] h-full flex flex-col">
+			{#if selectedSong}
+				<SongDetailPanel song={selectedSong} />
 			{:else}
-				<div class="space-y-2">
-					{#each filteredSongs as song (song.id)}
-						<SongListItemComponent
-							{selectedSongId}
-							songselected={() => {
-								selectedSongId = song.id;
-							}}
-							songListItem={song}
-							{selectedDifficultyId}
-							difficultyselected={(difficultyName: string) => {
-								if (difficultyName === selectedDifficultyId) {
-									// Goto the song stage
-									goto(`/solo/play/${song.id}?difficulty=${difficultyName}`);
-								} else {
-									selectedDifficultyId = difficultyName;
-								}
-							}}
-						/>
-					{/each}
+				<div class="flex-1 flex items-center justify-center">
+					<p class="text-xl text-gray-500">Select a song to see details</p>
 				</div>
 			{/if}
 		</div>
-	</div>
-</div>
 
-<style>
-	/* Ensure full height for scrolling regions */
-	.h-screen {
-		height: 100vh;
-	}
-	/* Basic scrollbar styling for webkit browsers */
-	::-webkit-scrollbar {
-		width: 8px;
-		height: 8px;
-	}
-	::-webkit-scrollbar-track {
-		background: #1f2937; /* bg-gray-800 */
-	}
-	::-webkit-scrollbar-thumb {
-		background: #4b5563; /* bg-gray-600 */
-		border-radius: 4px;
-	}
-	::-webkit-scrollbar-thumb:hover {
-		background: #6b7280; /* bg-gray-500 */
-	}
-</style>
+		<!-- Right Panel: Song Wheel -->
+		<div class="relative z-10 w-[60%] h-full flex flex-col">
+			<SongWheel
+				songs={wheelSongs}
+				{selectedSongId}
+				onSelect={handleSongSelect}
+				onConfirm={handleSongConfirm}
+				{searchTerm}
+				onSearchChange={handleSearchChange}
+				showSearch={true}
+			/>
+		</div>
+	{/if}
+</div>

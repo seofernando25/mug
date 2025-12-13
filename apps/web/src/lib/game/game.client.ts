@@ -13,6 +13,15 @@ export type GamePhase =
 	| "finished"
 	| "summary";
 
+export interface GameOptions {
+	/**
+	 * If true, the game will NOT automatically start the countdown after audio loads.
+	 * Instead, it will call onAudioLoaded() and wait for startCountdown() to be called.
+	 * Used for multiplayer to sync all players before starting.
+	 */
+	manualStart?: boolean;
+}
+
 export async function createGame(
 	songData: ClientSong,
 	chartData: ClientChart,
@@ -28,7 +37,9 @@ export async function createGame(
 		getIsPaused: () => boolean;
 		getCountdownValue: () => number;
 		onTimeUpdate?: (time: number) => void;
+		onAudioLoaded?: () => void;
 	},
+	options: GameOptions = {},
 ) {
 	console.log(
 		`[MUG] 1. Initializing Game. Chart has ${chartData.hitObjects.length} notes.`,
@@ -257,12 +268,17 @@ export async function createGame(
 
 	const isTestEnv = typeof process !== "undefined" && !!process.env?.BUN_TEST;
 
+	// Notify that audio is loaded (for multiplayer ready-up)
+	callbacks.onAudioLoaded?.();
+
 	if (isTestEnv) {
 		setPhase("playing");
 		loop(); // Trigger the loop immediately in test mode
-	} else {
+	} else if (!options.manualStart) {
+		// Solo mode: start immediately
 		startSequence();
 	}
+	// If manualStart is true, wait for startCountdown() to be called
 
 	return {
 		pauseGame: () => {
@@ -283,6 +299,18 @@ export async function createGame(
 			} else {
 				startSequence();
 			}
+		},
+		/**
+		 * Start the countdown sequence. Used for multiplayer when all players are ready.
+		 * @param durationMs Optional countdown duration in ms (default 3000)
+		 */
+		startCountdown: (durationMs: number = 3000) => {
+			if (started) {
+				console.log("[MUG] startCountdown called but game already started");
+				return;
+			}
+			console.log(`[MUG] startCountdown called with ${durationMs}ms`);
+			startSequence();
 		},
 		cleanup: () => {
 			cancelAnimationFrame(rafId);

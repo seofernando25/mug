@@ -33,8 +33,9 @@ type Room = {
 	name: string;
 	hostId: string;
 	players: Set<ServerWebSocket<PlayerData>>;
-	status: "idle" | "starting" | "playing";
+	status: "idle" | "loading" | "starting" | "playing";
 	startTime?: number;
+	readyPlayers: Set<string>; // Set of user IDs who have loaded audio
 	currentChart?: {
 		coverUrl?: string;
 		name?: string;
@@ -81,6 +82,7 @@ export class RoomManager {
 			hostId: player.data.user.id,
 			players: new Set([player]),
 			status: "idle",
+			readyPlayers: new Set(),
 		};
 		this.rooms.set(roomId, room);
 		player.data.roomId = roomId;
@@ -338,5 +340,92 @@ export class RoomManager {
 		};
 		console.log("[bancho] broadcasting match_finish", JSON.stringify(packet));
 		this.broadcastToRoom(roomId, packet);
+	}
+
+	/**
+	 * Initiates match loading phase - sets status to 'loading' and clears ready players
+	 */
+	startMatchLoading(roomId: string): boolean {
+		const room = this.rooms.get(roomId);
+		if (!room) return false;
+
+		room.status = "loading";
+		room.readyPlayers.clear();
+
+		console.log("[bancho] room", roomId, "entering loading phase");
+
+		// Broadcast the loading state
+		const state = this.getRoomState(roomId);
+		if (state) {
+			this.broadcastToRoom(roomId, { op: "room_state", data: state });
+		}
+
+		return true;
+	}
+
+	/**
+	 * Marks a player as ready (audio loaded). If all players are ready, starts countdown.
+	 * Returns true if countdown was triggered.
+	 */
+	markPlayerReady(player: ServerWebSocket<PlayerData>): boolean {
+		const roomId = player.data.roomId;
+		if (!roomId) return false;
+
+		const room = this.rooms.get(roomId);
+		if (!room) return false;
+
+		// Only accept ready signals during loading phase
+		if (room.status !== "loading") {
+			console.log("[bancho] ignoring client_ready - room not in loading phase");
+			return false;
+		}
+
+		const userId = player.data.user?.id;
+		if (!userId) return false;
+
+		room.readyPlayers.add(userId);
+		console.log(
+			"[bancho] player",
+			userId,
+			"ready in room",
+			roomId,
+			`(${room.readyPlayers.size}/${room.players.size})`,
+		);
+
+		// Get unique player count (by user ID)
+		const uniquePlayerIds = new Set<string>();
+		for (const p of room.players) {
+			uniquePlayerIds.add(p.data.user.id);
+		}
+
+		// Check if all players are ready
+		if (room.readyPlayers.size >= uniquePlayerIds.size) {
+			console.log("[bancho] all players ready! Starting countdown in room", roomId);
+
+			// Transition to starting phase
+			room.status = "starting";
+			room.startTime = Date.now() + 3000;
+
+			// Broadcast the starting state
+			const state = this.getRoomState(roomId);
+			if (state) {
+				this.broadcastToRoom(roomId, { op: "room_state", data: state });
+			}
+
+			// Schedule transition to playing after 3 seconds
+			this.setTimeoutFn(() => {
+				if (room.status === "starting") {
+					room.status = "playing";
+					const finalState = this.getRoomState(roomId);
+					if (finalState) {
+						this.broadcastToRoom(roomId, { op: "room_state", data: finalState });
+					}
+				}
+			}, 3000);
+
+			return true;
+		}
+
+		return false;
 	}
 }

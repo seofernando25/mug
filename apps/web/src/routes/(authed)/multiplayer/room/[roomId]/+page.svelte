@@ -179,9 +179,10 @@ onMount(() => {
 				updateCountdown();
 			}
 
-			// Handle game start
-			if (state.status === "playing") {
-				goto(`/game/${roomId}`);
+			// Handle game start - navigate when loading phase begins
+			// Players will load audio and send client_ready, then countdown starts
+			if (state.status === "loading" || state.status === "playing") {
+				goto(`/multiplayer/game/${roomId}`);
 			}
 
 			isLoading = false;
@@ -218,21 +219,21 @@ onMount(() => {
 
     {#if isLoading}
         <div class="flex-1 flex items-center justify-center">
-            <div class="z-10 animate-pulse text-2xl font-light tracking-widest text-cyan-400">CONNECTING...</div>
+        <div class="z-10 animate-pulse text-2xl font-light tracking-widest text-cyan-400">CONNECTING...</div>
         </div>
     {:else if error}
         <div class="flex-1 flex items-center justify-center">
-            <div class="z-10 bg-red-900/80 border border-red-500 p-6 rounded-xl text-center backdrop-blur-sm">
-                <h2 class="text-xl font-bold mb-2">Connection Error</h2>
-                <p>{error}</p>
-                <button onclick={() => goto('/multiplayer')} class="mt-4 px-6 py-2 bg-white text-red-900 font-bold rounded hover:bg-gray-200">
-                    RETURN TO LOBBY
-                </button>
+        <div class="z-10 bg-red-900/80 border border-red-500 p-6 rounded-xl text-center backdrop-blur-sm">
+            <h2 class="text-xl font-bold mb-2">Connection Error</h2>
+            <p>{error}</p>
+            <button onclick={() => goto('/multiplayer')} class="mt-4 px-6 py-2 bg-white text-red-900 font-bold rounded hover:bg-gray-200">
+                RETURN TO LOBBY
+            </button>
             </div>
         </div>
     {:else if roomDetails}
         <!-- Song Info Header -->
-        <div class="w-full bg-gradient-to-b from-gray-800/50 to-transparent border-b border-gray-700/50 backdrop-blur-sm py-6">
+        <div class="w-full bg-linear-to-b from-gray-800/50 to-transparent border-b border-gray-700/50 backdrop-blur-sm py-6">
             <div class="max-w-7xl mx-auto px-6 text-center">
                 <h1 class="text-4xl font-black italic tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] mb-2">
                     {roomDetails.currentChart?.name || 'NO SONG SELECTED'}
