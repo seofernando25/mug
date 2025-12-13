@@ -10,7 +10,8 @@
 	},
 	"dependencies": {
 		"@mug/contract": "workspace:*",
-		"@mug/db": "workspace:*"
+		"@mug/db": "workspace:*",
+		"arktype": "^2.1.29"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
