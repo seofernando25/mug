@@ -1,6 +1,6 @@
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
-import adapter from "@sveltejs/adapter-auto";
-// import adapter from "svelte-adapter-bun"; 
+import adapter from '@sveltejs/adapter-node';
+
 
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -11,11 +11,6 @@ const config = {
 
 	kit: {
 		adapter: adapter(),
-		// alias: {
-		// 	"@mug/db": "../../packages/db/src/index.ts",
-		// 	"@mug/contract": "../../packages/contract/src/index.ts",
-		// 	"@mug/game-logic": "../../packages/game-logic/src/index.ts",
-		// },
 	},
 };
 
