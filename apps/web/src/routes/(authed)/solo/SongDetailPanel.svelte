@@ -10,7 +10,7 @@ const {
 
 // Dummy leaderboard data - replace with actual data fetching
 // The structure should now align with LeaderboardEntry from $lib/types
-let leaderboard = [
+const leaderboard = [
 	{
 		rank: 1,
 		user: {
@@ -40,7 +40,7 @@ let leaderboard = [
 	// ... Add more entries matching LeaderboardEntry structure
 ];
 
-let personalBest = {
+const personalBest = {
 	rank: 130000,
 	user: {
 		id: "currentUser",

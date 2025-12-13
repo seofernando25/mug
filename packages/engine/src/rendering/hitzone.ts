@@ -1,5 +1,5 @@
 import { Colors, GameplaySizingConstants } from "./constants";
-import { Graphics } from "pixi.js";
+import type { Graphics } from "pixi.js";
 
 export function drawHitZone(
 	hitZoneGraphics: Graphics,

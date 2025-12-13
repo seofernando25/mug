@@ -2,7 +2,7 @@
 <script lang="ts">
 import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
 
-let {
+const {
 	onResume = () => {},
 	onRetry = () => {},
 	onExit = () => {},

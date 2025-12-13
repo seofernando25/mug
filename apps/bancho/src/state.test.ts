@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, jest } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { RoomManager, type PlayerData } from "./state";
 import type { ServerWebSocket } from "bun";
 
@@ -20,7 +20,7 @@ describe("RoomManager Logic", () => {
 		expect(room.players.has(host)).toBe(true);
 		expect(host.data.roomId).toBe(room.id);
 		expect(notifier).toHaveBeenCalled();
-		const event = notifier.mock.calls[0][0] as any;
+		const event = notifier.mock.calls[0][0] as Parameters<typeof notifier>[0];
 		expect(event.type).toBe("add");
 		expect(event.room.id).toBe(room.id);
 	});
@@ -32,8 +32,8 @@ describe("RoomManager Logic", () => {
 		const room = manager.createRoom(host, "Multiplayer");
 		manager.joinRoom(p2, room.id);
 		expect(room.players.size).toBe(2);
-		expect((host.send as any).mock.calls.length).toBeGreaterThan(0);
-		const sent = JSON.parse((host.send as any).mock.calls[0][0]);
+		expect(host.send.mock.calls.length).toBeGreaterThan(0);
+		const sent = JSON.parse(host.send.mock.calls[0][0]);
 		expect(sent.op).toBe("room_event");
 	});
 
@@ -80,12 +80,12 @@ describe("RoomManager Logic", () => {
 		let timeoutCallback: (() => void) | null = null;
 		let timeoutId = 1;
 
-		const mockSetTimeout = (callback: () => void, delay: number) => {
+		const mockSetTimeout = (callback: () => void, _delay: number) => {
 			timeoutCallback = callback;
-			return timeoutId++ as any;
+			return timeoutId++;
 		};
 
-		const mockClearTimeout = (id: number) => {
+		const mockClearTimeout = (_id: number) => {
 			if (timeoutCallback) {
 				timeoutCallback = null;
 			}
@@ -128,12 +128,12 @@ describe("RoomManager Logic", () => {
 		let timeoutCallback: (() => void) | null = null;
 		let timeoutId = 1;
 
-		const mockSetTimeout = (callback: () => void, delay: number) => {
+		const mockSetTimeout = (callback: () => void, _delay: number) => {
 			timeoutCallback = callback;
 			return timeoutId++;
 		};
 
-		const mockClearTimeout = (id: number) => {
+		const mockClearTimeout = (_id: number) => {
 			timeoutCallback = null;
 		};
 
@@ -150,7 +150,7 @@ describe("RoomManager Logic", () => {
 
 		// Simulate timer firing (5 seconds passed)
 		expect(timeoutCallback).toBeTruthy();
-		timeoutCallback!(); // Fire the disconnect timer
+		timeoutCallback?.(); // Fire the disconnect timer
 
 		// Room should be deleted automatically
 		expect(

@@ -3,9 +3,9 @@ import { slide } from "svelte/transition";
 
 let isPlayerVisible = false;
 // Placeholder for actual track data later
-let trackName = "Eternal Bliss";
-let artistName = "Emiru no Aishita Tsukiyo ni Dai San Gensou Kyoku wo";
-let progress = 30; // Percentage for the progress bar
+const trackName = "Eternal Bliss";
+const artistName = "Emiru no Aishita Tsukiyo ni Dai San Gensou Kyoku wo";
+const progress = 30; // Percentage for the progress bar
 
 function togglePlayer() {
 	isPlayerVisible = !isPlayerVisible;

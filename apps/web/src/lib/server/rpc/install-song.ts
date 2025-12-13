@@ -33,13 +33,13 @@ export const installSongProcedure = routerBaseContext
 			}
 		} catch (err) {
 			console.error("Song installation failed:", err);
-			const errorMessage =
+			const message =
 				err instanceof Error ? err.message : "Unknown error occurred";
 
-			if (errorMessage.includes("Failed to process file")) {
-				throw new ORPCError("BAD_REQUEST", { message: errorMessage });
+			if (message.includes("Failed to process file")) {
+				throw new ORPCError("BAD_REQUEST", { message });
 			} else {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: errorMessage });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message });
 			}
 		}
 	});

@@ -49,13 +49,13 @@ export function setupSvelteKitMocks() {
 			clear: mock(() => {}),
 			length: 0,
 			key: mock(() => null),
-		} as any;
+		} as Storage;
 	}
 
 	// Mock DOM APIs
 	if (typeof window === "undefined") {
 		global.document = {
-			createElement: mock((tagName: string) => ({
+			createElement: mock((_tagName: string) => ({
 				style: {},
 				classList: {
 					add: mock(),
@@ -73,7 +73,7 @@ export function setupSvelteKitMocks() {
 			querySelectorAll: mock(() => []),
 			createElementNS: mock(() => ({})),
 			body: {},
-		} as any;
+		} as unknown as Document;
 
 		global.window = {
 			localStorage: global.localStorage,
@@ -87,7 +87,7 @@ export function setupSvelteKitMocks() {
 			setInterval: mock((cb, delay) => setInterval(cb, delay || 0)),
 			clearInterval: mock(),
 			navigator: { userAgent: "Bun/Test" },
-		} as any;
+		} as unknown as Window & typeof globalThis;
 
 		global.navigator = global.window.navigator;
 		global.requestAnimationFrame = global.window.requestAnimationFrame;

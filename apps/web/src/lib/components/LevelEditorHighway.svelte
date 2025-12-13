@@ -13,7 +13,7 @@ import type {
 
 // Assume we will get song and chart data as props
 // You will need to pass these down from the parent page.
-let { containerWidth, containerHeight, songData, chartData } = $props();
+const { containerWidth, containerHeight, songData, chartData } = $props();
 
 let pixiCanvas: HTMLCanvasElement;
 
@@ -43,10 +43,10 @@ async function initializeGame() {
 		onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
 			console.log("Score:", score, "Combo:", combo, "Max Combo:", maxCombo);
 		},
-		onNoteHit: (note: Note, judgment: string, color?: number) => {
+		onNoteHit: (note: { id: string | number; lane: number }, judgment: string) => {
 			console.log("Note Hit:", judgment);
 		},
-		onNoteMiss: (note: Note) => {
+		onNoteMiss: (note: { id: string | number; lane: number }) => {
 			console.log("Note Miss:");
 		},
 		getGamePhase: (): GamePhase => "playing", // Correctly typed placeholder

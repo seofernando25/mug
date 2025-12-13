@@ -1,7 +1,7 @@
 import { writable } from "svelte/store";
 import { type } from "arktype";
 import {
-	ClientPacketSchema,
+	type ClientPacketSchema,
 	ServerPacketSchema,
 	type ClientPacketOp,
 	type ClientPacketData,
@@ -62,7 +62,7 @@ class GameSocket {
 	private url: string;
 	private packetWaiters: Array<(packet: ServerPacket) => boolean> = [];
 	private messageQueue: ClientPacket[] = [];
-	private pongCallback: ((data: any) => void) | null = null;
+	private pongCallback: ((data: { message?: string; serverTime?: number; t1?: number }) => void) | null = null;
 
 	constructor(url: string) {
 		this.url = url;
@@ -83,9 +83,11 @@ class GameSocket {
 			socketStatus.set("connected");
 			// Send any queued messages now that we're connected
 			while (this.messageQueue.length > 0) {
-				const packet = this.messageQueue.shift()!;
-				this.ws!.send(JSON.stringify(packet));
-				console.log("[ws] sent queued packet", packet);
+				const packet = this.messageQueue.shift();
+				if (packet) {
+					this.ws?.send(JSON.stringify(packet));
+					console.log("[ws] sent queued packet", packet);
+				}
 			}
 		};
 
@@ -143,11 +145,11 @@ class GameSocket {
 		this.ws?.close();
 	}
 
-	setPongCallback(callback: (data: any) => void) {
+	setPongCallback(callback: (data: { message?: string; serverTime?: number; t1?: number }) => void) {
 		this.pongCallback = callback;
 	}
 
-	waitForPacket<T = any>(
+	waitForPacket<T = unknown>(
 		predicate: (packet: ServerPacket) => T | null | false,
 		timeoutMs = 2000,
 	) {
@@ -264,11 +266,10 @@ class GameSocket {
 			}
 			case "pong":
 				// ArkType guarantees the pong data structure
-				if (this.pongCallback) {
+				if (this.pongCallback && packet.data) {
 					this.pongCallback(packet.data);
 				}
 				break;
-			case "error":
 			default:
 				break;
 		}
@@ -277,7 +278,7 @@ class GameSocket {
 
 let BANCHO_URL = "ws://localhost:3001";
 try {
-	// @ts-ignore dynamic import only available at build, ignored in tests
+	// @ts-expect-error dynamic import only available at build, ignored in tests
 	const env = (await import("$env/static/public")) as {
 		PUBLIC_WS_URL?: string;
 	};

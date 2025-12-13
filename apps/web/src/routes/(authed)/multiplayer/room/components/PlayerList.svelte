@@ -12,7 +12,7 @@ interface Props {
 	hostId?: string | null;
 }
 
-let { players, hostId }: Props = $props();
+const { players, hostId }: Props = $props();
 </script>
 
 <div class="w-1/4 h-full flex flex-col justify-center gap-4 pl-8" in:fly={{ x: -50, duration: 500 }}>

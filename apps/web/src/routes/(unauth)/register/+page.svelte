@@ -9,7 +9,7 @@ import { RegisterFormSchema, type RegisterFormData } from "./schema";
 import { stretchIn } from "$lib/transitions/stretchIn";
 import { orpcClient } from "$lib/rpc/client";
 
-let formData = $state<RegisterFormData>({
+const formData = $state<RegisterFormData>({
 	username: "",
 	email: "",
 	password: "",

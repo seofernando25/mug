@@ -1,5 +1,5 @@
 <script lang="ts">
-let { countdownValue }: { countdownValue: number } = $props();
+const { countdownValue }: { countdownValue: number } = $props();
 </script>
 
 <div class="overlay-container countdown-overlay">

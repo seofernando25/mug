@@ -68,23 +68,23 @@ function parseOsuFileContent(content: string): ParsedOsuData {
 	});
 
 	const metadata: Record<string, string> = {};
-	sections["Metadata"]?.forEach((line) => {
+	sections.Metadata?.forEach((line) => {
 		const [key, value] = line.split(":").map((s) => s.trim());
 		if (key && value) metadata[key] = value;
 	});
 
-	sections["General"]?.forEach((line) => {
+	sections.General?.forEach((line) => {
 		const [key, value] = line.split(":").map((s) => s.trim());
 		if (key && value && key === "AudioFilename") {
-			metadata["AudioFilename"] = value;
+			metadata.AudioFilename = value;
 		}
 		if (key && value && key === "PreviewTime") {
-			metadata["PreviewTime"] = value;
+			metadata.PreviewTime = value;
 		}
 	});
 
 	const timingPoints: ParsedOsuData["timingPoints"] = [];
-	sections["TimingPoints"]?.forEach((line) => {
+	sections.TimingPoints?.forEach((line) => {
 		const [
 			time,
 			beatLength,
@@ -108,7 +108,7 @@ function parseOsuFileContent(content: string): ParsedOsuData {
 	});
 
 	const hitObjects: ParsedOsuData["hitObjects"] = [];
-	sections["HitObjects"]?.forEach((line) => {
+	sections.HitObjects?.forEach((line) => {
 		const [x, y, time, type, hitSound, ...rest] = line.split(",");
 		const obj: ParsedOsuData["hitObjects"][number] = {
 			x: Number(x),
@@ -131,7 +131,7 @@ function convertOsuDataToChart(osuData: ParsedOsuData): {
 	const bpm = osuData.timingPoints.find(
 		(tp) => tp.uninherited !== 0,
 	)?.beatLength;
-	const calculatedBpm = bpm ? Math.round(60000 / bpm) : 120;
+	const _calculatedBpm = bpm ? Math.round(60000 / bpm) : 120;
 
 	const hitObjects: ConvertedHitObject[] = osuData.hitObjects.map((obj) => {
 		const lane = Math.min(3, Math.max(0, Math.floor((obj.x / 512) * 4)));
@@ -144,7 +144,7 @@ function convertOsuDataToChart(osuData: ParsedOsuData): {
 			const endTimeString = params[0];
 			const endTime = Number(endTimeString);
 
-			if (!isNaN(endTime) && endTime > obj.time) {
+			if (!Number.isNaN(endTime) && endTime > obj.time) {
 				duration = endTime - obj.time;
 			} else {
 				finalType = "tap";
@@ -165,10 +165,10 @@ function convertOsuDataToChart(osuData: ParsedOsuData): {
 
 	return {
 		chartData: {
-			difficultyName: osuData.metadata["Version"] || "Normal",
+			difficultyName: osuData.metadata.Version || "Normal",
 			lanes: 4,
-			noteScrollSpeed: osuData.metadata["ApproachRate"]
-				? Number(osuData.metadata["ApproachRate"])
+			noteScrollSpeed: osuData.metadata.ApproachRate
+				? Number(osuData.metadata.ApproachRate)
 				: 1.0,
 			lyrics: null,
 		},
@@ -179,7 +179,6 @@ function convertOsuDataToChart(osuData: ParsedOsuData): {
 export async function processFileAndExtractData(
 	fileBlob: Blob,
 ): Promise<ProcessedSongData> {
-	// Derive extension only from real file names; reject nameless blobs up front.
 	const filename = fileBlob instanceof File ? fileBlob.name : "";
 	const fileExtension = filename.split(".").pop()?.toLowerCase();
 
@@ -189,7 +188,7 @@ export async function processFileAndExtractData(
 		);
 	}
 
-	let mugData: any;
+	let mugData: ProcessedSongData;
 	let audioContent: Uint8Array | null = null;
 	let audioFilename: string | null = null;
 	let imageContent: Uint8Array | null = null;
@@ -213,14 +212,14 @@ export async function processFileAndExtractData(
 		);
 
 		const foundAudioFilename = allParsedOsuData.find(
-			(p) => p.metadata?.["AudioFilename"],
-		)?.metadata?.["AudioFilename"];
+			(p) => p.metadata?.AudioFilename,
+		)?.metadata?.AudioFilename;
 		if (!foundAudioFilename)
 			throw new Error("Could not find AudioFilename in .osu files.");
 		audioFilename = foundAudioFilename;
 
 		const primaryOsuData = allParsedOsuData.find(
-			(p) => p.metadata?.["Title"] && p.metadata?.["Artist"],
+			(p) => p.metadata?.Title && p.metadata?.Artist,
 		);
 		if (!primaryOsuData)
 			throw new Error(
@@ -228,7 +227,7 @@ export async function processFileAndExtractData(
 			);
 
 		const initialTimingPoint = primaryOsuData.timingPoints.find(
-			(tp: any) => tp.uninherited !== 0,
+			(tp: ParsedOsuData["timingPoints"][number]) => tp.uninherited !== 0,
 		);
 		const bpm = initialTimingPoint
 			? Math.round(60000 / initialTimingPoint.beatLength)
@@ -239,24 +238,24 @@ export async function processFileAndExtractData(
 		);
 
 		const audioFileEntry = Object.entries(jszip.files).find(
-			([name]) => name === audioFilename || name.endsWith("/" + audioFilename),
+			([name]) => name === audioFilename || name.endsWith(`/${audioFilename}`),
 		);
 		if (!audioFileEntry)
 			throw new Error(`Audio file "${audioFilename}" not found in .osz.`);
 		audioContent = await audioFileEntry[1].async("uint8array");
 
 		const osuDataWithEvents = allParsedOsuData.find(
-			(p) => p.sections["Events"]?.length > 0,
+			(p) => p.sections.Events?.length > 0,
 		);
 		if (osuDataWithEvents) {
-			const eventSection = osuDataWithEvents.sections["Events"];
+			const eventSection = osuDataWithEvents.sections.Events;
 			const bgEvent = eventSection.find((line) => line.startsWith("0,0,"));
 			if (bgEvent) {
 				const parts = bgEvent.split(",");
 				if (parts.length > 2) {
-					let bgFilename = parts[2].replace(/"/g, "");
+					const bgFilename = parts[2].replace(/"/g, "");
 					const imageFileEntry = Object.entries(jszip.files).find(
-						([name]) => name === bgFilename || name.endsWith("/" + bgFilename),
+						([name]) => name === bgFilename || name.endsWith(`/${bgFilename}`),
 					);
 					if (imageFileEntry) {
 						imageFilename = imageFileEntry[0];
@@ -266,14 +265,14 @@ export async function processFileAndExtractData(
 			}
 		}
 
-		const previewTime = primaryOsuData.metadata["PreviewTime"]
-			? Number(primaryOsuData.metadata["PreviewTime"])
+		const previewTime = primaryOsuData.metadata.PreviewTime
+			? Number(primaryOsuData.metadata.PreviewTime)
 			: 0;
 
 		mugData = {
 			metadata: {
-				title: primaryOsuData.metadata["Title"] || "Unknown Title",
-				artist: primaryOsuData.metadata["Artist"] || "Unknown Artist",
+				title: primaryOsuData.metadata.Title || "Unknown Title",
+				artist: primaryOsuData.metadata.Artist || "Unknown Artist",
 				audioFilename: audioFilename,
 				imageFilename: imageFilename,
 				bpm: bpm,
@@ -315,8 +314,11 @@ export async function processFileAndExtractData(
 		}
 
 		audioFilename = mugFileData.metadata.audioFilename;
+		if (!audioFilename) {
+			throw new Error("Invalid .mug song.json structure: Missing audioFilename.");
+		}
 		const audioFileEntry = Object.entries(jszip.files).find(
-			([name]) => name === audioFilename || name.endsWith("/" + audioFilename),
+			([name]) => name === audioFilename || name.endsWith(`/${audioFilename}`),
 		);
 		if (!audioFileEntry)
 			throw new Error(`Audio file "${audioFilename}" not found in .mug.`);
@@ -326,7 +328,7 @@ export async function processFileAndExtractData(
 		if (imageFilename) {
 			const imageFileEntry = Object.entries(jszip.files).find(
 				([name]) =>
-					name === imageFilename || name.endsWith("/" + imageFilename),
+					name === imageFilename || name.endsWith(`/${imageFilename}`),
 			);
 			if (imageFileEntry) {
 				imageContent = await imageFileEntry[1].async("uint8array");
@@ -338,14 +340,14 @@ export async function processFileAndExtractData(
 				title: mugFileData.metadata.title,
 				artist: mugFileData.metadata.artist,
 				audioFilename: audioFilename,
-				imageFilename: imageFilename,
+				imageFilename: imageFilename ?? undefined,
 				bpm: mugFileData.metadata.bpm,
 				previewStartTime: mugFileData.metadata.previewStartTime ?? 0,
 			},
 			charts: mugFileData.charts,
 			hitObjects: mugFileData.hitObjects,
 			audioContent: audioContent,
-			imageContent: imageContent,
+			imageContent: imageContent ?? undefined,
 		};
 	} else {
 		throw new Error("Unsupported file extension.");

@@ -9,7 +9,7 @@ import {
 } from "bun:test";
 
 // Remove the static import since we use dynamic import after mocks are set up
-import { RhythmEngine } from "./engine.js";
+import type { RhythmEngine } from "./engine.js";
 
 // Register mocks for this suite only, and restore after.
 function installEngineMocks() {

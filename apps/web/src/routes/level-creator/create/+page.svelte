@@ -4,7 +4,7 @@ import type {
 	ClientSong as SongData,
 	ClientChart as ChartData,
 } from "$lib/types";
-import * as PIXI from "pixi.js"; // Import PIXI
+import * as PIXI from "pixi.js";
 
 let musicFile: File | null = $state(null);
 let musicErrorMessage = $state<string | null>(null);
@@ -16,21 +16,14 @@ let audioUrl: string | null = $state(null);
 let levelEditorTrackDiv: HTMLDivElement | null = $state(null);
 let levelEditorHeading: HTMLHeadingElement | null = $state(null);
 
-// State variables updated by ResizeObserver
 let divWidth = $state(0);
 let divHeight = $state(0);
-
-// Declare song and chart data, initialized after music upload
 let songData: SongData | null = $state(null);
 let chartData: ChartData | null = $state(null);
-
-// PIXI variables declared here to manage their lifecycle
 let app: PIXI.Application | null = null;
 let highwayGraphics: PIXI.Graphics | null = null;
 let mainContainer: PIXI.Container | null = null;
 let canvasElement: HTMLCanvasElement | null = null;
-
-// ResizeObserver variable
 let resizeObserver: ResizeObserver | null = null;
 
 function handleMusicDragOver(e: DragEvent) {
@@ -84,20 +77,18 @@ function triggerMusicFileInput() {
 
 function prepareMusicFile(file: File) {
 	if (audioUrl) {
-		URL.revokeObjectURL(audioUrl); // Clean up previous URL
+		URL.revokeObjectURL(audioUrl);
 	}
-	const newAudioUrl = URL.createObjectURL(file);
-	audioUrl = newAudioUrl;
+	audioUrl = URL.createObjectURL(file);
 	musicFileReady = true;
 
-	// Initialize song and chart data after music file is ready
 	const songId = `song-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 	songData = {
 		id: songId,
 		title: file.name,
 		artist: "Unknown Artist",
 		bpm: 120,
-		audioUrl: newAudioUrl,
+		audioUrl,
 		imageUrl: undefined,
 		audioFilename: file.name,
 		audioS3Key: "",
@@ -110,20 +101,15 @@ function prepareMusicFile(file: File) {
 
 	chartData = {
 		id: `chart-${Date.now()}`,
-		songId: songId, // Link to the song data
-		difficultyName: "Easy", // Placeholder difficulty
+		songId,
+		difficultyName: "Easy",
 		lanes: 4,
-		noteScrollSpeed: 1.0, // Added as per types.ts (using a default value)
-		hitObjects: [
-			/* Add placeholder notes here if needed for initial rendering */
-		],
+		noteScrollSpeed: 1.0,
+		hitObjects: [],
 		lyrics: null,
 	} as ChartData;
-
-	// Note: In a real editor, you'd parse/generate chart data here based on the music
 }
 
-// Function to draw/update highway lanes
 function drawHighwayLanes(
 	app: PIXI.Application | null,
 	mainContainer: PIXI.Container | null,
@@ -132,59 +118,34 @@ function drawHighwayLanes(
 	currentWidth: number,
 	currentHeight: number,
 ) {
-	console.log("drawHighwayLanes called", {
-		app: !!app,
-		mainContainer: !!mainContainer,
-		chartData: !!chartData,
-		currentWidth,
-		currentHeight,
-	});
 	if (!app || !mainContainer || !chartData) {
-		console.warn("drawHighwayLanes: Dependencies not met.");
 		return;
 	}
 
-	// Clear previous graphics if they exist
 	if (highwayGraphics) {
 		mainContainer.removeChild(highwayGraphics);
 		highwayGraphics.destroy();
 	}
 
-	// Create new graphics for the highway
 	highwayGraphics = new PIXI.Graphics();
 	mainContainer.addChild(highwayGraphics);
 
 	const numLanes = chartData.lanes || 4;
-	const totalHighwayWidth = currentWidth;
-	const laneWidth = totalHighwayWidth / numLanes;
+	const laneWidth = currentWidth / numLanes;
 
-	// Draw lane lines - using setStrokeStyle as drawLine is deprecated in PIXI v8+
 	for (let i = 0; i <= numLanes; i++) {
 		const x = laneWidth * i;
-		highwayGraphics.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 0.5 }); // White line, semi-transparent
+		highwayGraphics.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 0.5 });
 		highwayGraphics.moveTo(x, 0);
 		highwayGraphics.lineTo(x, currentHeight);
 	}
 
-	// Draw highway boundary - using rect as drawRect is deprecated in PIXI v8+
-	highwayGraphics.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 1 }); // Solid white line
-	highwayGraphics.rect(0, 0, totalHighwayWidth, currentHeight);
-	highwayGraphics.stroke(); // Apply the stroke
-
-	console.log("Highway lanes drawn/updated.", { totalHighwayWidth, laneWidth });
+	highwayGraphics.setStrokeStyle({ width: 2, color: 0xffffff, alpha: 1 });
+	highwayGraphics.rect(0, 0, currentWidth, currentHeight);
+	highwayGraphics.stroke();
 }
 
-// Effect to set up the ResizeObserver
 $effect(() => {
-	console.log("$effect (Observer Setup) triggered:", {
-		levelEditorTrackDiv: !!levelEditorTrackDiv,
-		musicFileReady,
-		songData: !!songData,
-		chartData: !!chartData,
-		resizeObserver: !!resizeObserver,
-	});
-
-	// If the necessary elements and data are available and the ResizeObserver hasn't been created yet, create it.
 	if (
 		levelEditorTrackDiv &&
 		musicFileReady &&
@@ -192,142 +153,81 @@ $effect(() => {
 		chartData &&
 		!resizeObserver
 	) {
-		console.log("Observer Setup: Dependencies met. Creating ResizeObserver.");
-
 		resizeObserver = new ResizeObserver((entries) => {
-			console.log("ResizeObserver callback triggered.");
 			for (const entry of entries) {
-				const currentWidth = entry.contentRect.width;
-				const currentHeight = entry.contentRect.height;
-				const headingHeight = levelEditorHeading?.offsetHeight || 0;
-				const availableHeight = currentHeight - headingHeight;
-
-				console.log(
-					`ResizeObserver: Setting state variables ${currentWidth}x${availableHeight}`,
-				);
-
-				// Update state variables. This will trigger the PIXI setup effect.
-				divWidth = currentWidth;
-				divHeight = availableHeight;
+				divWidth = entry.contentRect.width;
+				divHeight =
+					entry.contentRect.height -
+					(levelEditorHeading?.offsetHeight || 0);
 			}
 		});
 
-		// Observe the main container div
 		resizeObserver.observe(levelEditorTrackDiv);
-		console.log("Observer Setup: ResizeObserver attached.");
 	}
 
-	// Cleanup for this effect: disconnect the observer
 	return () => {
-		console.log("$effect (Observer Setup) cleanup running.");
 		if (resizeObserver) {
 			resizeObserver.disconnect();
 			resizeObserver = null;
-			console.log("ResizeObserver disconnected.");
 		}
 	};
 });
 
-// Effect to initialize and manage PIXI application
 $effect(() => {
-	console.log("$effect (PIXI Setup) triggered:", {
-		divWidth,
-		divHeight,
-		songData: !!songData,
-		chartData: !!chartData,
-		app: !!app,
-	});
-
-	// Only initialize PIXI if dimensions are valid, data is ready, and PIXI is not yet initialized.
 	if (divWidth > 0 && divHeight > 0 && songData && chartData && !app) {
-		console.log("PIXI Setup: Dependencies met. Initializing PIXI.");
-		try {
-			// Find the flex-grow div to append the canvas to
-			const flexGrowDiv = levelEditorTrackDiv?.querySelector(".flex-grow");
-			if (!flexGrowDiv) {
-				console.error(
-					"PIXI Setup: Could not find flex-grow div to append canvas.",
-				);
-				// Critical error, stop initialization
-				return;
-			}
-			console.log("PIXI Setup: Found flex-grow div.", flexGrowDiv);
-
-			// Create and append canvas
-			canvasElement = document.createElement("canvas");
-			canvasElement.style.width = `${divWidth}px`;
-			canvasElement.style.height = `${divHeight}px`;
-			canvasElement.style.backgroundColor = "rgba(100, 149, 237, 0.5)"; // Debug background
-
-			flexGrowDiv.appendChild(canvasElement);
-			console.log("PIXI Setup: Appended canvasElement.", canvasElement);
-
-			// Initialize PIXI application
-			const pixiApp = new PIXI.Application();
-			// Use await for init
-			pixiApp
-				.init({
-					canvas: canvasElement,
-					width: divWidth,
-					height: divHeight,
-					backgroundColor: 0x1a1a1a, // Dark grey background for highway area
-					backgroundAlpha: 1,
-					antialias: true,
-					resolution: window.devicePixelRatio || 1,
-					autoDensity: true,
-				})
-				.then(() => {
-					// This block runs after pixiApp.init() is successful
-					console.log("PIXI Setup: PIXI application initialized successfully.");
-					app = pixiApp; // Assign to variable
-
-					// Create and add main container
-					mainContainer = new PIXI.Container();
-					app!.stage.addChild(mainContainer); // Use app! as it's guaranteed to be initialized here
-
-					// Draw initial highway lanes
-					drawHighwayLanes(
-						app,
-						mainContainer,
-						highwayGraphics,
-						chartData,
-						divWidth,
-						divHeight,
-					);
-				})
-				.catch((error: any) => {
-					console.error("PIXI Setup: Error during PIXI initialization:", error);
-					// Display error message to user
-					if (levelEditorTrackDiv) {
-						levelEditorTrackDiv.innerHTML =
-							'<p style="color: red;">Error setting up level editor visuals.</p>';
-					}
-					// Attempt to clean up any resources that might have been created
-					// Cleanup is also handled by the effect's return function if 'app' was assigned before the error
-				});
-		} catch (error: any) {
-			console.error("PIXI Setup: Error during PIXI setup (sync part):", error);
-			// Display error message to user
-			if (levelEditorTrackDiv) {
-				levelEditorTrackDiv.innerHTML =
-					'<p style="color: red;">Error setting up level editor visuals.</p>';
-			}
-			// Attempt to clean up any resources that might have been created
-			// Cleanup is also handled by the effect's return function
+		const flexGrowDiv = levelEditorTrackDiv?.querySelector(".flex-grow");
+		if (!flexGrowDiv) {
+			return;
 		}
+
+		canvasElement = document.createElement("canvas");
+		canvasElement.style.width = `${divWidth}px`;
+		canvasElement.style.height = `${divHeight}px`;
+		canvasElement.style.backgroundColor = "rgba(100, 149, 237, 0.5)";
+
+		flexGrowDiv.appendChild(canvasElement);
+
+		const pixiApp = new PIXI.Application();
+		pixiApp
+			.init({
+				canvas: canvasElement,
+				width: divWidth,
+				height: divHeight,
+				backgroundColor: 0x1a1a1a,
+				backgroundAlpha: 1,
+				antialias: true,
+				resolution: window.devicePixelRatio || 1,
+				autoDensity: true,
+			})
+			.then(() => {
+				app = pixiApp;
+				mainContainer = new PIXI.Container();
+				app.stage.addChild(mainContainer);
+
+				drawHighwayLanes(
+					app,
+					mainContainer,
+					highwayGraphics,
+					chartData,
+					divWidth,
+					divHeight,
+				);
+			})
+			.catch((error) => {
+				console.error("Error during PIXI initialization:", error);
+				if (levelEditorTrackDiv) {
+					levelEditorTrackDiv.innerHTML =
+						'<p style="color: red;">Error setting up level editor visuals.</p>';
+				}
+			});
 	} else if (app && divWidth > 0 && divHeight > 0) {
-		// If app is already initialized and dimensions change, handle resize
-		console.log("PIXI Setup: App already initialized. Handling resize only.");
-		// Resize the PIXI renderer
 		app.renderer.resize(divWidth, divHeight);
 
-		// Update canvas element style size
 		if (canvasElement) {
 			canvasElement.style.width = `${divWidth}px`;
 			canvasElement.style.height = `${divHeight}px`;
 		}
 
-		// Redraw highway lanes with new dimensions
 		drawHighwayLanes(
 			app,
 			mainContainer,
@@ -336,62 +236,35 @@ $effect(() => {
 			divWidth,
 			divHeight,
 		);
-
-		console.log(
-			`PIXI Setup: Level editor visuals resized to ${divWidth}x${divHeight}`,
-		);
 	} else if (
 		app &&
 		(divWidth <= 0 || divHeight <= 0 || !songData || !chartData)
 	) {
-		// If app exists but dependencies are no longer met (e.g., user uploads new music)
-		console.log(
-			"PIXI Setup: Dependencies no longer met for existing app. Triggering cleanup.",
-		);
-		// The cleanup function returned by the effect handles disposing resources
-		app.destroy(true, { children: true, texture: true }); // Explicitly destroy to trigger cleanup logic below
-		app = null; // Clear reference
+		app.destroy(true, { children: true, texture: true });
+		app = null;
 	}
 
-	// Cleanup function for this effect - specifically for PIXI resources
 	return () => {
-		console.log("$effect (PIXI Setup) cleanup running.");
 		if (app) {
-			console.log("Destroying PIXI application.");
 			app.destroy(true, { children: true, texture: true });
 			app = null;
-			console.log("PIXI application destroyed.");
 		}
-		// Remove the canvas element from the DOM if it exists and has a parent
-		if (canvasElement && canvasElement.parentNode) {
-			console.log(
-				"Removing canvas element from parent node.",
-				canvasElement.parentNode,
-			);
+		if (canvasElement?.parentNode) {
 			canvasElement.parentNode.removeChild(canvasElement);
 			canvasElement = null;
-			console.log("Canvas element removed.");
 		} else if (canvasElement) {
-			console.warn(
-				"Canvas element exists but has no parent node to remove from.",
-			);
 			canvasElement = null;
 		}
 		highwayGraphics = null;
 		mainContainer = null;
-		console.log("PIXI related variables cleared.");
 	};
 });
 
 onMount(() => {
-	// onMount cleanup for audioUrl
 	return () => {
-		console.log("onMount cleanup (audioUrl) running.");
 		if (audioUrl) {
 			URL.revokeObjectURL(audioUrl);
-			console.log("Audio URL revoked.");
 		}
-		// PIXI cleanup is now handled by the $effect cleanup
 	};
 });
 </script>
@@ -488,10 +361,7 @@ onMount(() => {
 					Level Editor Track (Coming Soon)
 				</h2>
 				{#if divWidth > 0 && divHeight > 0 && songData && chartData}
-					<!-- The level editor visuals will be rendered here -->
-					<div class="grow">
-						<!-- PIXI canvas will be appended here -->
-					</div>
+					<div class="grow"></div>
 				{/if}
 			</div>
 			{/if}
@@ -499,8 +369,6 @@ onMount(() => {
 			{/if}
 
 		</div>
-		<!-- You can add more sections here -->
-
 	</div>
 
 </div> 

@@ -9,7 +9,6 @@ export const CheckUsernameInput = type({
 
 export const checkUsernameProcedure = routerBaseContext
 	.input(CheckUsernameInput)
-	// Output will be inferred
 	.handler(async ({ input }) => {
 		try {
 			const users = await db
@@ -19,17 +18,16 @@ export const checkUsernameProcedure = routerBaseContext
 				.limit(1)
 				.execute();
 
-			const existingUser = users[0];
-
-			if (existingUser) {
+			if (users[0]) {
 				return { available: false, message: "Username is already taken." };
 			}
 			return { available: true, message: "Username is available." };
-		} catch (e: any) {
+		} catch (e: unknown) {
 			console.error("Error checking username:", e);
-			// Throw an actual error for unexpected server issues
 			throw new Error(
-				e.message || "An error occurred while checking username availability.",
+				e instanceof Error
+					? e.message
+					: "An error occurred while checking username availability.",
 			);
 		}
 	});

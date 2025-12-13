@@ -1,7 +1,7 @@
 <script lang="ts">
 import { levitateText } from "$lib/actions/levitateText";
 
-let {
+const {
 	songTimeMs = 0,
 	bpm = 120,
 	title = "",
@@ -9,9 +9,9 @@ let {
 	difficultyName = "",
 } = $props();
 
-let beatDurationMs = $derived(60000 / bpm / 0.5);
-let beatProgress = $derived((songTimeMs % beatDurationMs) / beatDurationMs);
-let titleScale = $derived(1 + 0.02 * Math.sin(beatProgress * Math.PI));
+const beatDurationMs = $derived(60000 / bpm / 0.5);
+const beatProgress = $derived((songTimeMs % beatDurationMs) / beatDurationMs);
+const titleScale = $derived(1 + 0.02 * Math.sin(beatProgress * Math.PI));
 </script>
 
 <!-- HTML Overlay for Title and Difficulty with Levitate Effect -->

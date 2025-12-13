@@ -6,7 +6,7 @@ interface Props {
 	connectionStatus: string;
 }
 
-let { roomId, connectionStatus }: Props = $props();
+const { roomId, connectionStatus }: Props = $props();
 </script>
 
 <div class="w-1/4 h-full flex flex-col justify-center pr-8 items-end gap-4 opacity-50 pointer-events-none" in:fly={{ x: 50, duration: 500 }}>

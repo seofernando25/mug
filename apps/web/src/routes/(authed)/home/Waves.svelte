@@ -2,16 +2,16 @@
 import { onMount } from "svelte";
 import gsap from "gsap";
 
-let svgElement: SVGElement | null = null;
+let svgElement = $state<SVGElement | null>(null);
 
 // The original top-level `const tl = gsap.timeline();` from the user's script was unused here.
 // The Line function creates its own local timelines.
 
-const Line = ($el: Element) => {
-	const $paths = $el.querySelectorAll(".path");
-	// if ($paths.length === 0) {
+const Line = (el: Element) => {
+	const paths = el.querySelectorAll(".path");
+	// if (paths.length === 0) {
 	//   // No paths found in this .g element, animation might not apply as expected.
-	//   // console.warn('No .path elements found in', $el);
+	//   // console.warn('No .path elements found in', el);
 	//   // return;
 	// }
 
@@ -32,7 +32,7 @@ const Line = ($el: Element) => {
 		"sine.inOut",
 	]);
 
-	tl.to($paths, {
+	tl.to(paths, {
 		xPercent: -100,
 		duration: duration,
 		ease: "none",
@@ -40,7 +40,7 @@ const Line = ($el: Element) => {
 	});
 
 	tl.fromTo(
-		$el,
+		el,
 		{
 			y,
 			opacity: opacityFrom,

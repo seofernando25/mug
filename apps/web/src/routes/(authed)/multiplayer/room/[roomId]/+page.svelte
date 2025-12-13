@@ -32,9 +32,9 @@ let countdownValue = $state<number | null>(null);
 let timeOffset = $state<number>(0); // Offset between client and server time
 
 // Derived State
-let isHost = $derived(roomDetails?.hostId === data.session?.user?.id);
+const isHost = $derived(roomDetails?.hostId === data.session?.user?.id);
 
-let showCountdownOverlay = $derived(roomDetails?.status === "starting");
+const showCountdownOverlay = $derived(roomDetails?.status === "starting");
 // Song selection overlay state
 let isSongSelectOpen = $state(false);
 let availableSongs = $state<any[]>([]);
@@ -194,7 +194,7 @@ onMount(() => {
 });
 </script>
 
-<div class="flex-1 w-full bg-gray-900 text-white overflow-hidden flex flex-col items-center justify-center font-sans">
+<div class="flex-1 w-full bg-gray-900 text-white overflow-hidden flex flex-col font-sans">
 
     <SongSelectOverlay
         isOpen={isSongSelectOpen}
@@ -217,18 +217,40 @@ onMount(() => {
     {/if}
 
     {#if isLoading}
-        <div class="z-10 animate-pulse text-2xl font-light tracking-widest text-cyan-400">CONNECTING...</div>
+        <div class="flex-1 flex items-center justify-center">
+            <div class="z-10 animate-pulse text-2xl font-light tracking-widest text-cyan-400">CONNECTING...</div>
+        </div>
     {:else if error}
-        <div class="z-10 bg-red-900/80 border border-red-500 p-6 rounded-xl text-center backdrop-blur-sm">
-            <h2 class="text-xl font-bold mb-2">Connection Error</h2>
-            <p>{error}</p>
-            <button onclick={() => goto('/multiplayer')} class="mt-4 px-6 py-2 bg-white text-red-900 font-bold rounded hover:bg-gray-200">
-                RETURN TO LOBBY
-            </button>
+        <div class="flex-1 flex items-center justify-center">
+            <div class="z-10 bg-red-900/80 border border-red-500 p-6 rounded-xl text-center backdrop-blur-sm">
+                <h2 class="text-xl font-bold mb-2">Connection Error</h2>
+                <p>{error}</p>
+                <button onclick={() => goto('/multiplayer')} class="mt-4 px-6 py-2 bg-white text-red-900 font-bold rounded hover:bg-gray-200">
+                    RETURN TO LOBBY
+                </button>
+            </div>
         </div>
     {:else if roomDetails}
-        <div class="z-10 w-full max-w-7xl h-full flex relative p-6">
+        <!-- Song Info Header -->
+        <div class="w-full bg-gradient-to-b from-gray-800/50 to-transparent border-b border-gray-700/50 backdrop-blur-sm py-6">
+            <div class="max-w-7xl mx-auto px-6 text-center">
+                <h1 class="text-4xl font-black italic tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] mb-2">
+                    {roomDetails.currentChart?.name || 'NO SONG SELECTED'}
+                </h1>
+                <div class="flex items-center justify-center gap-3 text-cyan-400 font-bold uppercase tracking-widest text-sm">
+                    {#if roomDetails.currentChart?.artist}
+                        <span>{roomDetails.currentChart.artist}</span>
+                    {/if}
+                    {#if roomDetails.currentChart?.difficulty}
+                        <span class="text-gray-500">|</span>
+                        <span class="text-purple-400">{roomDetails.currentChart.difficulty}</span>
+                    {/if}
+                </div>
+            </div>
+        </div>
 
+        <!-- Main Content Area -->
+        <div class="flex-1 w-full max-w-7xl mx-auto flex relative px-6 py-8 overflow-hidden">
             <PlayerList players={roomDetails.players} hostId={roomDetails.hostId} />
 
             <SongSelector
@@ -240,6 +262,7 @@ onMount(() => {
             <RoomInfo roomId={roomId} connectionStatus={connectionStatus} />
         </div>
 
+        <!-- Bottom Controls -->
         <RoomControls
             handleLeaveRoom={handleLeaveRoom}
             isLeaving={isLeaving}

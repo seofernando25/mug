@@ -1,12 +1,12 @@
 <script lang="ts">
 // songTimeMs and bpm are no longer needed
-let { combo = 0 } = $props();
+const { combo = 0 } = $props();
 
 let comboDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
 
 // New: Scale based on combo magnitude
 // Adjust the 0.15 factor to control how much the size increases with combo
-let currentComboMagnitudeScale = $derived(
+const currentComboMagnitudeScale = $derived(
 	1 + Math.log10(Math.max(1, combo)) * 0.15,
 );
 

@@ -1,6 +1,6 @@
 import { Colors } from "./constants";
 import type { JudgmentText } from "./constants";
-import { Application, Container, Text, TextStyle } from "pixi.js";
+import { type Application, type Container, Text, TextStyle } from "pixi.js";
 
 export function drawJudgmentText(
 	app: Application,

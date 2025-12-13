@@ -11,7 +11,7 @@ interface SongItem {
 }
 
 // Props using Svelte 5 Runes
-let {
+const {
 	isOpen = false,
 	onClose,
 	onSelect,
@@ -26,10 +26,10 @@ let {
 // Local State
 let searchTerm = $state("");
 let selectedId = $state<string | null>(null);
-let sortBy = $state<"title" | "difficulty">("title");
+const sortBy = $state<"title" | "difficulty">("title");
 
 // Derived
-let filteredSongs = $derived(
+const filteredSongs = $derived(
 	songs.filter(
 		(s: SongItem) =>
 			s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -37,7 +37,7 @@ let filteredSongs = $derived(
 	),
 );
 
-let activeSong = $derived(
+const activeSong = $derived(
 	songs.find((s: SongItem) => s.id === selectedId) || songs[0],
 );
 

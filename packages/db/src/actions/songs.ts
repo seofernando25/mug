@@ -70,20 +70,20 @@ export async function installSong(
 			await s3.write(imageS3Key, processedData.imageContent, {
 				type: imageContentType,
 			});
-		} catch (s3Err: any) {
+		} catch (s3Err: unknown) {
 			console.warn(
 				`Warning: Failed to upload image ${imageS3Key} to S3:`,
-				s3Err.message,
+				s3Err instanceof Error ? s3Err.message : String(s3Err),
 			);
-			imageS3Key = null; // Proceed without image if upload fails
+			imageS3Key = null;
 		}
 	}
 
 	// Upload audio (required)
 	try {
 		await s3.write(audioS3Key, audioContent, { type: audioContentType });
-	} catch (s3Err: any) {
-		const errorMessage = s3Err.message || "Unknown S3 error";
+	} catch (s3Err: unknown) {
+		const errorMessage = (s3Err as Error)?.message || "Unknown S3 error";
 		throw new Error(`Failed to upload audio file to storage: ${errorMessage}`);
 	}
 

@@ -31,18 +31,18 @@ let screenPulseComponent: ScreenPulse;
 let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
 
 // --- UI derived states ---
-let showCountdownOverlay = $derived(gamePhaseStore === "countdown");
-let showFinishOverlay = $derived(gamePhaseStore === "finished");
-let showSummaryScreen = $derived(gamePhaseStore === "summary");
-let showPauseScreen = $derived(
+const showCountdownOverlay = $derived(gamePhaseStore === "countdown");
+const showFinishOverlay = $derived(gamePhaseStore === "finished");
+const showSummaryScreen = $derived(gamePhaseStore === "summary");
+const showPauseScreen = $derived(
 	isPausedStore &&
 		gamePhaseStore !== "summary" &&
 		gamePhaseStore !== "finished",
 );
-let showLevitatingTextOverlay = $derived(
+const showLevitatingTextOverlay = $derived(
 	gamePhaseStore === "playing" || gamePhaseStore === "countdown",
 );
-let showComboMeter = $derived(
+const showComboMeter = $derived(
 	currentComboStore > 0 &&
 		(gamePhaseStore === "playing" || gamePhaseStore === "countdown"),
 );

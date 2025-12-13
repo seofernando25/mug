@@ -19,7 +19,7 @@ export function drawReceptor(
 		release: () => void;
 	}[] = [];
 
-	get(positions).forEach((pos, index) => {
+	get(positions).forEach((pos, _index) => {
 		const graphics = new Graphics();
 		graphics
 			.rect(
@@ -103,7 +103,7 @@ export function drawReceptor(
 export function getReceptorPositions(
 	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>,
 ) {
-	return derived(highwayMetrics, (metrics) => {
+	return derived(highwayMetrics, (_metrics) => {
 		const positions = [];
 		for (let i = 0; i < get(highwayMetrics).numLanes; i++) {
 			positions.push({

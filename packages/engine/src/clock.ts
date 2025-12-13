@@ -7,9 +7,6 @@ import type { Sound, IMediaInstance } from "@pixi/sound";
 export class AudioClock {
 	private sound: Sound;
 	private instance: IMediaInstance | null = null;
-	// For future fallback handling; currently unused but reserved
-	private fallbackOffset = 0;
-	private startTime = 0;
 
 	constructor(sound: Sound) {
 		this.sound = sound;
@@ -17,10 +14,6 @@ export class AudioClock {
 
 	async play(): Promise<void> {
 		if (this.instance) return;
-
-		// Reset timing trackers
-		this.startTime = performance.now();
-		this.fallbackOffset = 0;
 
 		const maybeInstance = this.sound.play();
 		this.instance = await Promise.resolve(maybeInstance);
@@ -44,7 +37,6 @@ export class AudioClock {
 	}
 
 	get currentTimeMs(): number {
-		// Prefer authoritative audio progress
 		if (
 			this.instance &&
 			typeof this.instance.progress === "number" &&
@@ -53,7 +45,6 @@ export class AudioClock {
 			return this.instance.progress * this.sound.duration * 1000;
 		}
 
-		// Fallback: wall clock (safer to return 0 if audio isn't ready)
 		return 0;
 	}
 

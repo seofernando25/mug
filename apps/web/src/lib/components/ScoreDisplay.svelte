@@ -1,10 +1,10 @@
 <script lang="ts">
-let { score = 0 } = $props();
+const { score = 0 } = $props();
 
 let scoreDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
 
 // Scale based on score magnitude (can be adjusted)
-let currentScoreMagnitudeScale = $derived(
+const currentScoreMagnitudeScale = $derived(
 	1 + Math.log10(Math.max(1, score / 1000 + 1)) * 0.1,
 ); // Adjusted for typical score values
 

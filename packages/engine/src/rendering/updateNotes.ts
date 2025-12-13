@@ -11,7 +11,7 @@ export function updateNotes(
 	songTimeMs: number,
 	notePool: NotePool,
 	highwayX: number,
-	laneWidth: number,
+	_laneWidth: number,
 	hitZoneY: number, // Y-coordinate for pinning active holds
 	receptorYPosition: number, // Y-coordinate for general scroll calculation reference
 	scrollSpeed: number,
@@ -83,7 +83,7 @@ export function updateNotes(
 				activeNote.show();
 			}
 		} else {
-			if (activeNote && activeNote.isVisible) {
+			if (activeNote?.isVisible) {
 				notePool.releaseNote(activeNote);
 			}
 		}

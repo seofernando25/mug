@@ -6,7 +6,7 @@ interface Props {
 	startGame: () => void;
 }
 
-let { handleLeaveRoom, isLeaving, isHost, startGame }: Props = $props();
+const { handleLeaveRoom, isLeaving, isHost, startGame }: Props = $props();
 </script>
 
 <div class="h-24 bg-gray-900/90 border-t border-gray-700 p-4 flex items-center justify-between backdrop-blur-md">

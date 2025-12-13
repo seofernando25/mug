@@ -1,4 +1,4 @@
-import { Sprite, Texture, BlurFilter, Graphics } from "pixi.js";
+import { Sprite, Texture, BlurFilter } from "pixi.js";
 
 function hexToRgba(hex: number, alpha: number): string {
 	const r = (hex >> 16) & 255;
@@ -67,7 +67,7 @@ export class LaneIllumination extends Sprite {
 		this.position.set(x, y);
 	}
 
-	public updateIlluminationColor(newColor: number): void {
+	public updateIlluminationColor(_newColor: number): void {
 		// this.baseIlluminationColor = newColor;
 		// this.texture = LaneIllumination.createGradientTexture(this.laneWidth, this.highwayHeight, newColor);
 		// The texture needs to be updated if color changes.

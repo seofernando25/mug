@@ -5,7 +5,7 @@ import type { router } from "$lib/server/rpc/router";
 import { browser } from "$app/environment";
 
 const link = new RPCLink({
-	url: browser ? window.location.origin + "/rpc" : "http://localhost:3000/rpc",
+	url: browser ? `${window.location.origin}/rpc` : "http://localhost:3000/rpc",
 	headers: { Authorization: "Bearer token" },
 });
 

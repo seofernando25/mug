@@ -12,6 +12,8 @@
 		"studio": "bunx drizzle-kit studio"
 	},
 	"dependencies": {
+		"@mug/contract": "workspace:*",
+		"@mug/game-logic": "workspace:*",
 		"drizzle-orm": "^0.43.1",
 		"postgres": "^3.4.7",
 		"redis": "^4.6.13"

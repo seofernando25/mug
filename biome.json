@@ -1,4 +1,24 @@
 {
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+
+	"files": {
+		"includes": [
+			"**",
+			"!apps/web/.svelte-kit",
+			"!**/*.test.ts",
+			"!**/*.svelte",
+			"!**/node_modules",
+			"!**/dist",
+			"!**/build",
+			"!**/coverage"
+		]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true
+		}
+	},
 	"css": {
 		"parser": {
 			"tailwindDirectives": true

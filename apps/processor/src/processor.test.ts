@@ -29,7 +29,7 @@ function installProcessorMocks() {
 	}));
 
 	mock.module("@mug/game-logic", () => ({
-		processFileAndExtractData: mock(async (fileBlob: File) => ({
+		processFileAndExtractData: mock(async (_fileBlob: File) => ({
 			metadata: {
 				title: "Test Song",
 				artist: "Artist",

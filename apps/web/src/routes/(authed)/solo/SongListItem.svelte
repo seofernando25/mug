@@ -37,7 +37,7 @@ function selectDifficulty(difficultyName: string) {
 	// The actual navigation will be handled by the parent page, this just signals selection
 }
 
-let isSelected = $derived(songListItem.id === selectedSongId);
+const isSelected = $derived(songListItem.id === selectedSongId);
 </script>
 
 <!-- The song is selected when hovered over -->

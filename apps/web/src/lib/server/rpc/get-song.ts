@@ -10,7 +10,6 @@ export const GetSongInput = type({
 
 export const getSongProcedure = routerBaseContext
 	.input(GetSongInput)
-	// Output will be inferred
 	.handler(async ({ input }) => {
 		try {
 			const songResult = await db.query.song.findFirst({
@@ -34,7 +33,7 @@ export const getSongProcedure = routerBaseContext
 				acl: "public-read",
 			});
 
-			let imageUrl: string | undefined = undefined;
+			let imageUrl: string | undefined;
 			if (songResult.imageS3Key) {
 				try {
 					imageUrl = s3.file(songResult.imageS3Key).presign({
@@ -54,11 +53,12 @@ export const getSongProcedure = routerBaseContext
 				audioUrl,
 				imageUrl,
 			};
-		} catch (e: any) {
+		} catch (e: unknown) {
 			console.error(`Error getting song ${input.id}:`, e);
-			// Throwing an error will be caught by oRPC.
 			throw new Error(
-				e.message || `An error occurred while fetching song details.`,
+				e instanceof Error
+					? e.message
+					: "An error occurred while fetching song details.",
 			);
 		}
 	});

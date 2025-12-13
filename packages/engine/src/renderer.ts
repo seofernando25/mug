@@ -1,6 +1,5 @@
 import { drawHighway, getHighwayMetrics } from "./rendering/highway";
 import { drawJudgmentText } from "./rendering/judgment";
-import { drawKeyPressEffects } from "./rendering/keypress";
 import {
 	drawReceptor,
 	getReceptorPositions,
@@ -35,7 +34,6 @@ export class GameRenderer {
 	private receptorSize!: Readable<{ width: number; height: number }>;
 	private highway: ReturnType<typeof drawHighway> | null = null;
 	private receptors: ReturnType<typeof drawReceptor> | null = null;
-	private keyPressEffects: ReturnType<typeof drawKeyPressEffects> | null = null;
 	private judgmentTextsByLane: Record<
 		number,
 		ReturnType<typeof drawJudgmentText> | null
@@ -96,7 +94,6 @@ export class GameRenderer {
 			this.receptorPositions,
 			this.receptorSize,
 		);
-		this.keyPressEffects = drawKeyPressEffects(this.mainContainer, this.lanes);
 		this.initialized = true;
 	}
 
@@ -152,7 +149,7 @@ export class GameRenderer {
 		}
 	}
 
-	showJudgment(lane: number, judgment: string, color?: number) {
+	showJudgment(lane: number, judgment: string, _color?: number) {
 		const rp = get(this.receptorPositions);
 		const metrics = get(this.highwayMetricsStore);
 		const yPos = rp?.[lane]?.y ?? 0;

@@ -6,7 +6,7 @@ import { gameSocket, lobbyRooms, socketStatus } from "$lib/network/socket";
 
 let isLoading = $state(true);
 let rooms = $state<any[]>([]);
-let error = $state<string | null>(null);
+const error = $state<string | null>(null);
 let status = $state<"disconnected" | "connecting" | "connected">(
 	"disconnected",
 );

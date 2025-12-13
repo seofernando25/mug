@@ -2,64 +2,56 @@ import { db, s3 } from "@mug/db";
 import { type } from "arktype";
 import { routerBaseContext } from "./context";
 
-// No specific input schema for listing all songs, but can be added for pagination/filtering
 export const ListSongsInput = type({});
 
 export const listSongsProcedure = routerBaseContext
 	.input(ListSongsInput)
-	// Output will be inferred
-	.handler(async ({ input }) => {
+	.handler(async ({ input: _input }) => {
 		try {
-			// Fetch songs with their related charts
 			const songsWithCharts = await db.query.song.findMany({
 				with: {
 					charts: {
 						columns: {
-							difficultyName: true, // Only fetch the difficultyName from charts
+							difficultyName: true,
 						},
 					},
 				},
 			});
 
-			// Process the data in JavaScript to create the SongListItem array
-			const items = (Array.isArray(songsWithCharts) ? songsWithCharts : []).map(
-				(s) => {
-					const charts = Array.isArray(s.charts) ? s.charts : [];
-					const difficultyNames = charts.map((c) => c.difficultyName);
-					// Get unique, sorted difficulty names
-					const uniqueDifficulties = [...new Set(difficultyNames)].sort();
+			const items = songsWithCharts.map((s) => {
+				const difficultyNames = s.charts.map((c) => c.difficultyName);
+				const uniqueDifficulties = [...new Set(difficultyNames)].sort();
 
-					return {
-						...s,
-						difficulties: uniqueDifficulties,
-					};
-				},
-			);
+				return {
+					...s,
+					difficulties: uniqueDifficulties,
+				};
+			});
 
-			// Sign the image urls
 			const itemsWithSignedUrls = await Promise.all(
 				items.map(async (item: (typeof items)[0]) => {
 					if (item.imageS3Key) {
-						const signedUrl = s3.presign(item.imageS3Key, {
-							acl: "public-read",
-						});
 						return {
 							...item,
-							imageUrl: signedUrl,
-						};
-					} else {
-						return {
-							...item,
-							imageUrl: null,
+							imageUrl: s3.presign(item.imageS3Key, {
+								acl: "public-read",
+							}),
 						};
 					}
+					return {
+						...item,
+						imageUrl: null,
+					};
 				}),
 			);
 
 			return { items: itemsWithSignedUrls };
-		} catch (e: any) {
+		} catch (e: unknown) {
 			console.error("Error listing songs:", e);
-			// Throw an actual error for unexpected server issues
-			throw new Error(e.message || "An error occurred while listing songs.");
+			throw new Error(
+				e instanceof Error
+					? e.message
+					: "An error occurred while listing songs.",
+			);
 		}
 	});

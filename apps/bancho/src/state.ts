@@ -1,5 +1,21 @@
 import type { ServerWebSocket } from "bun";
-import { type ServerPacket } from "@mug/contract";
+import type { ServerPacket } from "@mug/contract";
+
+type ScoreUpdateData = {
+	score: number;
+	userId: string;
+	username?: string | null;
+	combo?: number;
+	maxCombo?: number;
+	noteId?: string | number;
+	judgment?: string;
+	health?: number;
+};
+
+type MatchFinishData = {
+	score?: number;
+	maxCombo?: number;
+};
 
 export type LobbyNotifier = (
 	event:
@@ -80,7 +96,9 @@ export class RoomManager {
 			this.clearTimeoutFn(pendingTimer);
 			this.disconnectTimers.delete(userId);
 			this.swapSocket(roomId, userId, player);
-			return this.rooms.get(roomId)!;
+			const room = this.rooms.get(roomId);
+			if (!room) throw new Error("Room not found after socket swap");
+			return room;
 		}
 
 		// Normal join logic
@@ -281,7 +299,7 @@ export class RoomManager {
 		}
 	}
 
-	broadcastScore(player: ServerWebSocket<PlayerData>, data: any) {
+	broadcastScore(player: ServerWebSocket<PlayerData>, data: ScoreUpdateData) {
 		const roomId = player.data.roomId;
 		if (!roomId) return;
 		const score = data?.score;
@@ -304,7 +322,7 @@ export class RoomManager {
 		this.broadcastToRoom(roomId, packet, player); // exclude sender to reduce echo
 	}
 
-	broadcastMatchFinish(player: ServerWebSocket<PlayerData>, data: any) {
+	broadcastMatchFinish(player: ServerWebSocket<PlayerData>, data: MatchFinishData) {
 		const roomId = player.data.roomId;
 		if (!roomId) return;
 		const userId = player.data.user?.id;

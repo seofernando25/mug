@@ -10,25 +10,20 @@ import {
 } from "drizzle-orm";
 import { routerBaseContext } from "../context";
 import { requireAuth } from "../middleware/auth";
-import { eventIterator } from "@orpc/server";
 
-// Helper function for consistent username display
 const getDisplayName = (user: {
 	name: string;
 	displayUsername?: string | null;
 }) => user.displayUsername ?? user.name;
 
-// Track active SSE connections for cleanup
 const activeConnections = new Map<
 	string,
 	{ userId: string; roomId: number; lastHeartbeat: number }
 >();
-
-// --- Input Schemas ---
 export const CreateRoomInput = type({
 	roomName: "string>0",
 	roomPassword: "(string>0)?",
-	currentChartId: "(string & /^[0-9a-fA-F-]{36}$/)?", // Optional UUID for chart
+	currentChartId: "(string & /^[0-9a-fA-F-]{36}$/)?",
 });
 
 const JoinRoomInput = type({
@@ -41,19 +36,17 @@ const RoomIdInput = type({
 });
 
 const UpdateRoomInput = type({
-	roomName: "string>0", // To identify the room
+	roomName: "string>0",
 	newName: "(string>0)?",
 	newPassword: "(string>0)?",
-	currentChartId: "(string & /^[0-9a-fA-F-]{36}$/)?", // Optional UUID for chart, can be null to unset
+	currentChartId: "(string & /^[0-9a-fA-F-]{36}$/)?",
 });
 
-// --- Helper: Handle Player Left/Disconnect ---
 async function handlePlayerLeftRoom(
 	dbInstance: typeof db,
 	userId: string,
 	roomIdToUpdate: number,
 ) {
-	// First, check if the room still exists
 	const currentRoom = await dbInstance.query.room.findFirst({
 		where: eq(schema.room.id, roomIdToUpdate),
 		columns: { ownerId: true, id: true, name: true },
@@ -63,26 +56,22 @@ async function handlePlayerLeftRoom(
 		return;
 	}
 
-	// Remove the player from the room
 	try {
-		const deleteResult = await dbInstance
+		await dbInstance
 			.delete(schema.roomPlayer)
 			.where(
 				and(
 					eq(schema.roomPlayer.roomId, roomIdToUpdate),
 					eq(schema.roomPlayer.userId, userId),
 				),
-			)
-			.returning({ deletedUserId: schema.roomPlayer.userId });
+			);
 	} catch (error) {
 		console.error(
 			`Error removing player ${userId} from room ${roomIdToUpdate}:`,
 			error,
 		);
-		// Continue with cleanup even if this fails
 	}
 
-	// Check remaining players after removal
 	const remainingPlayersResult = await dbInstance
 		.select({ count: drizzleCount(schema.roomPlayer.userId) })
 		.from(schema.roomPlayer)
@@ -93,7 +82,6 @@ async function handlePlayerLeftRoom(
 	const wasOwner = currentRoom.ownerId === userId;
 
 	if (remainingPlayersCount === 0) {
-		// Room is empty, delete it
 		try {
 			await dbInstance
 				.delete(schema.room)
@@ -105,7 +93,6 @@ async function handlePlayerLeftRoom(
 			console.error(`Error deleting empty room ${roomIdToUpdate}:`, dbError);
 		}
 	} else if (wasOwner) {
-		// Owner left but room has other players, transfer ownership
 		const nextPlayer = await dbInstance.query.roomPlayer.findFirst({
 			where: eq(schema.roomPlayer.roomId, roomIdToUpdate),
 			orderBy: [asc(schema.roomPlayer.joinedAt)],
@@ -128,7 +115,6 @@ async function handlePlayerLeftRoom(
 				);
 			}
 		} else {
-			// This shouldn't happen since we checked remainingPlayersCount > 0, but handle it
 			try {
 				await dbInstance
 					.delete(schema.room)
@@ -142,7 +128,6 @@ async function handlePlayerLeftRoom(
 			}
 		}
 	} else {
-		// Non-owner left, just update activity timestamp
 		try {
 			await dbInstance
 				.update(schema.room)
@@ -157,7 +142,6 @@ async function handlePlayerLeftRoom(
 	}
 }
 
-// --- ORPC Procedures ---
 export const createRoomProcedure = routerBaseContext
 	.use(requireAuth)
 	.input(CreateRoomInput)
@@ -191,7 +175,7 @@ export const createRoomProcedure = routerBaseContext
 				name: input.roomName,
 				passwordHash: passwordHash,
 				ownerId: context.auth.user.id,
-				currentChartId: input.currentChartId, // Can be undefined/null
+				currentChartId: input.currentChartId,
 				createdAt: new Date(),
 				lastActivityAt: new Date(),
 			};
@@ -231,7 +215,6 @@ export const createRoomProcedure = routerBaseContext
 			console.log(
 				`Room '${newRoom.name}' created by ${ownerDisplayName} (ID: ${newRoom.id})`,
 			);
-			// Fetch chart details if currentChartId is present to return them
 			let chartDetails = null;
 			if (newRoom.currentChartId) {
 				const chartData = await db.query.chart.findFirst({
@@ -241,8 +224,7 @@ export const createRoomProcedure = routerBaseContext
 					},
 				});
 				if (
-					chartData &&
-					chartData.song &&
+					chartData?.song &&
 					typeof chartData.song === "object" &&
 					"title" in chartData.song
 				) {
@@ -254,7 +236,7 @@ export const createRoomProcedure = routerBaseContext
 					chartDetails = {
 						name: song.title,
 						artist: song.artist,
-						coverUrl: song.imageS3Key, // Assuming this is the direct URL or can be constructed
+						coverUrl: song.imageS3Key,
 						difficultyName: chartData.difficultyName,
 					};
 				}
@@ -389,7 +371,7 @@ export const leaveRoomProcedure = routerBaseContext
 	});
 
 export const listRoomsProcedure = routerBaseContext.handler(
-	async ({ context }) => {
+	async () => {
 		try {
 			const roomsData = await db
 				.select({
@@ -404,7 +386,6 @@ export const listRoomsProcedure = routerBaseContext.handler(
 					playerCount: drizzleCount(schema.roomPlayer.userId),
 					isPasswordProtected: isNotNull(schema.room.passwordHash),
 					currentChartId: schema.room.currentChartId,
-					// Fields from joined chart and song tables
 					chartDifficultyName: schema.chart.difficultyName,
 					songTitle: schema.song.title,
 					songArtist: schema.song.artist,
@@ -416,8 +397,8 @@ export const listRoomsProcedure = routerBaseContext.handler(
 					eq(schema.room.id, schema.roomPlayer.roomId),
 				)
 				.leftJoin(schema.user, eq(schema.room.ownerId, schema.user.id))
-				.leftJoin(schema.chart, eq(schema.room.currentChartId, schema.chart.id)) // Join with chart
-				.leftJoin(schema.song, eq(schema.chart.songId, schema.song.id)) // Join with song
+				.leftJoin(schema.chart, eq(schema.room.currentChartId, schema.chart.id))
+				.leftJoin(schema.song, eq(schema.chart.songId, schema.song.id))
 				.groupBy(
 					schema.room.id,
 					schema.room.name,
@@ -457,10 +438,10 @@ export const listRoomsProcedure = routerBaseContext.handler(
 					currentChart: r.currentChartId
 						? {
 								id: r.currentChartId,
-								name: r.songTitle, // from joined song table
-								artist: r.songArtist, // from joined song table
-								coverUrl: r.songImageS3Key, // from joined song table
-								difficultyName: r.chartDifficultyName, // from joined chart table
+								name: r.songTitle,
+								artist: r.songArtist,
+								coverUrl: r.songImageS3Key,
+								difficultyName: r.chartDifficultyName,
 							}
 						: null,
 				})),
@@ -481,7 +462,7 @@ export const listRoomsProcedure = routerBaseContext.handler(
 export const getRoomProcedure = routerBaseContext
 	.use(requireAuth)
 	.input(RoomIdInput)
-	.handler(async ({ input, context }) => {
+	.handler(async ({ input }) => {
 		const roomData = await db.query.room.findFirst({
 			where: eq(schema.room.id, input.roomId),
 			columns: {
@@ -540,8 +521,7 @@ export const getRoomProcedure = routerBaseContext
 
 		let chartDetails = null;
 		if (
-			roomData.currentChart &&
-			roomData.currentChart.song &&
+			roomData.currentChart?.song &&
 			typeof roomData.currentChart.song === "object" &&
 			"title" in roomData.currentChart.song
 		) {
@@ -687,7 +667,7 @@ export const updateRoomProcedure = routerBaseContext
 		}
 
 		if (input.currentChartId !== undefined) {
-			updates.currentChartId = input.currentChartId; // Allow setting to null explicitly
+			updates.currentChartId = input.currentChartId;
 		}
 
 		try {
@@ -712,7 +692,6 @@ export const updateRoomProcedure = routerBaseContext
 		}
 	});
 
-// --- SSE Procedure for Room Events & Disconnect Handling ---
 export const subscribeToRoomEvents = routerBaseContext
 	.use(requireAuth)
 	.input(RoomIdInput)
@@ -721,7 +700,7 @@ export const subscribeToRoomEvents = routerBaseContext
 		const roomId = input.roomId;
 		const userDisplayName = getDisplayName(context.auth.user);
 
-		let playerEntry = await db.query.roomPlayer.findFirst({
+		const playerEntry = await db.query.roomPlayer.findFirst({
 			where: and(
 				eq(schema.roomPlayer.roomId, roomId),
 				eq(schema.roomPlayer.userId, userId),
@@ -743,41 +722,32 @@ export const subscribeToRoomEvents = routerBaseContext
 			message: `Subscribed to room ${roomId}`,
 		};
 
-		// Track connection for cleanup
 		const connectionId = `${userId}-${roomId}`;
-		const connectionInfo = { userId, roomId, lastHeartbeat: Date.now() };
-		activeConnections.set(connectionId, connectionInfo);
-		console.log(
-			`Tracking connection ${connectionId} (total active: ${activeConnections.size})`,
-		);
+		activeConnections.set(connectionId, {
+			userId,
+			roomId,
+			lastHeartbeat: Date.now(),
+		});
 
 		try {
 			while (true) {
-				// Update heartbeat for cleanup tracking
 				const connection = activeConnections.get(connectionId);
 				if (connection) {
 					connection.lastHeartbeat = Date.now();
 				}
 
-				// Check if client wants to abort
 				signal?.throwIfAborted();
-
-				// Wait before next iteration
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 			}
-		} catch (error) {
-			// This will catch AbortError when signal is aborted
+		} catch (_error) {
 			console.log(
 				`Connection aborted for user ${userDisplayName} in room ${roomId}`,
 			);
 		} finally {
 			console.log(`User ${userDisplayName} disconnected from room ${roomId}`);
 
-			// Remove from active connections
-			const connectionId = `${userId}-${roomId}`;
 			activeConnections.delete(connectionId);
 
-			// Clean up the room
 			try {
 				await handlePlayerLeftRoom(db, userId, roomId);
 			} catch (cleanupError) {
@@ -789,10 +759,9 @@ export const subscribeToRoomEvents = routerBaseContext
 		}
 	});
 
-// Background cleanup for stale connections
 setInterval(async () => {
 	const now = Date.now();
-	const staleThreshold = 5000; // 5 seconds
+	const staleThreshold = 5000;
 	const staleConnections = [];
 
 	for (const [connectionId, connection] of activeConnections.entries()) {

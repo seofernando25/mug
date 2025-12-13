@@ -12,7 +12,7 @@ interface Props {
 	openSongSelect: () => void;
 }
 
-let { currentChart, isHost, openSongSelect }: Props = $props();
+const { currentChart, isHost, openSongSelect }: Props = $props();
 
 function handleClick() {
 	if (isHost) {
@@ -22,7 +22,7 @@ function handleClick() {
 </script>
 
 <div class="flex-1 flex flex-col items-center justify-center relative">
-    <div class="relative w-[500px] h-[500px] flex items-center justify-center group">
+    <div class="relative flex items-center justify-center group">
 
         <div class="absolute inset-0 rounded-full border border-gray-700 opacity-50 scale-90"></div>
         <div class="absolute inset-0 rounded-full border-2 border-cyan-500/20 animate-[spin_10s_linear_infinite] opacity-30"></div>
@@ -50,17 +50,5 @@ function handleClick() {
                 </div>
             {/if}
         </button>
-
-        <div class="absolute -bottom-16 text-center w-full">
-            <h1 class="text-3xl font-black italic tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                {currentChart?.name || 'NO SONG SELECTED'}
-            </h1>
-            <p class="text-cyan-400 font-bold uppercase tracking-widest text-sm mt-1">
-                {currentChart?.artist || ''}
-                {#if currentChart?.difficulty}
-                    <span class="text-gray-500 mx-2">|</span> {currentChart.difficulty}
-                {/if}
-            </p>
-        </div>
     </div>
 </div>

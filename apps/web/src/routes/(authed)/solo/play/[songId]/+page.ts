@@ -4,7 +4,7 @@ import { error } from "@sveltejs/kit";
 
 export const ssr = false;
 
-export const load = async ({ params, fetch, url }) => {
+export const load = async ({ params, url }) => {
 	const songId = params.songId;
 	if (!songId) {
 		throw error(404, { message: "Song ID not provided" });
@@ -13,7 +13,7 @@ export const load = async ({ params, fetch, url }) => {
 	let songData: ClientSong;
 	try {
 		songData = await orpcClient.song.get({ id: songId });
-	} catch (e: any) {
+	} catch (e: unknown) {
 		console.error(`Error loading song ${songId} via ORPC:`, e);
 		throw error(500, { message: `Could not load song data for ${songId}` });
 	}

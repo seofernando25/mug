@@ -1,4 +1,4 @@
-export const enum ErrorCode {
+export enum ErrorCode {
 	UNAUTHORIZED = "UNAUTHORIZED",
 	BAD_REQUEST = "BAD_REQUEST",
 	NOT_FOUND = "NOT_FOUND",

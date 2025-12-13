@@ -11,11 +11,11 @@ let allSongs = $state<SongListItem[]>([]);
 let filteredSongs = $derived(allSongs);
 let currentError = $state<string | null>(null);
 let isLoadingSongs = $state(true);
-let isLoadingDetails = $state(false);
+const isLoadingDetails = $state(false);
 
 let searchTerm = $state("");
 let selectedSongId = $state<string>("");
-let selectedSong = $derived(
+const selectedSong = $derived(
 	allSongs.find((song) => song.id === selectedSongId),
 );
 let selectedDifficultyId = $state<string>("");
@@ -46,8 +46,8 @@ function filterSongs() {
 	}
 }
 
-function handleSearch(searchTerm: string) {
-	searchTerm = searchTerm;
+function handleSearch(term: string) {
+	searchTerm = term;
 	filterSongs();
 }
 

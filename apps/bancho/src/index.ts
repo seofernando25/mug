@@ -1,4 +1,4 @@
-import { ClientPacketSchema, ErrorCode } from "@mug/contract";
+import { ClientPacketSchema } from "@mug/contract";
 import { validateSession, getRedis } from "@mug/db";
 import { RoomManager, type PlayerData } from "./state";
 import { TypedSocket } from "./socket-helper";
@@ -147,7 +147,7 @@ const server = Bun.serve<PlayerData>({
 									op: "room_state",
 									data: state,
 								});
-						} catch (err: any) {
+						} catch (err: unknown) {
 							socket.send("error", {
 								code: "NOT_FOUND",
 								message: err?.message ?? "join failed",
@@ -229,57 +229,6 @@ const server = Bun.serve<PlayerData>({
 						}
 
 						socket.send("ack", { message: "room_updated" });
-						break;
-					}
-					case "start_match": {
-						const roomId = packet.data.roomId; // ArkType guarantees this exists
-
-						// Validate that the sender is the host
-						const room = roomManager.getRoomById(roomId);
-						if (!room || room.hostId !== socket.data?.user?.id) {
-							socket.send("error", {
-								code: "BAD_REQUEST",
-								message: "only host can start match",
-							});
-							break;
-						}
-
-						// Calculate target start time (3 seconds from now)
-						const startTime = Date.now() + 3000;
-
-						// Update room status and start time
-						room.status = "starting";
-						room.startTime = startTime;
-
-						console.log(
-							"[bancho] starting match in room",
-							roomId,
-							"at",
-							new Date(startTime).toISOString(),
-						);
-
-						// Broadcast the starting state to all clients
-						const state = roomManager.getRoomState(roomId);
-						if (state) {
-							roomManager.broadcastToRoom(roomId, {
-								op: "room_state",
-								data: state,
-							});
-						}
-
-						// Schedule automatic transition to 'playing' after 3 seconds
-						setTimeout(() => {
-							room.status = "playing";
-							const finalState = roomManager.getRoomState(roomId);
-							if (finalState) {
-								roomManager.broadcastToRoom(roomId, {
-									op: "room_state",
-									data: finalState,
-								});
-							}
-						}, 3000);
-
-						socket.send("ack", { message: "match_starting" });
 						break;
 					}
 					case "start_match": {

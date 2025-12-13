@@ -22,8 +22,8 @@ export async function createGame(
 		onCountdownUpdate: (value: number) => void;
 		onSongEnd: () => void;
 		onScoreUpdate: (score: number, combo: number, maxCombo: number) => void;
-		onNoteHit: (note: any, judgment: string) => void;
-		onNoteMiss: (note: any) => void;
+		onNoteHit: (note: { id: string | number; lane: number }, judgment: string) => void;
+		onNoteMiss: (note: { id: string | number; lane: number }) => void;
 		getGamePhase: () => GamePhase;
 		getIsPaused: () => boolean;
 		getCountdownValue: () => number;
@@ -137,10 +137,10 @@ export async function createGame(
 			const events = engine.update(time);
 
 			for (const e of events) {
-				if (e.type === "hit") {
+				if (e.type === "hit" && e.judgment) {
 					const note = { id: e.noteId, lane: e.lane };
-					callbacks.onNoteHit(note, e.judgment!);
-					renderer.showJudgment(e.lane, e.judgment!);
+					callbacks.onNoteHit(note, e.judgment);
+					renderer.showJudgment(e.lane, e.judgment);
 					renderer.flashLane(e.lane);
 				} else if (e.type === "miss" || e.type === "hold_broken") {
 					const note = { id: e.noteId, lane: e.lane };
@@ -186,9 +186,9 @@ export async function createGame(
 
 		renderer.flashLane(lane);
 		const result = engine.submitInput(lane, clock.currentTimeMs);
-		if (result && result.type === "hit") {
-			callbacks.onNoteHit({ id: result.noteId, lane }, result.judgment!);
-			renderer.showJudgment(lane, result.judgment!);
+		if (result && result.type === "hit" && result.judgment) {
+			callbacks.onNoteHit({ id: result.noteId, lane }, result.judgment);
+			renderer.showJudgment(lane, result.judgment);
 			callbacks.onScoreUpdate(
 				engine.state.score,
 				engine.state.combo,
@@ -229,7 +229,9 @@ export async function createGame(
 			console.log(`[MUG] Countdown: ${count}`);
 			callbacks.onCountdownUpdate(count);
 			if (count <= 0) {
-				clearInterval(countdownTimer!);
+				if (countdownTimer) {
+					clearInterval(countdownTimer);
+				}
 				console.log("[MUG] 3. Countdown finished. Calling clock.play()...");
 				countdownTimer = null;
 				await clock.play();

@@ -1,5 +1,5 @@
 import type { ChartHitObject } from "../types";
-import { Container } from "pixi.js";
+import type { Container } from "pixi.js";
 import { GameNote } from "./GameNote";
 import { HoldNote } from "./HoldNote";
 
@@ -119,7 +119,11 @@ export class NotePool {
 				canvasHeight,
 			);
 		});
-		this.tapNotePool.forEach((note) => (note.laneWidth = newLaneWidth));
-		this.holdNotePool.forEach((note) => (note.laneWidth = newLaneWidth));
+		this.tapNotePool.forEach((note) => {
+			note.laneWidth = newLaneWidth;
+		});
+		this.holdNotePool.forEach((note) => {
+			note.laneWidth = newLaneWidth;
+		});
 	}
 }

@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { PlayerData } from "./state";
-import { type ServerPacket, type ServerPacketData } from "@mug/contract";
+import type { ServerPacket, ServerPacketData } from "@mug/contract";
 
 /**
  * A type-safe wrapper around the Bun ServerWebSocket.
