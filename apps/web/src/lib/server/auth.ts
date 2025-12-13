@@ -17,7 +17,9 @@ const generateRandomString = (length: number): string => {
 export const auth = betterAuth({
 	secret: process.env.BETTER_AUTH_SECRET,
 	trustedOrigins: [
-		process.env.BETTER_AUTH_URL || "http://localhost:3000"
+		process.env.BETTER_AUTH_URL || "http://localhost:3000",
+		"http://*.sslip.io",
+		"https://*.sslip.io",
 	],
 	database: drizzleAdapter(db, {
 		provider: "pg",
