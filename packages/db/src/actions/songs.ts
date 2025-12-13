@@ -214,7 +214,7 @@ export async function queueSongUpload(
 
 		// Queue job in Redis
 		const redis = getRedis();
-		await redis.rPush(queueKey, JSON.stringify(job));
+		await redis.rpush(queueKey, JSON.stringify(job));
 
 		return {
 			success: true,

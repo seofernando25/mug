@@ -1,25 +1,21 @@
-import { createClient, type RedisClientType } from "redis";
+import { redis, RedisClient } from "bun";
 
-const url = process.env.REDIS_URL ?? "redis://localhost:6379";
-let client: RedisClientType | null = null;
-let connected = false;
+// Use Bun's built-in Redis client
+// Reads connection from REDIS_URL, VALKEY_URL, or defaults to redis://localhost:6379
+let client: RedisClient | null = null;
 
-export function getRedis(): RedisClientType {
+export function getRedis(): RedisClient {
 	if (!client) {
-		client = createClient({
-			url,
-			pingInterval: 10_000,
-		});
-		client.on("error", (err) => {
-			console.error("[redis] error", err);
-		});
-	}
-	if (!connected) {
-		connected = true;
-		client.connect().catch((err) => {
-			console.error("[redis] failed to connect", err);
-			connected = false;
+		// Create client using environment variable or default
+		const url = process.env.REDIS_URL ?? process.env.VALKEY_URL ?? "redis://localhost:6379";
+		client = new RedisClient(url, {
+			// Connection automatically managed by Bun
+			autoReconnect: true,
+			maxRetries: 10,
 		});
 	}
 	return client;
 }
+
+// Export the default redis instance for convenience
+export { redis };
