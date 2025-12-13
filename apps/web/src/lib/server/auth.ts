@@ -16,6 +16,9 @@ const generateRandomString = (length: number): string => {
 
 export const auth = betterAuth({
 	secret: process.env.BETTER_AUTH_SECRET,
+	trustedOrigins: [
+		process.env.BETTER_AUTH_URL || "http://localhost:3000"
+	],
 	database: drizzleAdapter(db, {
 		provider: "pg",
 		schema: {
