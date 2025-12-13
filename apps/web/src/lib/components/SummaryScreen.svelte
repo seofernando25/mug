@@ -1,4 +1,6 @@
 <script lang="ts">
+import GameResultsDisplay from "$lib/components/game/GameResultsDisplay.svelte";
+
 const {
 	score,
 	maxCombo,
@@ -7,6 +9,7 @@ const {
 	difficultyName = "",
 	onRetry = () => {},
 	onExit = () => {},
+	isMultiplayer = false,
 }: {
 	score: number;
 	maxCombo: number;
@@ -15,18 +18,24 @@ const {
 	difficultyName?: string;
 	onRetry?: () => void;
 	onExit?: () => void;
+	isMultiplayer?: boolean;
 } = $props();
 </script>
 
 <div class="overlay-container summary-overlay">
 	<div class="summary-box">
 		<h2 class="summary-title">{songTitle ? songTitle : 'Song Cleared!'}</h2>
-		{#if artist}<p class="summary-artist">{artist}</p>{/if}
-		{#if difficultyName}<p class="summary-difficulty">Difficulty: {difficultyName}</p>{/if}
-		<p class="summary-stat">Final Score: <span class="stat-value">{score}</span></p>
-		<p class="summary-stat">Max Combo: <span class="stat-value">{maxCombo}</span></p>
+		<GameResultsDisplay
+			score={score}
+			maxCombo={maxCombo}
+			songTitle={songTitle}
+			artist={artist}
+			difficultyName={difficultyName}
+		/>
 		<div class="summary-buttons">
+			{#if !isMultiplayer}
 			<button onclick={onRetry} class="summary-button retry-button">Retry</button>
+			{/if}
 			<button onclick={onExit} class="summary-button exit-button">Exit to Menu</button>
 		</div>
 	</div>
@@ -71,23 +80,6 @@ const {
 		font-size: 2.2rem; /* Adjusted */
 		margin-bottom: 10px; /* Adjusted */
 		color: #40c9ff;
-	}
-
-	.summary-artist,
-	.summary-difficulty {
-		font-size: 1rem;
-		color: #aaa;
-		margin-bottom: 15px;
-	}
-
-	.summary-stat {
-		font-size: 1.4rem; /* Adjusted */
-		margin: 8px 0; /* Adjusted */
-	}
-
-	.stat-value {
-		font-weight: bold;
-		color: #ffd700;
 	}
 
 	.summary-buttons {

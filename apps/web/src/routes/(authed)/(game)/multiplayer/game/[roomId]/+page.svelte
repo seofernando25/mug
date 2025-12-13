@@ -89,6 +89,17 @@ function handleMatchFinished(finalScore: number, maxCombo: number) {
 		maxCombo,
 	});
 	console.log("[Multiplayer] Match finished, score:", finalScore);
+
+	// Navigate to a dedicated multiplayer results page
+	goto(`/multiplayer/room/${roomId}/results`, {
+		state: {
+			finalScore,
+			maxCombo,
+			songId: songData?.id, // Pass only song ID
+			chartDifficultyName: chartData?.difficultyName, // Pass only chart difficulty name
+			roomId, // Pass roomId to fetch full results on the results page
+		},
+	});
 }
 
 function handleRetry() {
@@ -135,6 +146,7 @@ function handleExit() {
 		showMultiplayerLeaderboard={true}
 		canPause={false}
 		isMultiplayer={true}
+		suppressSummaryScreen={true}
 		callbacks={{
 			onScoreUpdate: handleScoreUpdate,
 			onMatchFinished: handleMatchFinished,

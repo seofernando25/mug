@@ -1,47 +1,51 @@
 <script lang="ts">
 import Waves from "$lib/components/Waves.svelte";
 import ImportLevel from "$lib/components/ImportLevel.svelte";
-import { goto } from "$app/navigation";
 </script>
 
 <svelte:head>
-	<title>Level Creator - MUG</title>
+    <title>Level Creator - MUG</title>
 </svelte:head>
 
-<div class="flex flex-col h-full pt-8 isolate">
-	<div class="fixed top-0 left-0 w-screen h-screen z-[-1] overflow-visible">
-		<Waves />
-	</div>
+<div class="relative min-h-full w-full overflow-hidden">
+    <div class="fixed inset-0 z-0">
+        <Waves />
+    </div>
 
-	<div class="w-full max-w-4xl mx-auto px-4">
-		<h1 class="text-4xl font-bold mb-10 text-gray-200 text-center">Level Creator</h1>
+    <div class="relative z-10 container mx-auto p-8 pb-32">
+        <div class="w-full max-w-5xl mx-auto">
+            <h1 class="text-5xl font-black italic tracking-tighter mb-12 text-white text-center drop-shadow-lg">
+                Level <span class="text-purple-400">Creator</span>
+            </h1>
 
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-			<!-- Create Custom Level Button -->
-			<button
-				class="group block bg-gradient-to-r from-purple-600 to-indigo-600 p-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out hover:-translate-y-2"
-				on:click={() => goto('/level-creator/create')}
-			>
-				<h2
-					class="text-3xl font-bold text-white mb-1 group-hover:text-yellow-200 transition-colors flex items-center"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						viewBox="0 0 512 512"
-						class="w-8 h-8 mr-3"
-						fill="currentColor"
-					>
-						<path
-							d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM232 344V280H168c-13.3 0-24-10.7-24-24s10.7-24 24-24h64V168c0-13.3 10.7-24 24-24s24 10.7 24 24v64h64c13.3 0 24 10.7 24 24s-10.7 24-24 24H280v64c0 13.3-10.7 24-24 24s-24-10.7-24-24z"
-						/>
-					</svg>
-					Create Custom Level
-				</h2>
-				<p class="text-md text-indigo-100">Design your own rhythm game level from scratch</p>
-			</button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <a
+                    href="/level-creator/create"
+                    class="group relative flex flex-col justify-between h-64 p-8 rounded-2xl bg-gray-900/60 backdrop-blur-md border border-white/10 transition-all duration-300 hover:bg-gray-800/80 hover:border-purple-500/50 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1 overflow-hidden"
+                >
+                    <div class="absolute top-0 right-0 p-32 bg-purple-600/10 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-purple-600/20"></div>
+                    
+                    <div class="relative z-10">
+                        <div class="w-14 h-14 mb-6 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 group-hover:text-white group-hover:bg-purple-500 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8">
+                                <path fill-rule="evenodd" d="M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <h2 class="text-3xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">
+                            Create New
+                        </h2>
+                        <p class="text-gray-400 group-hover:text-gray-300">
+                            Start from scratch with your own audio file.
+                        </p>
+                    </div>
+                    
+                    <div class="relative z-10 flex items-center text-sm font-bold text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                        OPEN EDITOR <span class="ml-2">→</span>
+                    </div>
+                </a>
 
-			<!-- Import Level Section (Now a component) -->
-			<ImportLevel />
-		</div>
-	</div>
+                <ImportLevel />
+            </div>
+        </div>
+    </div>
 </div>

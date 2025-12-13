@@ -301,6 +301,7 @@ function handleExit() {
 			difficultyName={chartData.difficultyName}
 			onRetry={handleRetry}
 			onExit={handleExit}
+			isMultiplayer={isMultiplayer}
 		/>
 	{/if}
 	{#if showPauseScreen && canPause}
