@@ -1,4 +1,4 @@
-import type { ChartHitObject } from '$lib/types';
+import type { ChartHitObject } from '../types';
 import type { NotePool } from './NotePool';
 import { HoldNote } from './HoldNote'; // HoldNote is needed for instanceof check
 

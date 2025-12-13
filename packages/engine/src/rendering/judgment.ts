@@ -1,5 +1,5 @@
-import { Colors } from '$lib/types';
-import type { JudgmentText } from '$lib/types';
+import { Colors } from './constants';
+import type { JudgmentText } from './constants';
 import { Application, Container, Text, TextStyle } from 'pixi.js';
 
 export function drawJudgmentText(

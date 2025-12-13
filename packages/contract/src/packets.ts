@@ -57,7 +57,14 @@ export const ClientPacketSchema = PingPacket.or(NoopPacket).or(CreateRoomPacket)
 // --- Server Packet Types ---
 
 const PongPacket = type({ op: "'pong'", "data?": { "message?": "string", "serverTime?": "number", "t1?": "number" } });
-const AckPacket = type({ op: "'ack'", "data?": "unknown" });
+const AckPacket = type({
+	op: "'ack'",
+	"data?": {
+		"message?": "string",
+		"roomId?": "string",
+		"name?": "string"
+	}
+});
 const ErrorPacket = type({ op: "'error'", data: { code: "'UNAUTHORIZED'|'BAD_REQUEST'|'NOT_FOUND'|'CONFLICT'|'INTERNAL'", "message?": "string" } });
 const RoomListPacket = type({ op: "'room_list'", data: RoomInfo.array() });
 const RoomEventPacket = type({ op: "'room_event'", data: { type: "'add'|'remove'|'update'", "room?": RoomInfo, "id?": "string" } });

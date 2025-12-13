@@ -1,4 +1,4 @@
-import { Colors, GameplaySizingConstants } from '$lib/types'; // Changed path
+import { Colors, GameplaySizingConstants } from './constants';
 import { Application, Container, Graphics } from 'pixi.js';
 import { get, type Readable } from 'svelte/store';
 import { LaneIllumination } from './LaneIllumination'; // Added import

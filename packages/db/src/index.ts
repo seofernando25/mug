@@ -11,4 +11,5 @@ export * from './schema/auth';
 export * from './schema/music';
 export * from './schema/multiplayer';
 export * from './s3';
+export * from './actions/songs';
 

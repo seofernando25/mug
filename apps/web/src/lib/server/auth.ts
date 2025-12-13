@@ -1,9 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "./db";
+import { db, schema } from "@mug/db";
 import { username, anonymous } from "better-auth/plugins"
-
-import * as schema from "./db/schema";
 
 // Helper function to generate random alphanumeric characters
 const generateRandomString = (length: number): string => {

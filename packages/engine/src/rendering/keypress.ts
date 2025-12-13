@@ -1,5 +1,5 @@
 import { Graphics, Container, Application } from 'pixi.js';
-import { GameplaySizingConstants, Colors } from '$lib/types'; // Changed path
+import { GameplaySizingConstants, Colors } from './constants';
 
 export function updateKeyPressVisuals(
     graphics: Graphics,

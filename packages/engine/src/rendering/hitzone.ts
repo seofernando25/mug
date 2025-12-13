@@ -1,4 +1,4 @@
-import { Colors, GameplaySizingConstants } from '$lib/types';
+import { Colors, GameplaySizingConstants } from './constants';
 import { Graphics } from 'pixi.js';
 
 export function drawHitZone(

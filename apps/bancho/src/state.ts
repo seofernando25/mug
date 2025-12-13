@@ -68,14 +68,10 @@ export class RoomManager {
 	joinRoom(player: ServerWebSocket<PlayerData>, roomId: string): Room {
 		const userId = player.data.user.id;
 
-		// Check if they are currently "disconnecting" (reconnection)
 		const pendingTimer = this.disconnectTimers.get(userId);
 		if (pendingTimer) {
-			console.log(`[Bancho] User ${userId} reconnected! Cancelling leave.`);
 			this.clearTimeoutFn(pendingTimer);
 			this.disconnectTimers.delete(userId);
-
-			// Perform socket swap instead of fresh join
 			this.swapSocket(roomId, userId, player);
 			return this.rooms.get(roomId)!;
 		}
@@ -84,13 +80,8 @@ export class RoomManager {
 		const room = this.rooms.get(roomId);
 		if (!room) throw new Error('Room not found');
 
-		// Check if this user is already in the room (prevent duplicates)
 		const existingPlayer = Array.from(room.players).find(p => p.data.user.id === userId);
-		if (existingPlayer) {
-			// Replace the existing socket with the new one (reconnection)
-			room.players.delete(existingPlayer);
-			console.log(`[Bancho] User ${userId} reconnected to room ${roomId}`);
-		}
+		if (existingPlayer) room.players.delete(existingPlayer);
 
 		room.players.add(player);
 		player.data.roomId = roomId;

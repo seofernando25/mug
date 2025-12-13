@@ -1,4 +1,6 @@
-import type { ChartHitObject } from '$lib/types';
+import type { chartHitObject } from '@mug/db';
+
+export type ChartHitObject = typeof chartHitObject.$inferSelect;
 
 export type Judgment = 'PERFECT' | 'EXCELLENT' | 'GOOD' | 'MEH' | 'MISS';
 

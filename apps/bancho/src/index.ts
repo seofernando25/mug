@@ -72,7 +72,6 @@ const server = Bun.serve<PlayerData>({
 		},
 		message(rawWs, msg) {
 			const socket = new TypedSocket(rawWs);
-			console.log('[bancho] received message from', socket.data?.user, 'message', msg);
 			try {
 				// 1. Parse JSON
 				const rawJson = typeof msg === 'string' ? JSON.parse(msg) : JSON.parse(msg.toString());
@@ -159,7 +158,6 @@ const server = Bun.serve<PlayerData>({
 							userId: socket.data?.user?.id,
 							username: socket.data?.user?.username
 						};
-						console.log('[bancho] received score_update from', socket.data?.user, 'payload', normalizedPayload);
 						roomManager.broadcastScore(rawWs, normalizedPayload);
 						break;
 					}
@@ -169,7 +167,6 @@ const server = Bun.serve<PlayerData>({
 							userId: socket.data?.user?.id,
 							username: socket.data?.user?.username
 						};
-						console.log('[bancho] received match_finished from', socket.data?.user, 'payload', normalizedPayload);
 						roomManager.broadcastMatchFinish(rawWs, normalizedPayload);
 						break;
 					}

@@ -1,5 +1,5 @@
 import type { ChartHitObject } from '$lib/types';
-import { Colors, GameplaySizingConstants } from '$lib/types';
+import { Colors, GameplaySizingConstants } from './constants';
 import { Container, Graphics } from 'pixi.js';
 import { GameNote } from './GameNote';
 import { getNoteYPosition } from './noteUtils';

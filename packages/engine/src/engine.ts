@@ -1,4 +1,4 @@
-import type { ChartHitObject } from '$lib/types';
+import type { ChartHitObject } from './types';
 import { DEFAULT_CONFIG, SCORING, getJudgment } from './rules';
 import type { EngineNote, GameConfig, GameEvent, GameState, Judgment } from './types';
 

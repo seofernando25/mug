@@ -4,11 +4,33 @@ import {
     ClientPacketSchema,
     ServerPacketSchema,
     type ClientPacketOp,
-    type ServerPacketOp,
     type ClientPacketData,
-    type ServerPacketData
+    type RoomSummary
 } from '@mug/contract';
-import type { RoomSummary, RoomState } from './types';
+
+// Type alias for room state data from room_state packet
+type RoomState = {
+    id: string;
+    name?: string;
+    hostId?: string | null;
+    hostName?: string | null;
+    status?: string;
+    startTime?: number;
+    currentChart?: {
+        coverUrl?: string;
+        name?: string;
+        artist?: string;
+        difficulty?: string;
+        songId?: string;
+        difficulties?: string[];
+    };
+    players: Array<{
+        userId: string;
+        username?: string | null;
+        avatarUrl?: string | null;
+    }>;
+};
+// RoomSummary is now RoomInfo from contract, RoomState is the data from room_state packet
 
 // Type aliases for ArkType schemas
 type ClientPacket = typeof ClientPacketSchema.infer;

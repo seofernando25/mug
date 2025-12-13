@@ -6,7 +6,7 @@ import { NotePool } from './rendering/NotePool';
 import { updateNotes } from './rendering/updateNotes';
 import { redrawNoteGraphicsOnResize } from './rendering/redrawNoteGraphicsOnResize';
 import type { GameState } from './types';
-import type { ChartHitObject } from '$lib/types';
+import type { ChartHitObject } from './types';
 import { Application, Container } from 'pixi.js';
 import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
 

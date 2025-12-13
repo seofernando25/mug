@@ -1,4 +1,4 @@
-import type { ChartHitObject } from '$lib/types';
+import type { ChartHitObject } from '../types';
 import { Container } from 'pixi.js';
 import { GameNote } from './GameNote';
 import { HoldNote } from './HoldNote';

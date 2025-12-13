@@ -1,8 +1,6 @@
-import { RhythmEngine } from '$lib/game-engine/engine';
-import { AudioClock } from '$lib/game-engine/clock';
-import { GameRenderer } from '$lib/game-engine/renderer';
+import { RhythmEngine, AudioClock, GameRenderer } from '@mug/engine';
 import { gameSocket } from '$lib/network/socket';
-import { Preferences } from '$lib/preferences';
+import { Preferences } from '@mug/common';
 import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
 import type { ClientChart, ClientSong, ChartHitObject } from '$lib/types';
 import { Sound } from '@pixi/sound';
