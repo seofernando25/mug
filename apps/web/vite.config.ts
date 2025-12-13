@@ -11,9 +11,12 @@ export default defineConfig({
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
 	},
-	// resolve: {
-	// 	alias: {
-	// 	  'pixi.js': resolve(__dirname, './node_modules/pixi.js/dist/browser/pixi.mjs')
-	// 	}
-	//   },
+	build: {
+		rollupOptions: {
+			external: ["pixi.js", "@pixi/sound"],
+		},
+	},
+	ssr: {
+		external: ["pixi.js", "@pixi/sound"],
+	},
 });
