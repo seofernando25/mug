@@ -15,17 +15,11 @@ function installProcessorMocks() {
 			)
 		},
 		s3: {
-			send: mock(async (cmd) => {
-				const name = cmd.constructor.name;
-				if (name === 'GetObjectCommand') {
-					return {
-						Body: {
-							transformToByteArray: async () => new Uint8Array([0x00, 0x01])
-						}
-					};
-				}
-				return {};
-			})
+			file: mock(() => ({
+				arrayBuffer: mock(async () => new Uint8Array([0x00, 0x01]))
+			})),
+			write: mock(async () => {}),
+			delete: mock(async () => {})
 		},
 		schema: {
 			song: {},
@@ -35,7 +29,7 @@ function installProcessorMocks() {
 	}));
 
 	mock.module('@mug/game-logic', () => ({
-		processFileAndExtractData: mock(async () => ({
+		processFileAndExtractData: mock(async (fileBlob: File) => ({
 			metadata: {
 				title: 'Test Song',
 				artist: 'Artist',

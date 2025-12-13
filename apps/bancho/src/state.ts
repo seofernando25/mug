@@ -14,6 +14,14 @@ type Room = {
 	hostId: string;
 	players: Set<ServerWebSocket<PlayerData>>;
 	status: 'idle' | 'playing';
+	currentChart?: {
+		coverUrl?: string;
+		name?: string;
+		artist?: string;
+		difficulty?: string;
+		songId?: string;
+		difficulties?: string[];
+	};
 };
 
 export class RoomManager {
@@ -175,12 +183,17 @@ export class RoomManager {
 			name: room.name,
 			hostId: room.hostId,
 			hostName: this.getHostName(room),
+			currentChart: room.currentChart,
 			players: Array.from(room.players).map((p) => ({
 				userId: p.data.user.id,
 				username: p.data.user.username ?? null,
 				avatarUrl: null
 			}))
 		};
+	}
+
+	getRoomById(roomId: string) {
+		return this.rooms.get(roomId) || null;
 	}
 
 	private getHostName(room: Room) {

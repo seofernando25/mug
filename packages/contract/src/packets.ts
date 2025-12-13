@@ -8,6 +8,7 @@ export type ClientPacket =
 	| { op: 'join_room'; data: { roomId: string } }
 	| { op: 'leave_room'; data?: { roomId?: string } }
 	| { op: 'get_room_state'; data: { roomId: string } }
+	| { op: 'update_room'; data: { roomId: string; currentChart: { coverUrl?: string; name?: string; artist?: string; difficulty?: string; songId?: string; difficulties?: string[] } } }
 	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
 	| { op: 'match_finished'; data?: { score?: number; maxCombo?: number } };
 
@@ -17,7 +18,7 @@ export type ServerPacket =
 	| { op: 'error'; data: { code: 'UNAUTHORIZED' | 'BAD_REQUEST' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL'; message?: string } }
 	| { op: 'room_list'; data: Array<{ id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null }> }
 	| { op: 'room_event'; data: { type: 'add' | 'remove' | 'update'; room?: { id: string; name: string; playerCount?: number; status?: string; hostId?: string | null; hostName?: string | null } } }
-	| { op: 'room_state'; data: { id: string; name?: string; hostId?: string | null; players: Array<{ userId: string; username?: string | null; avatarUrl?: string | null }> } }
+	| { op: 'room_state'; data: { id: string; name?: string; hostId?: string | null; currentChart?: { coverUrl?: string; name?: string; artist?: string; difficulty?: string; songId?: string; difficulties?: string[] }; players: Array<{ userId: string; username?: string | null; avatarUrl?: string | null }> } }
 	| { op: 'peer_score_update'; data: { userId: string; username?: string | null; score: number; combo?: number; maxCombo?: number; health?: number } }
 	| { op: 'peer_match_finished'; data: { userId: string; finalScore: number; maxCombo?: number } }
 	| { op: 'score_update'; data: { score: number; combo?: number; maxCombo?: number; noteId?: string | number; judgment?: string } }
@@ -72,6 +73,14 @@ export function assertClientPacket(input: any): asserts input is ClientPacket {
 		case 'get_room_state':
 			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) {
 				throw new Error(`${input.op} requires valid roomId`);
+			}
+			return;
+		case 'update_room':
+			if (!input.data || typeof input.data.roomId !== 'string' || input.data.roomId.length === 0) {
+				throw new Error('update_room requires valid roomId');
+			}
+			if (!input.data.currentChart || typeof input.data.currentChart !== 'object') {
+				throw new Error('update_room requires currentChart object');
 			}
 			return;
 		case 'score_update':

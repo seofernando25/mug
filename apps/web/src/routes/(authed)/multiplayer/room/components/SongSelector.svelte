@@ -13,6 +13,12 @@
     }
 
     let { currentChart, isHost, openSongSelect }: Props = $props();
+
+    function handleClick() {
+        if (isHost) {
+            openSongSelect();
+        }
+    }
 </script>
 
 <div class="flex-1 flex flex-col items-center justify-center relative">
@@ -24,8 +30,7 @@
 
         <button
             class="w-80 h-80 rounded-full bg-black border-4 border-gray-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden relative transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-cyan-500/50"
-            onclick={openSongSelect}
-            disabled={!isHost}
+            onclick={handleClick}
             class:cursor-default={!isHost}
             class:cursor-pointer={isHost}
         >
@@ -35,7 +40,7 @@
             {:else}
                 <div class="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-600">
                     <span class="text-6xl mb-2">🎵</span>
-                    <span class="text-sm font-bold uppercase tracking-widest">{isHost ? 'Select Song' : 'Waiting...'}</span>
+                    <span class="text-sm font-bold uppercase tracking-widest">{isHost ? 'Select Song' : 'Host Selecting...'}</span>
                 </div>
             {/if}
 

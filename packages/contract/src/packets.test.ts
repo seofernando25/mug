@@ -22,6 +22,40 @@ describe("Contract Integrity", () => {
 		expect(() => assertClientPacket(payload)).toThrow(/numeric score/);
 	});
 
+	it("validates update_room with valid data", () => {
+		const payload = {
+			op: "update_room",
+			data: {
+				roomId: "room123",
+				currentChart: {
+					coverUrl: "http://example.com/image.jpg",
+					name: "Test Song",
+					artist: "Test Artist",
+					difficulty: "Hard",
+					songId: "song123",
+					difficulties: ["Easy", "Hard"]
+				}
+			}
+		};
+		expect(() => assertClientPacket(payload)).not.toThrow();
+	});
+
+	it("rejects update_room with missing roomId", () => {
+		const payload = {
+			op: "update_room",
+			data: { currentChart: {} }
+		};
+		expect(() => assertClientPacket(payload)).toThrow(/roomId/);
+	});
+
+	it("rejects update_room with invalid currentChart", () => {
+		const payload = {
+			op: "update_room",
+			data: { roomId: "room123", currentChart: "invalid" }
+		};
+		expect(() => assertClientPacket(payload)).toThrow(/currentChart object/);
+	});
+
 	it("validates a room_list packet", () => {
 		const pkt = {
 			op: "room_list",

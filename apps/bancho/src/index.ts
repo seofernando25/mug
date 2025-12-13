@@ -155,6 +155,36 @@ const server = Bun.serve<PlayerData>({
 						roomManager.broadcastMatchFinish(ws, normalizedPayload);
 						break;
 					}
+					case 'update_room': {
+						const payload = parsed.data;
+						const roomId = payload?.roomId;
+						const currentChart = payload?.currentChart;
+
+						if (!roomId || !currentChart) {
+							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'roomId and currentChart required' } }));
+							break;
+						}
+
+						// Validate that the sender is the host
+						const room = roomManager.getRoomById(roomId);
+						if (!room || room.hostId !== ws.data?.user?.id) {
+							ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'only host can update room' } }));
+							break;
+						}
+
+						// Update the room's current chart
+						room.currentChart = currentChart;
+						console.log('[bancho] updated room', roomId, 'chart to:', currentChart.name);
+
+						// Broadcast the updated room state to all clients
+						const state = roomManager.getRoomState(roomId);
+						if (state) {
+							roomManager.broadcastToRoom(roomId, { op: 'room_state', data: state });
+						}
+
+						ws.send(JSON.stringify({ op: 'ack', data: { message: 'room_updated' } }));
+						break;
+					}
 					default:
 						ws.send(JSON.stringify({ op: 'error', data: { code: ErrorCode.BAD_REQUEST, message: 'unsupported op' } }));
 						break;

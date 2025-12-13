@@ -11,6 +11,8 @@
     import SongSelectOverlay from '$lib/components/SongSelectOverlay.svelte';
     import { orpcClient } from '$lib/rpc/client';
 
+    const { data } = $props();
+
     // State
     let roomId = $state<string | null>(null);
     let roomDetails = $state<any | null>(null);
@@ -19,10 +21,10 @@
     let isLeaving = $state(false);
     let connectionStatus = $state<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
-    // Derived State (Mocked until server support is ready)
+    // Derived State
     let isHost = $derived(
-        roomDetails?.hostId === 'TODO_GET_CURRENT_USER_ID' || true
-    ); // Placeholder true for demo logic
+        roomDetails?.hostId === data.session?.user?.id
+    );
     let isReady = $state(false); // Local ready state
 
     // Song selection overlay state
@@ -76,15 +78,23 @@
         }
 
         try {
-            // TODO: For now, we can't actually set a chart since we need chart IDs, not song IDs
-            // This is a placeholder until we implement proper chart selection
-            console.log("Chart selection not yet implemented - song selected:", song.title);
+            // Send the selected song data to the server to update room state
+            gameSocket.send({
+                op: 'update_room',
+                data: {
+                    roomId,
+                    currentChart: {
+                        coverUrl: song.imageUrl,
+                        name: song.title,
+                        artist: song.artist,
+                        difficulty: song.difficulties?.[0] || 'Unknown', // Default to first difficulty
+                        songId: song.id, // Include song ID for future chart resolution
+                        difficulties: song.difficulties // Include all difficulties for future use
+                    }
+                }
+            } as any);
 
-            // For demonstration, we'll just close the overlay
-            // In the future, this should:
-            // 1. Show difficulty selection for the chosen song
-            // 2. Get the chart ID for the selected difficulty
-            // 3. Call the update room RPC with the chart ID
+            console.log("Sent update_room message for song:", song.title);
 
         } catch (error) {
             console.error("Error selecting song:", error);

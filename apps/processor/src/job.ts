@@ -2,14 +2,6 @@ import { db, s3, schema } from '@mug/db';
 import { processFileAndExtractData } from '@mug/game-logic';
 import mime from 'mime-types';
 
-// Minimal S3 command shims; Bun's S3 client supports the AWS SDK command shape.
-class BaseCommand<T = any> {
-	constructor(public input: T) {}
-}
-class GetObjectCommand<T = any> extends BaseCommand<T> {}
-class PutObjectCommand<T = any> extends BaseCommand<T> {}
-class DeleteObjectCommand<T = any> extends BaseCommand<T> {}
-
 export interface UploadJob {
 	jobId: string;
 	userId: string;
@@ -20,40 +12,28 @@ export async function processJob(job: UploadJob) {
 	console.log(`📥 Processing Job: ${job.jobId}`);
 
 	// 1. Download
-	const { Body } = await s3.send(
-		new GetObjectCommand({
-			Bucket: process.env.S3_BUCKET,
-			Key: job.s3Key
-		})
-	);
-	if (!Body) throw new Error('Failed to download file from S3');
-	const arrayBuffer = await Body.transformToByteArray();
+	const file = s3.file(job.s3Key);
+	const arrayBuffer = await file.arrayBuffer();
 
-	// 2. Parse (reuse shared game-logic parser)
-	const parsed = await processFileAndExtractData(arrayBuffer, job.s3Key, job.jobId);
+	// 2. Create a File object with proper filename for parsing
+	const filename = job.s3Key.split('/').pop() || 'uploaded.osz';
+	const fileBlob = new File([arrayBuffer], filename, { type: 'application/octet-stream' });
+
+	// 3. Parse (reuse shared game-logic parser)
+	const parsed = await processFileAndExtractData(fileBlob);
 
 	// 3. Upload assets
 	const audioKey = `songs/${job.jobId}/audio/${parsed.metadata.audioFilename}`;
-	await s3.send(
-		new PutObjectCommand({
-			Bucket: process.env.S3_BUCKET,
-			Key: audioKey,
-			Body: parsed.audioContent,
-			ContentType: mime.lookup(parsed.metadata.audioFilename) || 'application/octet-stream'
-		})
-	);
+	await s3.write(audioKey, parsed.audioContent, {
+		type: mime.lookup(parsed.metadata.audioFilename) || 'application/octet-stream'
+	});
 
 	let imageKey: string | null = null;
 	if (parsed.imageContent && parsed.metadata.imageFilename) {
 		imageKey = `songs/${job.jobId}/image/${parsed.metadata.imageFilename}`;
-		await s3.send(
-			new PutObjectCommand({
-				Bucket: process.env.S3_BUCKET,
-				Key: imageKey,
-				Body: parsed.imageContent,
-				ContentType: mime.lookup(parsed.metadata.imageFilename) || 'application/octet-stream'
-			})
-		);
+		await s3.write(imageKey, parsed.imageContent, {
+			type: mime.lookup(parsed.metadata.imageFilename) || 'application/octet-stream'
+		});
 	}
 
 	// 4. DB write
@@ -104,7 +84,7 @@ export async function processJob(job: UploadJob) {
 	});
 
 	// 5. Cleanup temp upload
-	await s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: job.s3Key }));
+	await s3.delete(job.s3Key);
 
 	return { success: true, songId: result.id, title: parsed.metadata.title };
 }
