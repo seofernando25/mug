@@ -11,4 +11,9 @@ export default defineConfig({
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
 	},
+	ssr: {
+		// Externalize client-only libraries during SSR build
+		noExternal: ["@mug/engine"], // Bundle @mug/engine but externalize its dependencies
+		external: ["pixi.js", "@pixi/sound"], // These are client-only and shouldn't be in SSR
+	},
 });
