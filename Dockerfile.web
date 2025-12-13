@@ -1,22 +1,20 @@
 FROM oven/bun:1 AS base
 WORKDIR /app
 
-# Install and build
 FROM base AS build
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
 RUN bun install --frozen-lockfile
 RUN bun run --cwd apps/web build
-RUN bun build --compile apps/web/build/index.js --outfile /app/web
 
-# Runtime image
-FROM debian:bookworm-slim AS runtime
+# --- Runtime Stage ---
+FROM base AS runtime
 WORKDIR /app
-COPY --from=build /app/web /app/web
-COPY --from=build /app/apps/web/build/ /app/
+COPY --from=build /app/apps/web/build ./build
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
 
 ENV NODE_ENV=production
-CMD ["/app/web"]
-
-
+EXPOSE 3000
+CMD ["bun", "build/index.js"]
