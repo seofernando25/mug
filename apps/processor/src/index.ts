@@ -10,9 +10,10 @@ async function main() {
 	console.log(`🛠️ Processor worker listening on Redis queue "${QUEUE_KEY}"`);
 	while (true) {
 		try {
-			// Bun's blpop returns the value directly or null
-			const raw = await redis.blpop(QUEUE_KEY, 0);
-			if (!raw) continue;
+			// Bun's blpop returns [key, element] or null
+			const result = await redis.blpop(QUEUE_KEY, 0);
+			if (!result) continue;
+			const [, raw] = result; // Destructure to get the element
 			let job: UploadJob;
 			try {
 				job = JSON.parse(raw);

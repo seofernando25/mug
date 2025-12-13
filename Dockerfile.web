@@ -1,44 +1,13 @@
-# Build stage
 FROM oven/bun:1 AS build
 WORKDIR /app
 
-# Copy dependency files first for better layer caching
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
 
-# Install dependencies (including dev dependencies for build tools)
-RUN bun install --frozen-lockfile --ignore-scripts
-
-# Build the web app
-# Run prepare step first to sync SvelteKit
+RUN bun install --frozen-lockfile
 RUN bun run --cwd apps/web prepare || true
 RUN bun run --cwd apps/web build
 
-# Runtime stage
-FROM oven/bun:1 AS runtime
-WORKDIR /app
-
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-COPY --from=build --chown=appuser:appuser /app/packages ./packages
-COPY --from=build --chown=appuser:appuser /app/node_modules ./node_modules
-COPY --from=build --chown=appuser:appuser /app/apps/web/build ./build
-COPY --from=build --chown=appuser:appuser /app/apps/web/package.json ./package.json
-
-# Set production environment
-ENV NODE_ENV=production \
-	PORT=3000
-
-# Switch to non-root user
-USER appuser
-
-# Expose port
 EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-	CMD bun -e "fetch('http://localhost:3000').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
-
-# Start the server
-CMD ["bun", "build/index.js"]
+CMD ["bun", "apps/web/build/index.js"]
