@@ -6,21 +6,15 @@ FROM base AS build
 COPY package.json bun.lock ./
 COPY packages ./packages
 COPY apps ./apps
-# Install only what web needs
-RUN bun install --frozen-lockfile --ignore-scripts \
-	--filter @mug/web \
-	--filter @mug/contract \
-	--filter @mug/db \
-	--filter @mug/game-logic
-# Build the web app
+RUN bun install --frozen-lockfile --ignore-scripts
 RUN bun run --cwd apps/web build
+RUN bun build --compile apps/web/build/index.js --outfile /app/web
 
-# Runtime
-FROM oven/bun:1 AS runtime
+# Runtime image
+FROM debian:bookworm-slim AS runtime
 WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/apps/web/build ./build
+COPY --from=build /app/web /app/web
 ENV NODE_ENV=production
-EXPOSE 3000
-CMD ["bun", "build/index.js"]
+CMD ["/app/web"]
+
 
