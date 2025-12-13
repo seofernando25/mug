@@ -21,7 +21,6 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/web/build ./build
 ENV NODE_ENV=production
-EXPOSE 4173
-# Replace with your prod start command if different
-CMD ["bun", "run", "build"]
+EXPOSE 3000
+CMD ["bun", "build/index.js"]
 
