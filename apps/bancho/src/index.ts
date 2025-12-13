@@ -195,6 +195,7 @@ const server = Bun.serve<PlayerData>({
 							username: socket.data?.user?.username,
 						};
 						roomManager.broadcastMatchFinish(rawWs, normalizedPayload);
+						roomManager.markPlayerFinished(rawWs);
 						break;
 					}
 					case "update_room": {

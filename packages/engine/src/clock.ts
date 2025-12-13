@@ -12,10 +12,12 @@ export class AudioClock {
 		this.sound = sound;
 	}
 
-	async play(): Promise<void> {
+	async play(onComplete?: () => void): Promise<void> {
 		if (this.instance) return;
 
-		const maybeInstance = this.sound.play();
+		const maybeInstance = this.sound.play(
+			onComplete ? { complete: onComplete } : undefined,
+		);
 		this.instance = await Promise.resolve(maybeInstance);
 	}
 

@@ -28,9 +28,10 @@ interface Props {
 	showMultiplayerLeaderboard?: boolean;
 	canPause?: boolean;
 	isMultiplayer?: boolean;
+	suppressSummaryScreen?: boolean;
 }
 
-const { songData, chartData, callbacks, showMultiplayerLeaderboard = false, canPause = true, isMultiplayer = false }: Props = $props();
+const { songData, chartData, callbacks, showMultiplayerLeaderboard = false, canPause = true, isMultiplayer = false, suppressSummaryScreen = false }: Props = $props();
 
 // Multiplayer state
 let isWaitingForPlayers = $state(false);
@@ -52,7 +53,9 @@ let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
 // --- UI derived states ---
 const showCountdownOverlay = $derived(gamePhaseStore === "countdown");
 const showFinishOverlay = $derived(gamePhaseStore === "finished");
-const showSummaryScreen = $derived(gamePhaseStore === "summary");
+const showSummaryScreen = $derived(
+	!suppressSummaryScreen && gamePhaseStore === "summary"
+);
 const showPauseScreen = $derived(
 	isPausedStore &&
 		gamePhaseStore !== "summary" &&
@@ -71,15 +74,18 @@ onMount(() => {
 	let cleanupCalled = false;
 
 	const handleKeyDown = (event: KeyboardEvent) => {
+		// Don't process events when game has ended
+		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
+
 		if (event.key === "Escape" && canPause) {
-			if (isPausedStore) {
-				gameInstance?.resumeGame();
+			if (isPausedStore && gameInstance) {
+				gameInstance.resumeGame();
 				isPausedStore = false;
 			} else if (
-				gamePhaseStore === "playing" ||
-				gamePhaseStore === "countdown"
+				(gamePhaseStore === "playing" || gamePhaseStore === "countdown") &&
+				gameInstance
 			) {
-				gameInstance?.pauseGame();
+				gameInstance.pauseGame();
 				isPausedStore = true;
 			}
 			event.preventDefault();
@@ -90,8 +96,9 @@ onMount(() => {
 	};
 
 	const handleKeyUp = (event: KeyboardEvent) => {
-		if (!gameInstance) return;
+		// Don't process events when game has ended
 		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
+		if (!gameInstance) return;
 		gameInstance.handleKeyRelease(event.key.toLowerCase());
 	};
 
@@ -100,12 +107,15 @@ onMount(() => {
 	};
 
 	const handlePageFocusChange = () => {
+		// Don't process events when game has ended
+		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
 		if (!gameInstance || !canPause) return;
 
 		if (document.hidden) {
 			if (
 				(gamePhaseStore === "playing" || gamePhaseStore === "countdown") &&
-				!isPausedStore
+				!isPausedStore &&
+				gameInstance
 			) {
 				gameInstance.pauseGame();
 				isPausedStore = true;
@@ -115,10 +125,13 @@ onMount(() => {
 	};
 
 	const handleWindowBlur = () => {
+		// Don't process events when game has ended
+		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
 		if (!gameInstance || !canPause) return;
 		if (
 			(gamePhaseStore === "playing" || gamePhaseStore === "countdown") &&
-			!isPausedStore
+			!isPausedStore &&
+			gameInstance
 		) {
 			gameInstance.pauseGame();
 			isPausedStore = true;
@@ -185,7 +198,6 @@ onMount(() => {
 				},
 				onAudioLoaded: () => {
 					if (isMultiplayer) {
-						console.log("[GameSession] Audio loaded, sending client_ready");
 						isWaitingForPlayers = true;
 						gameSocket.send("client_ready", {});
 					}
@@ -194,36 +206,18 @@ onMount(() => {
 			{ manualStart: isMultiplayer },
 		);
 
-		try {
-			// For solo mode, start immediately
-			if (!isMultiplayer) {
-				gameInstance.beginGameplaySequence();
-			}
-			// For multiplayer, wait for room state to transition to 'starting'
-
-			window.addEventListener("keydown", handleKeyDown);
-			window.addEventListener("keyup", handleKeyUp);
-			window.addEventListener("resize", handleResize);
-			document.addEventListener("visibilitychange", handlePageFocusChange);
-			window.addEventListener("blur", handleWindowBlur);
-		} catch (err) {
-			console.error(
-				"Error during game initialization or event listener setup:",
-				err,
-			);
-			alert(
-				"Failed to initialize the game. Please check the console for errors.",
-			);
-			if (gameInstance) {
-				gameInstance.cleanup();
-				gameInstance = null;
-			}
+		if (!isMultiplayer) {
+			gameInstance.beginGameplaySequence();
 		}
+
+		window.addEventListener("keydown", handleKeyDown);
+		window.addEventListener("keyup", handleKeyUp);
+		window.addEventListener("resize", handleResize);
+		document.addEventListener("visibilitychange", handlePageFocusChange);
+		window.addEventListener("blur", handleWindowBlur);
 	};
 
-	initializeGame().catch((err) => {
-		console.error("Unhandled error from initializeGame promise:", err);
-	});
+	initializeGame();
 
 	// Subscribe to room state changes for multiplayer countdown sync
 	let unsubRoomState: (() => void) | undefined;
@@ -243,9 +237,6 @@ onMount(() => {
 	return () => {
 		if (cleanupCalled) return;
 		cleanupCalled = true;
-		console.log(
-			"Destroying GameSession component, calling gameInstance.cleanup()",
-		);
 		window.removeEventListener("keydown", handleKeyDown);
 		window.removeEventListener("keyup", handleKeyUp);
 		window.removeEventListener("resize", handleResize);
@@ -259,7 +250,6 @@ onMount(() => {
 });
 
 function handleRetry() {
-	console.log('Retry clicked');
 	currentScoreStore = 0;
 	currentComboStore = 0;
 	maxComboSoFarStore = 0;
@@ -316,8 +306,10 @@ function handleExit() {
 	{#if showPauseScreen && canPause}
 		<PauseScreen
 			onResume={() => {
-				gameInstance?.resumeGame();
-				isPausedStore = false;
+				if (gameInstance) {
+					gameInstance.resumeGame();
+					isPausedStore = false;
+				}
 			}}
 			onRetry={handleRetry}
 			onExit={handleExit}

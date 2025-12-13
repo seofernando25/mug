@@ -33,9 +33,10 @@ type Room = {
 	name: string;
 	hostId: string;
 	players: Set<ServerWebSocket<PlayerData>>;
-	status: "idle" | "loading" | "starting" | "playing";
+	status: "idle" | "loading" | "starting" | "playing" | "finished";
 	startTime?: number;
 	readyPlayers: Set<string>; // Set of user IDs who have loaded audio
+	finishedPlayers: Set<string>; // Set of user IDs who have finished the match
 	currentChart?: {
 		coverUrl?: string;
 		name?: string;
@@ -83,6 +84,7 @@ export class RoomManager {
 			players: new Set([player]),
 			status: "idle",
 			readyPlayers: new Set(),
+			finishedPlayers: new Set(),
 		};
 		this.rooms.set(roomId, room);
 		player.data.roomId = roomId;
@@ -197,6 +199,48 @@ export class RoomManager {
 
 		// Immediately leave the room
 		this.reallyLeaveRoom(player);
+	}
+
+	/**
+	 * Mark a player as finished and transition room back to idle state when all players finish
+	 */
+	markPlayerFinished(player: ServerWebSocket<PlayerData>): boolean {
+		const roomId = player.data.roomId;
+		if (!roomId) return false;
+
+		const room = this.rooms.get(roomId);
+		if (!room) return false;
+
+		if (room.status !== "playing") {
+			return false;
+		}
+
+		const userId = player.data.user?.id;
+		if (!userId) return false;
+
+		if (!room.finishedPlayers) {
+			room.finishedPlayers = new Set();
+		}
+
+		room.finishedPlayers.add(userId);
+
+		const uniquePlayerIds = new Set<string>();
+		for (const p of room.players) {
+			uniquePlayerIds.add(p.data.user.id);
+		}
+
+		if (room.finishedPlayers.size >= uniquePlayerIds.size) {
+			room.status = "idle";
+			room.finishedPlayers.clear();
+			room.readyPlayers.clear();
+
+			const state = this.getRoomState(roomId);
+			if (state) {
+				this.broadcastToRoom(roomId, { op: "room_state", data: state });
+			}
+		}
+
+		return true;
 	}
 
 	private swapSocket(

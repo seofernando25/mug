@@ -41,9 +41,6 @@ export async function createGame(
 	},
 	options: GameOptions = {},
 ) {
-	console.log(
-		`[MUG] 1. Initializing Game. Chart has ${chartData.hitObjects.length} notes.`,
-	);
 	if (chartData.hitObjects.length === 0)
 		console.warn("[MUG] ⚠️ WARNING: Chart has 0 notes!");
 	// 1) Initialize modules
@@ -59,8 +56,6 @@ export async function createGame(
 
 	let sound: Sound | null = null;
 	// preload using the official loaded callback (no any-casting)
-	console.log(`[MUG] 2. Starting Audio Load for URL: "${songData.audioUrl}"`);
-
 	await new Promise<void>((resolve) => {
 		let isResolved = false;
 
@@ -69,9 +64,6 @@ export async function createGame(
 			isResolved = true;
 			if (err) {
 				console.error("[MUG] ❌ Audio Failed to Load:", err);
-				console.warn("[MUG] Continuing without audio...");
-			} else {
-				console.log("[MUG] 2c. Audio loaded successfully.");
 			}
 			resolve();
 		};
@@ -83,7 +75,6 @@ export async function createGame(
 		});
 
 		if (sound.isLoaded) {
-			console.log("[MUG] 2a. Fast path loaded.");
 			finish(null);
 			return;
 		}
@@ -91,9 +82,6 @@ export async function createGame(
 		// Timeout safety valve
 		setTimeout(() => {
 			if (!isResolved) {
-				console.warn(
-					"[MUG] ⚠️ Audio Load Timed Out (3s). Force starting game...",
-				);
 				finish(null);
 			}
 		}, 3000);
@@ -118,9 +106,21 @@ export async function createGame(
 		lanes: chartData.lanes ?? 4,
 		scrollSpeed: chartData.noteScrollSpeed ?? 1,
 	});
-	console.log("[MUG] 3. Initializing Renderer...");
 	await renderer.init();
-	console.log("[MUG] 4. Renderer Ready.");
+
+	// Calculate last note time once
+	let lastNoteTime = 0;
+	if (chartData.hitObjects?.length) {
+		const validStartTimes = chartData.hitObjects
+			.map((ho) => ho.startTime)
+			.filter(
+				(startTime) => typeof startTime === "number" && !isNaN(startTime),
+			);
+
+		if (validStartTimes.length > 0) {
+			lastNoteTime = Math.max(...validStartTimes);
+		}
+	}
 
 	// 2) State
 	let phase: GamePhase = "loading";
@@ -128,21 +128,15 @@ export async function createGame(
 	let countdownTimer: ReturnType<typeof setInterval> | null = null;
 	let rafId = 0;
 	let started = false;
+	let audioFinished = false;
 
 	const setPhase = (p: GamePhase) => {
 		phase = p;
 		callbacks.onPhaseChange(p);
 	};
 
-	let hasLoggedFrame = false;
 	// 3) Loop
 	const loop = () => {
-		if (!hasLoggedFrame) {
-			console.log(
-				`[MUG] 5. Loop active. Phase: ${phase}, Paused: ${isPaused}, Time: ${clock.currentTimeMs}`,
-			);
-			hasLoggedFrame = true;
-		}
 		if (phase === "playing" && !isPaused) {
 			const time = clock.currentTimeMs;
 			const events = engine.update(time);
@@ -179,7 +173,19 @@ export async function createGame(
 			callbacks.onTimeUpdate?.(time);
 			renderer.render(engine.state, time);
 
-			if (time > (soundInstance.duration ?? 0) * 1000 + 1000) {
+			if (audioFinished) {
+				endGame();
+				return;
+			}
+
+			const audioDurationMs = (soundInstance.duration ?? 0) * 1000;
+			const maxChartTime = lastNoteTime + 3000;
+			const safetyFallbackTime = Math.max(
+				audioDurationMs + 1000,
+				maxChartTime + 5000,
+			);
+
+			if (time > safetyFallbackTime) {
 				endGame();
 				return;
 			}
@@ -237,16 +243,15 @@ export async function createGame(
 
 		countdownTimer = setInterval(async () => {
 			count--;
-			console.log(`[MUG] Countdown: ${count}`);
 			callbacks.onCountdownUpdate(count);
 			if (count <= 0) {
 				if (countdownTimer) {
 					clearInterval(countdownTimer);
 				}
-				console.log("[MUG] 3. Countdown finished. Calling clock.play()...");
 				countdownTimer = null;
-				await clock.play();
-				console.log("[MUG] 4. clock.play() resolved. Starting loop.");
+				await clock.play(() => {
+					audioFinished = true;
+				});
 				setPhase("playing");
 				loop();
 			}
@@ -306,10 +311,8 @@ export async function createGame(
 		 */
 		startCountdown: (durationMs: number = 3000) => {
 			if (started) {
-				console.log("[MUG] startCountdown called but game already started");
 				return;
 			}
-			console.log(`[MUG] startCountdown called with ${durationMs}ms`);
 			startSequence();
 		},
 		cleanup: () => {
