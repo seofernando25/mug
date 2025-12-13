@@ -1,9 +1,7 @@
-import { RhythmEngine, AudioClock, GameRenderer } from "@mug/engine";
 import { gameSocket } from "$lib/network/socket";
 import { Preferences } from "@mug/common";
 import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
 import type { ClientChart, ClientSong, ChartHitObject } from "$lib/types";
-import { Sound } from "@pixi/sound";
 import { get } from "svelte/store";
 
 export type GamePhase =
@@ -41,6 +39,10 @@ export async function createGame(
 	},
 	options: GameOptions = {},
 ) {
+	// Dynamically import the engine ONLY on the client
+	const { RhythmEngine, AudioClock, GameRenderer } = await import("@mug/engine");
+	const { Sound } = await import("@pixi/sound");
+
 	if (chartData.hitObjects.length === 0)
 		console.warn("[MUG] ⚠️ WARNING: Chart has 0 notes!");
 	// 1) Initialize modules
@@ -54,7 +56,7 @@ export async function createGame(
 		scrollSpeed: chartData.noteScrollSpeed ?? 1.0,
 	});
 
-	let sound: Sound | null = null;
+	let sound: InstanceType<typeof Sound> | null = null;
 	// preload using the official loaded callback (no any-casting)
 	await new Promise<void>((resolve) => {
 		let isResolved = false;

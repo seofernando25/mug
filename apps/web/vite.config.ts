@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
-import  { resolve } from "node:path";
+import { resolve } from "node:path";
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
@@ -13,5 +13,16 @@ export default defineConfig({
 	},
 	build: {
 		sourcemap: true,
+		rollupOptions: {
+			external: (id) => {
+				if (id === "@mug/engine" || id === "pixi.js" || id === "@pixi/sound") {
+					return true;
+				}
+				return false;
+			},
+		},
+	},
+	ssr: {
+		external: ["@mug/engine", "pixi.js", "@pixi/sound"],
 	},
 });

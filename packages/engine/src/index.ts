@@ -1,9 +1,7 @@
-// Core rhythm game engine
-export { RhythmEngine } from "./engine";
 export { AudioClock } from "./clock";
+export { RhythmEngine } from "./engine";
 export { GameRenderer } from "./renderer";
+export * from "./rendering/index";
 export * from "./rules";
 export * from "./types";
 
-// Rendering components
-export * from "./rendering/index";

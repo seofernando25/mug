@@ -1,8 +1,8 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { GameRenderer, AudioClock } from '@mug/engine';
+import type { GameRenderer, AudioClock } from '@mug/engine';
 import type { EditorState } from '$lib/stores/EditorState.svelte';
-import { Sound } from '@pixi/sound';
+import type { Sound } from '@pixi/sound';
 
 // Props for the component
 interface Props {
@@ -42,53 +42,59 @@ $effect(() => {
 onMount(() => {
     let cleanupCalled = false;
 
-    // Load audio using PixiSound
-    pixiSoundInstance = Sound.from({
-        url: audioUrl,
-        preload: true,
-        autoPlay: false,
-        loop: false,
-        loaded: () => { // Use the loaded callback directly in options
-            audioClock = new AudioClock(pixiSoundInstance);
-            
-            // GameRenderer initialization
-            gameRenderer = new GameRenderer({
-                canvas: canvasElement,
-                lanes: editorState.chart.lanes,
-            });
+    // Dynamically import the engine ONLY on the client
+    (async () => {
+        const { GameRenderer, AudioClock } = await import('@mug/engine');
+        const { Sound } = await import('@pixi/sound');
 
-            gameRenderer.init().then(() => {
-                gameRenderer.setEditorMode(true);
-            });
+        // Load audio using PixiSound
+        pixiSoundInstance = Sound.from({
+            url: audioUrl,
+            preload: true,
+            autoPlay: false,
+            loop: false,
+            loaded: () => { // Use the loaded callback directly in options
+                audioClock = new AudioClock(pixiSoundInstance);
+                
+                // GameRenderer initialization
+                gameRenderer = new GameRenderer({
+                    canvas: canvasElement,
+                    lanes: editorState.chart.lanes,
+                });
 
-            // Handle canvas resizing
-            resizeObserver = new ResizeObserver(() => { // Assign here
-                gameRenderer.handleResize();
-            });
-            resizeObserver.observe(canvasElement);
+                gameRenderer.init().then(() => {
+                    gameRenderer.setEditorMode(true);
+                });
 
-            // --- Render Loop ---
-            const animate = () => {
-                // In editor mode, we render based on editorState.scrollTime
-                // The game state for notes would come from editorState.chart.hitObjects
-                // We need to transform ChartHitObject into EngineNote for the renderer
-                const editorGameState = {
-                    score: 0, combo: 0, maxCombo: 0,
-                    notes: editorState.chart.hitObjects.map(ho => ({
-                        ...ho,
-                        id: ho.id as number, // Cast Drizzle's serial id to number if needed
-                        isHit: false, isMissed: false, isHolding: false, holdSatisfied: false, holdBroken: false
-                    }))
+                // Handle canvas resizing
+                resizeObserver = new ResizeObserver(() => { // Assign here
+                    gameRenderer.handleResize();
+                });
+                resizeObserver.observe(canvasElement);
+
+                // --- Render Loop ---
+                const animate = () => {
+                    // In editor mode, we render based on editorState.scrollTime
+                    // The game state for notes would come from editorState.chart.hitObjects
+                    // We need to transform ChartHitObject into EngineNote for the renderer
+                    const editorGameState = {
+                        score: 0, combo: 0, maxCombo: 0,
+                        notes: editorState.chart.hitObjects.map(ho => ({
+                            ...ho,
+                            id: ho.id as number, // Cast Drizzle's serial id to number if needed
+                            isHit: false, isMissed: false, isHolding: false, holdSatisfied: false, holdBroken: false
+                        }))
+                    };
+                    gameRenderer.render(editorGameState, editorState.scrollTime);
+                    animationFrameId = requestAnimationFrame(animate);
                 };
-                gameRenderer.render(editorGameState, editorState.scrollTime);
-                animationFrameId = requestAnimationFrame(animate);
-            };
-            
-            animate();
+                
+                animate();
 
-            canvasElement.addEventListener('wheel', handleWheel, { passive: false });
-        }
-    });
+                canvasElement.addEventListener('wheel', handleWheel, { passive: false });
+            }
+        });
+    })();
 
     return () => {
         if (cleanupCalled) return;
