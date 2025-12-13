@@ -18,6 +18,6 @@ export default defineConfig({
 		include: ['pixi.js', '@pixi/sound']
 	},
 	ssr: {
-		noExternal: ['pixi.js', '@pixi/sound']
+		noExternal: ['pixi.js', '@pixi/sound', 'esm-env']
 	}
 });
