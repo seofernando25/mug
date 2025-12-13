@@ -11,13 +11,7 @@ export default defineConfig({
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
 	},
-	resolve: {
-		preserveSymlinks: true 
-	},
-	optimizeDeps: {
-		include: ['pixi.js', '@pixi/sound']
-	},
 	ssr: {
-		noExternal: ['pixi.js', '@pixi/sound', 'esm-env']
+		noExternal: ['pixi.js', '@pixi/sound']
 	}
 });
