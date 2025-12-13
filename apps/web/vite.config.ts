@@ -10,5 +10,11 @@ export default defineConfig({
 			// Allow workspace packages to be served during dev (e.g. @mug/contract)
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
+	},
+	optimizeDeps: {
+		include: ['pixi.js', '@pixi/sound']
+	},
+	ssr: {
+		noExternal: ['pixi.js', '@pixi/sound']
 	}
 });
