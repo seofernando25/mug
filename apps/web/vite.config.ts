@@ -10,10 +10,5 @@ export default defineConfig({
 			// Allow workspace packages to be served during dev (e.g. @mug/contract)
 			allow: [resolve(__dirname, "."), resolve(__dirname, "../../packages")],
 		},
-	},
-	build: {
-		rollupOptions: {
-			external: ['pixi.js', '@pixi/sound']
-		}
 	}
 });
