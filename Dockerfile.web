@@ -19,13 +19,12 @@ RUN bun run --cwd apps/web build
 FROM oven/bun:1 AS runtime
 WORKDIR /app
 
-# Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Copy only production files
-COPY --from=build --chown=appuser:appuser /app/apps/web/build ./build
+COPY --from=build --chown=appuser:appuser /app/packages ./packages
 COPY --from=build --chown=appuser:appuser /app/node_modules ./node_modules
-COPY --from=build --chown=appuser:appuser /app/package.json ./package.json
+COPY --from=build --chown=appuser:appuser /app/apps/web/build ./build
+COPY --from=build --chown=appuser:appuser /app/apps/web/package.json ./package.json
 
 # Set production environment
 ENV NODE_ENV=production \
