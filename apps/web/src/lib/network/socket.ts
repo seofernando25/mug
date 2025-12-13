@@ -7,6 +7,7 @@ import {
 	type ClientPacketData,
 	type RoomSummary,
 } from "@mug/contract";
+import { PUBLIC_WS_URL } from "$env/static/public";
 
 // Type alias for room state data from room_state packet
 type RoomState = {
@@ -276,6 +277,6 @@ class GameSocket {
 	}
 }
 
-const BANCHO_URL = process.env.PUBLIC_WS_URL || "ws://localhost:3001";
+const BANCHO_URL = PUBLIC_WS_URL || "ws://localhost:3001";
 
 export const gameSocket = new GameSocket(BANCHO_URL);

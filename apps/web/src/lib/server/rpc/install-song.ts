@@ -1,7 +1,6 @@
-import { installSong, queueSongUpload } from "@mug/db";
+import { queueSongUpload } from "@mug/db";
 import { ORPCError } from "@orpc/server";
 import { type } from "arktype";
-import { USE_PROCESSOR } from "$lib/featureFlags";
 import { requireAuth } from "./middleware/auth";
 import { routerBaseContext } from "./context";
 
@@ -17,20 +16,14 @@ export const installSongProcedure = routerBaseContext
 		const uploadedFile = input.file;
 
 		try {
-			if (USE_PROCESSOR) {
-				// Async processing path - queue for background processing
-				const queueKey = process.env.UPLOAD_QUEUE_KEY ?? "upload-jobs";
-				const result = await queueSongUpload(
-					uploadedFile,
-					uploaderId,
-					queueKey,
-				);
-				return result;
-			} else {
-				// Sync processing path - process immediately
-				const result = await installSong(uploadedFile, uploaderId);
-				return result;
-			}
+			// Queue for background processing
+			const queueKey = process.env.UPLOAD_QUEUE_KEY ?? "upload-jobs";
+			const result = await queueSongUpload(
+				uploadedFile,
+				uploaderId,
+				queueKey,
+			);
+			return result;
 		} catch (err) {
 			console.error("Song installation failed:", err);
 			const message =
