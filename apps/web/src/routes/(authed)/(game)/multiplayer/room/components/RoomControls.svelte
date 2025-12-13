@@ -1,4 +1,6 @@
 <script lang="ts">
+import BottomBar from "$lib/components/BottomBar.svelte";
+
 interface Props {
 	handleLeaveRoom: () => void;
 	isLeaving: boolean;
@@ -9,8 +11,7 @@ interface Props {
 const { handleLeaveRoom, isLeaving, isHost, startGame }: Props = $props();
 </script>
 
-<div class="h-24 bg-gray-900/90 border-t border-gray-700 p-4 flex items-center justify-between backdrop-blur-md">
-
+<BottomBar>
     <button
         onclick={handleLeaveRoom}
         disabled={isLeaving}
@@ -39,4 +40,4 @@ const { handleLeaveRoom, isLeaving, isHost, startGame }: Props = $props();
             </div>
         {/if}
     </div>
-</div>
+</BottomBar>

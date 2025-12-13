@@ -101,8 +101,9 @@ function openSongSelect() {
 	isSongSelectOpen = true;
 }
 
-async function handleSongSelection(song: any) {
-	console.log("Selected:", song.title, "with difficulties:", song.difficulties);
+async function handleSongSelection(data: { song: any; difficulty: string }) {
+	const { song, difficulty } = data;
+	console.log("Selected:", song.title, "with difficulty:", difficulty);
 
 	if (!roomId || !roomDetails?.name) {
 		console.error("No room information available");
@@ -117,7 +118,7 @@ async function handleSongSelection(song: any) {
 				coverUrl: song.imageUrl,
 				name: song.title,
 				artist: song.artist,
-				difficulty: song.difficulties?.[0] || "Unknown", // Default to first difficulty
+				difficulty: difficulty, // Use selected difficulty
 				songId: song.id, // Include song ID for future chart resolution
 				difficulties: song.difficulties, // Include all difficulties for future use
 			},
@@ -251,7 +252,7 @@ onMount(() => {
         </div>
 
         <!-- Main Content Area -->
-        <div class="flex-1 w-full max-w-7xl mx-auto flex relative px-6 py-8 overflow-hidden">
+        <div class="flex-1 w-full max-w-7xl mx-auto flex relative px-6 py-8 pb-24 overflow-hidden">
             <PlayerList players={roomDetails.players} hostId={roomDetails.hostId} />
 
             <SongSelector

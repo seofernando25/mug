@@ -5,6 +5,7 @@ import { fade } from "svelte/transition";
 import { orpcClient } from "$lib/rpc/client";
 import SongWheel, { type SongWheelItem } from "$lib/components/song-select/SongWheel.svelte";
 import SongDetailPanel from "./SongDetailPanel.svelte";
+import BottomBar from "$lib/components/BottomBar.svelte";
 import type { SongListItem } from "./types";
 
 let allSongs = $state<SongListItem[]>([]);
@@ -13,6 +14,8 @@ let isLoadingSongs = $state(true);
 
 let searchTerm = $state("");
 let selectedSongId = $state<string | null>(null);
+let selectedDifficulty = $state<string>("");
+
 const selectedSong = $derived(
 	allSongs.find((song) => song.id === selectedSongId),
 );
@@ -36,6 +39,9 @@ onMount(async () => {
 		// Auto-select first song
 		if (allSongs.length > 0 && !selectedSongId) {
 			selectedSongId = allSongs[0].id;
+			if (allSongs[0].difficulties?.length > 0) {
+				selectedDifficulty = allSongs[0].difficulties[0];
+			}
 		}
 	} catch (error) {
 		console.error("Error fetching songs:", error);
@@ -46,13 +52,20 @@ onMount(async () => {
 
 function handleSongSelect(song: SongWheelItem) {
 	selectedSongId = song.id;
+	if (song.difficulties && song.difficulties.length > 0) {
+		// If the previously selected difficulty exists in the new song, keep it.
+		// Otherwise, default to the first available difficulty.
+		if (!song.difficulties.includes(selectedDifficulty)) {
+			selectedDifficulty = song.difficulties[0];
+		}
+	} else {
+		selectedDifficulty = "";
+	}
 }
 
 function handleSongConfirm(song: SongWheelItem) {
-	// Navigate to play the first difficulty by default
-	const fullSong = allSongs.find((s) => s.id === song.id);
-	const difficulty = fullSong?.difficulties?.[0] || "Normal";
-	goto(`/solo/play/${song.id}?difficulty=${encodeURIComponent(difficulty)}`);
+	const diff = selectedDifficulty || song.difficulties?.[0] || "Normal";
+	goto(`/solo/play/${song.id}?difficulty=${encodeURIComponent(diff)}`);
 }
 
 function handleSearchChange(term: string) {
@@ -95,28 +108,76 @@ function handleSearchChange(term: string) {
 			</div>
 		</div>
 	{:else}
-		<!-- Left Panel: Song Details -->
-		<div class="relative z-10 w-[40%] h-full flex flex-col">
-			{#if selectedSong}
-				<SongDetailPanel song={selectedSong} />
-			{:else}
-				<div class="flex-1 flex items-center justify-center">
-					<p class="text-xl text-gray-500">Select a song to see details</p>
-				</div>
-			{/if}
+		<div class="flex-1 flex w-full h-full relative z-10 pb-24">
+			<!-- Left Panel: Song Details -->
+			<div class="w-[40%] h-full flex flex-col">
+				{#if selectedSong}
+					<SongDetailPanel
+						song={selectedSong}
+						{selectedDifficulty}
+						onDifficultySelect={(diff) => (selectedDifficulty = diff)}
+					/>
+				{:else}
+					<div class="flex-1 flex items-center justify-center">
+						<p class="text-xl text-gray-500">Select a song to see details</p>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Right Panel: Song Wheel -->
+			<div class="w-[60%] h-full flex flex-col">
+				<SongWheel
+					songs={wheelSongs}
+					{selectedSongId}
+					onSelect={handleSongSelect}
+					onConfirm={handleSongConfirm}
+					{searchTerm}
+					onSearchChange={handleSearchChange}
+					showSearch={true}
+				/>
+			</div>
 		</div>
 
-		<!-- Right Panel: Song Wheel -->
-		<div class="relative z-10 w-[60%] h-full flex flex-col">
-			<SongWheel
-				songs={wheelSongs}
-				{selectedSongId}
-				onSelect={handleSongSelect}
-				onConfirm={handleSongConfirm}
-				{searchTerm}
-				onSearchChange={handleSearchChange}
-				showSearch={true}
-			/>
-		</div>
+		<BottomBar>
+			<button
+				onclick={() => goto("/home")}
+				class="px-6 py-3 rounded-lg font-bold text-red-400 hover:bg-red-900/30 hover:text-red-200 transition"
+			>
+				BACK
+			</button>
+
+			<div class="flex gap-4">
+				<button
+					class="px-6 py-3 rounded-lg font-bold text-gray-400 hover:bg-gray-800 hover:text-white transition"
+				>
+					MODS
+				</button>
+				<button
+					class="px-6 py-3 rounded-lg font-bold text-gray-400 hover:bg-gray-800 hover:text-white transition"
+				>
+					OPTIONS
+				</button>
+			</div>
+
+			<button
+				onclick={() => {
+					if (selectedSong) {
+						// Create a SongWheelItem compatible object
+						const songItem: SongWheelItem = {
+							id: selectedSong.id,
+							title: selectedSong.title,
+							artist: selectedSong.artist,
+							imageUrl: selectedSong.imageUrl,
+							difficulties: selectedSong.difficulties
+						};
+						handleSongConfirm(songItem);
+					}
+				}}
+				class="px-12 py-4 bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl font-black text-xl tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-105 hover:shadow-pink-500/40 transition active:scale-95 disabled:opacity-50 disabled:grayscale"
+				disabled={!selectedSong}
+			>
+				PLAY
+			</button>
+		</BottomBar>
 	{/if}
 </div>

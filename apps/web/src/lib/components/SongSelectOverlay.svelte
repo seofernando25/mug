@@ -11,13 +11,14 @@ const {
 } = $props<{
 	isOpen: boolean;
 	onClose: () => void;
-	onSelect: (song: SongWheelItem) => void;
+	onSelect: (data: { song: SongWheelItem; difficulty: string }) => void;
 	songs: SongWheelItem[];
 }>();
 
 // Local State
 let searchTerm = $state("");
 let selectedId = $state<string | null>(null);
+let selectedDifficulty = $state<string>("");
 
 // Derived
 const activeSong = $derived(
@@ -31,6 +32,17 @@ $effect(() => {
 	}
 });
 
+// Initialize difficulty when active song changes
+$effect(() => {
+	if (activeSong?.difficulties && activeSong.difficulties.length > 0) {
+		if (!selectedDifficulty || !activeSong.difficulties.includes(selectedDifficulty)) {
+			selectedDifficulty = activeSong.difficulties[0];
+		}
+	} else {
+		selectedDifficulty = "";
+	}
+});
+
 function handleKeydown(e: KeyboardEvent) {
 	if (!isOpen) return;
 	if (e.key === "Escape") onClose();
@@ -41,7 +53,14 @@ function handleSongSelect(song: SongWheelItem) {
 }
 
 function handleSongConfirm(song: SongWheelItem) {
-	onSelect(song);
+	// Ensure we have the correct difficulty for the confirmed song
+	// (In case of race conditions or double click on non-active song)
+	let diff = selectedDifficulty;
+	if (song.id !== activeSong?.id || !diff) {
+		diff = song.difficulties?.[0] || "Normal";
+	}
+
+	onSelect({ song, difficulty: diff });
 	onClose();
 }
 
@@ -98,9 +117,18 @@ function handleSearchChange(term: string) {
 							<h4 class="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">Available Difficulties</h4>
 							<div class="space-y-1">
 								{#each activeSong.difficulties as difficulty}
-									<div class="bg-gray-800/50 px-3 py-2 rounded text-sm text-gray-200">
-										{difficulty}
-									</div>
+									<button
+										class="w-full text-left px-3 py-2 rounded text-sm transition-colors flex justify-between items-center
+										{selectedDifficulty === difficulty
+											? 'bg-purple-600 text-white font-bold shadow-md'
+											: 'bg-gray-800/50 text-gray-200 hover:bg-gray-700'}"
+										onclick={() => (selectedDifficulty = difficulty)}
+									>
+										<span>{difficulty}</span>
+										{#if selectedDifficulty === difficulty}
+											<span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white">SELECTED</span>
+										{/if}
+									</button>
 								{/each}
 							</div>
 						</div>

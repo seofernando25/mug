@@ -1,5 +1,5 @@
 <script lang="ts">
-import Waves from "../home/Waves.svelte";
+import Waves from "$lib/components/Waves.svelte";
 import ImportLevel from "$lib/components/ImportLevel.svelte";
 import { goto } from "$app/navigation";
 </script>
