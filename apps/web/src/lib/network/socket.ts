@@ -78,9 +78,11 @@ class GameSocket {
 			return;
 		}
 		socketStatus.set("connecting");
+		console.log("[ws] connecting to", this.url);
 		this.ws = new WebSocket(this.url);
 
 		this.ws.onopen = () => {
+			console.log("[ws] connected successfully");
 			socketStatus.set("connected");
 			// Send any queued messages now that we're connected
 			while (this.messageQueue.length > 0) {
@@ -92,7 +94,13 @@ class GameSocket {
 			}
 		};
 
-		this.ws.onclose = () => {
+		this.ws.onerror = (error) => {
+			console.error("[ws] connection error:", error);
+			console.error("[ws] URL was:", this.url);
+		};
+
+		this.ws.onclose = (event) => {
+			console.log("[ws] connection closed", event);
 			socketStatus.set("disconnected");
 			// Clear message queue on disconnect to avoid sending stale messages
 			this.messageQueue.length = 0;
@@ -277,6 +285,13 @@ class GameSocket {
 	}
 }
 
-const BANCHO_URL = PUBLIC_WS_URL || "ws://localhost:3001";
+// Normalize URL: remove trailing slash and ensure it's a valid WebSocket URL
+const getBanchoUrl = () => {
+	const url = PUBLIC_WS_URL || "ws://localhost:3000";
+	// Remove trailing slash if present
+	return url.replace(/\/$/, "");
+};
+
+const BANCHO_URL = getBanchoUrl();
 
 export const gameSocket = new GameSocket(BANCHO_URL);

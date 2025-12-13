@@ -23,8 +23,8 @@ const roomManager = new RoomManager((event) => {
 });
 
 const server = Bun.serve<PlayerData>({
-	// Default to 3001 to match PUBLIC_WS_URL in the web app
-	port: Number(process.env.BANCHO_PORT ?? 3001),
+	// Default to 3000 to match Coolify/exposed port
+	port: Number(process.env.BANCHO_PORT ?? 3000),
 	async fetch(req, srv) {
 		console.log("[bancho] received fetch request");
 		if (shuttingDown.value) {
@@ -147,12 +147,12 @@ const server = Bun.serve<PlayerData>({
 									op: "room_state",
 									data: state,
 								});
-						} catch (err: unknown) {
-							socket.send("error", {
-								code: "NOT_FOUND",
-								message: err?.message ?? "join failed",
-							});
-						}
+					} catch (err: unknown) {
+						socket.send("error", {
+							code: "NOT_FOUND",
+							message: err instanceof Error ? err.message : "join failed",
+						});
+					}
 						break;
 					}
 					case "leave_room": {

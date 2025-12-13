@@ -17,13 +17,13 @@ export const installSongProcedure = routerBaseContext
 
 		try {
 			// Queue for background processing
-			const queueKey = process.env.UPLOAD_QUEUE_KEY ?? "upload-jobs";
-			const result = await queueSongUpload(
-				uploadedFile,
-				uploaderId,
-				queueKey,
-			);
-			return result;
+				const queueKey = process.env.UPLOAD_QUEUE_KEY ?? "upload-jobs";
+				const result = await queueSongUpload(
+					uploadedFile,
+					uploaderId,
+					queueKey,
+				);
+				return result;
 		} catch (err) {
 			console.error("Song installation failed:", err);
 			const message =
