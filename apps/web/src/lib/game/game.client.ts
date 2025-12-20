@@ -7,8 +7,7 @@ import { get } from "svelte/store";
 import { RhythmEngine, type ChartHitObject } from "@mug/engine";
 import { AudioClock } from "@mug/engine";
 import { GameRenderer } from "@mug/engine";
-import { sound } from "@pixi/sound";
-
+import { sound, Sound } from "@pixi/sound";
 
 export type GamePhase =
 	| "loading"
@@ -47,7 +46,7 @@ export async function createGame(
 ) {
 	// Attempt to resume AudioContext if suspended (common in multiplayer/autoplay scenarios)
 	if (sound.context?.audioContext?.state === "suspended") {
-		sound.context.audioContext.resume().catch((e) =>
+		sound.context.audioContext.resume().catch((e: unknown) =>
 			console.warn("[MUG] Failed to resume AudioContext:", e),
 		);
 	}
@@ -65,7 +64,7 @@ export async function createGame(
 		scrollSpeed: chartData.noteScrollSpeed ?? 1.0,
 	});
 
-	let soundInstance: any = null;
+	let soundInstance: Sound | null = null;
 	// preload using the official loaded callback (no any-casting)
 	await new Promise<void>((resolve) => {
 		let isResolved = false;
@@ -79,10 +78,10 @@ export async function createGame(
 			resolve();
 		};
 
-		soundInstance = sound.add("game_audio", {
+		soundInstance = Sound.from({
 			url: songData.audioUrl,
 			preload: true,
-			loaded: (err) => finish(err),
+			loaded: (err: Error | null) => finish(err),
 		});
 
 		if (soundInstance.isLoaded) {
@@ -100,17 +99,17 @@ export async function createGame(
 	
 	// Ensure we have a concrete sound instance for the rest of the flow
 	if (!soundInstance) {
-		soundInstance = sound.add("game_audio_fallback", { url: songData.audioUrl, preload: true });
+		soundInstance = Sound.from({ url: songData.audioUrl, preload: true });
 	}
 	
 	soundInstance.volume = get(masterVolume) * get(musicVolume);
 
 	// Subscribe to volume changes and update audio in real-time
 	const masterVolumeUnsubscribe = masterVolume.subscribe((masterVol) => {
-		soundInstance.volume = masterVol * get(musicVolume);
+		if (soundInstance) soundInstance.volume = masterVol * get(musicVolume);
 	});
 	const musicVolumeUnsubscribe = musicVolume.subscribe((musicVol) => {
-		soundInstance.volume = get(masterVolume) * musicVol;
+		if (soundInstance) soundInstance.volume = get(masterVolume) * musicVol;
 	});
 
 	const clock = new AudioClock(soundInstance);
@@ -125,9 +124,9 @@ export async function createGame(
 	let lastNoteTime = 0;
 	if (chartData.hitObjects?.length) {
 		const validStartTimes = chartData.hitObjects
-			.map((ho: any) => ho.time)
+			.map((ho) => ho.time)
 			.filter(
-							(startTime: any) =>
+							(startTime) =>
 								typeof startTime === "number" && !Number.isNaN(startTime),
 							);
 
@@ -221,7 +220,7 @@ export async function createGame(
 				return;
 			}
 
-			const audioDurationMs = (soundInstance.duration ?? 0) * 1000;
+			const audioDurationMs = (soundInstance?.duration ?? 0) * 1000;
 			const maxChartTime = lastNoteTime + 3000;
 			const safetyFallbackTime = Math.max(
 				audioDurationMs + 1000,
@@ -306,7 +305,9 @@ export async function createGame(
 	const isTestEnv = typeof process !== "undefined" && !!process.env?.BUN_TEST;
 
 	// Notify that audio is loaded (for multiplayer ready-up)
-	callbacks.onAudioLoaded?.(soundInstance.duration * 1000);
+	if (soundInstance) {
+		callbacks.onAudioLoaded?.(soundInstance.duration * 1000);
+	}
 
 	if (isTestEnv) {
 		setPhase("playing");
@@ -359,7 +360,9 @@ export async function createGame(
 			musicVolumeUnsubscribe();
 			clock.stop();
 			renderer.destroy();
-			soundInstance.destroy();
+			if (soundInstance) {
+				soundInstance.destroy();
+			}
 		},
 		handleResize: () => renderer.handleResize(clock.currentTimeMs),
 		getHighwayMetrics: () => {

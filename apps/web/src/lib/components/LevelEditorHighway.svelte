@@ -24,7 +24,12 @@ import type { GameChart as ChartData } from "$lib/types/game";
 
 // You will need to pass these down from the parent page.
 
-const { containerWidth, containerHeight, songData, chartData } = $props();
+const { containerWidth, containerHeight, songData, chartData }: { 
+    containerWidth: number; 
+    containerHeight: number; 
+    songData: SongData; 
+    chartData: ChartData 
+} = $props();
 
 
 
@@ -118,7 +123,7 @@ async function initializeGame() {
 
 		songData,
 
-		chartData as any, // Cast to avoid deep type resolution issues
+		chartData,
 
 		containerElement,
 

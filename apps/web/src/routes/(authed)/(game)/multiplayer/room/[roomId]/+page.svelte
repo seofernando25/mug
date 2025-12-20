@@ -6,6 +6,7 @@ import {
 	gameSocket,
 	currentRoomState,
 	socketStatus,
+	type RoomState,
 } from "$lib/network/socket";
 import { fade } from "svelte/transition";
 import PlayerList from "../components/PlayerList.svelte";
@@ -14,13 +15,14 @@ import RoomHeader from "../components/RoomHeader.svelte";
 import RoomControls from "../components/RoomControls.svelte";
 import ChatPanel from "../components/ChatPanel.svelte";
 import SongSelectOverlay from "$lib/components/SongSelectOverlay.svelte";
+import type { SongWheelItem } from "$lib/components/song-select/SongWheel.svelte";
 import { orpcClient } from "$lib/rpc/client";
 
 const { data } = $props();
 
 // State
 let roomId = $state<string | null>(null);
-let roomDetails = $state<any | null>(null);
+let roomDetails = $state<RoomState | null>(null);
 let isLoading = $state(true);
 let error = $state<string | null>(null);
 let isLeaving = $state(false);
@@ -38,7 +40,7 @@ const isHost = $derived(roomDetails?.hostId === data.session?.user?.id);
 const showCountdownOverlay = $derived(roomDetails?.status === "starting");
 // Song selection overlay state
 let isSongSelectOpen = $state(false);
-let availableSongs = $state<any[]>([]);
+let availableSongs = $state<SongWheelItem[]>([]);
 
 // Time synchronization
 function syncTimeWithServer() {
@@ -47,7 +49,7 @@ function syncTimeWithServer() {
 	gameSocket.send("ping", { t1 });
 }
 
-function handlePong(data: any) {
+function handlePong(data: { message?: string; serverTime?: number; t1?: number }) {
 	if (data.t1 && data.serverTime) {
 		const t2 = Date.now();
 		const latency = (t2 - data.t1) / 2;
@@ -117,7 +119,7 @@ async function handleUpdateRoom(name: string, password?: string) {
 	}
 }
 
-async function handleSongSelection(data: { song: any; difficulty: string }) {
+async function handleSongSelection(data: { song: SongWheelItem; difficulty: string }) {
 	const { song, difficulty } = data;
 	console.log("Selected:", song.title, "with difficulty:", difficulty);
 
@@ -131,7 +133,7 @@ async function handleSongSelection(data: { song: any; difficulty: string }) {
 		gameSocket.send("update_room", {
 			roomId,
 			currentChart: {
-				coverUrl: song.imageUrl,
+				coverUrl: song.imageUrl || "",
 				name: song.title,
 				artist: song.artist,
 				difficulty: difficulty, // Use selected difficulty
@@ -156,7 +158,15 @@ onMount(() => {
 	orpcClient.song
 		.list({})
 		.then((result) => {
-			availableSongs = result.items || [];
+			availableSongs = (result.items || []).map(s => ({
+				id: s.id,
+				title: s.title,
+				artist: s.artist,
+				imageUrl: s.imageUrl,
+				difficulties: s.difficulties,
+				audioUrl: s.audioUrl,
+				previewStartTime: s.previewStartTime
+			}));
 		})
 		.catch((error) => {
 			console.error("Failed to fetch songs:", error);
@@ -250,7 +260,7 @@ onMount(() => {
         {:else if roomDetails}
             <!-- 1. Header -->
             <RoomHeader 
-                roomName={roomDetails.name} 
+                roomName={roomDetails.name ?? "Untitled Room"} 
                 roomId={roomId || '???'} 
                 isHost={isHost}
                 onUpdateRoom={handleUpdateRoom}

@@ -18,8 +18,8 @@ export const listSongsProcedure = routerBaseContext
 				},
 			});
 
-			const items = songsWithCharts.map((s: any) => {
-				const difficultyNames = s.charts.map((c: any) => c.difficultyName);
+			const items = songsWithCharts.map((s) => {
+				const difficultyNames = s.charts.map((c) => c.difficultyName);
 				const uniqueDifficulties = [...new Set(difficultyNames)].sort();
 
 				return {

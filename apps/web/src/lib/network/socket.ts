@@ -10,7 +10,7 @@ import {
 import { PUBLIC_WS_URL } from "$env/static/public";
 
 // Type alias for room state data from room_state packet
-type RoomState = {
+export type RoomState = {
 	id: string;
 	name?: string;
 	hostId?: string | null;

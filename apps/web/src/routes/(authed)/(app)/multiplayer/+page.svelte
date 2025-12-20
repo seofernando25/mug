@@ -7,13 +7,14 @@ import { orpcClient } from "$lib/rpc/client";
 import type { SongWheelItem } from "$lib/components/song-select/SongWheel.svelte";
 import SongSelectOverlay from "$lib/components/SongSelectOverlay.svelte";
 import { scale, slide } from "svelte/transition";
+import type { RoomSummary } from "@mug/contract";
 
 // --- Types ---
 type RoomFilterType = 'all' | 'public' | 'private';
 
 // --- State ---
 let isLoading = $state(true);
-let rooms = $state<any[]>([]);
+let rooms = $state<RoomSummary[]>([]);
 const error = $state<string | null>(null);
 let status = $state<"disconnected" | "connecting" | "connected">("disconnected");
 
@@ -53,7 +54,7 @@ onMount(() => {
 		isLoadingSongs = true;
 		try {
 			const res = await orpcClient.song.list({});
-			allSongs = res.items.map((s: any) => ({
+			allSongs = res.items.map((s) => ({
 				id: s.id,
 				title: s.title,
 				artist: s.artist,
@@ -175,9 +176,9 @@ async function handleCreateRoomSubmit() {
 		showCreateRoomPanel = false;
 		await goto(`/multiplayer/room/${roomState.id}`);
 
-	} catch (e: any) {
+	} catch (e: unknown) {
 		console.error("Exception creating room:", e);
-		createRoomError = e?.message ?? "An exception occurred while creating the room.";
+		createRoomError = e instanceof Error ? e.message : "An exception occurred while creating the room.";
 	}
 	isCreatingRoom = false;
 }

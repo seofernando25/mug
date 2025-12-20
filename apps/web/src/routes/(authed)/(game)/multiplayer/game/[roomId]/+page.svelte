@@ -68,7 +68,7 @@ async function loadGameData() {
 		const charts = Array.isArray(song.charts) ? song.charts : [];
 		const selectedDifficulty = roomState.currentChart.difficulty;
 		
-		const chart = charts.find((c: any) => c.difficultyName === selectedDifficulty) || charts[0];
+		const chart = charts.find((c) => c.difficultyName === selectedDifficulty) || charts[0];
 		if (!chart) {
 			error = "Chart not found for selected difficulty";
 			isLoading = false;
