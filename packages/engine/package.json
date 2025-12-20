@@ -8,7 +8,8 @@
 		".": "./src/index.ts"
 	},
 	"dependencies": {
-		"@mug/contract": "workspace:*"
+		"@mug/contract": "workspace:*",
+		"@mug/db": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "^1.0.0",

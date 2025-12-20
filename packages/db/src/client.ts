@@ -1,7 +1,11 @@
 import { drizzle } from "drizzle-orm/bun-sql";
 import * as schema from "./schema";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+// Type-only instance for schema inference
+const _tempDb = drizzle("" as any, { schema });
+export type DatabaseInstance = typeof _tempDb;
+
+let _db: DatabaseInstance | null = null;
 
 function getDbInstance() {
 	if (!_db) {
@@ -15,7 +19,7 @@ function getDbInstance() {
 }
 
 // Lazy getter - only initializes when accessed
-export const db = new Proxy({} as ReturnType<typeof drizzle>, {
+export const db = new Proxy({} as DatabaseInstance, {
 	get(_target, prop) {
 		const instance = getDbInstance();
 		const value = instance[prop as keyof typeof instance];

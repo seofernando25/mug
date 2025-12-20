@@ -12,9 +12,9 @@
 		"studio": "bunx drizzle-kit studio"
 	},
 	"dependencies": {
-		"@mug/contract": "workspace:*",
-		"@mug/game-logic": "workspace:*",
-		"drizzle-orm": "^0.43.1"
+		"arktype": "^2.1.28",
+		"drizzle-arktype": "^0.1.3",
+		"drizzle-orm": "^0.45.1"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

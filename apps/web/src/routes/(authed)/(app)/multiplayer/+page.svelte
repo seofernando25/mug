@@ -38,7 +38,7 @@ let isCreatingRoom = $state(false);
 let createRoomError = $state<string | null>(null);
 
 // --- Lifecycle ---
-onMount(async () => {
+onMount(() => {
 	const unsubLobby = lobbyRooms.subscribe((v) => {
 		rooms = v ?? [];
 		isLoading = false;
@@ -48,24 +48,28 @@ onMount(async () => {
 	});
 	gameSocket.connect();
 	
-	// Pre-fetch songs for the creator
-	isLoadingSongs = true;
-	try {
-		const res = await orpcClient.song.list({});
-		allSongs = res.items.map(s => ({
-			id: s.id,
-			title: s.title,
-			artist: s.artist,
-			imageUrl: s.imageUrl,
-			difficulties: s.difficulties,
-			audioUrl: s.audioUrl,
-			previewStartTime: s.previewStartTime
-		}));
-	} catch (e) {
-		console.error("Failed to load songs", e);
-	} finally {
-		isLoadingSongs = false;
+	async function loadSongs() {
+		// Pre-fetch songs for the creator
+		isLoadingSongs = true;
+		try {
+			const res = await orpcClient.song.list({});
+			allSongs = res.items.map((s: any) => ({
+				id: s.id,
+				title: s.title,
+				artist: s.artist,
+				imageUrl: s.imageUrl,
+				difficulties: s.difficulties,
+				audioUrl: s.audioUrl,
+				previewStartTime: s.previewStartTime
+			}));
+		} catch (e) {
+			console.error("Failed to load songs", e);
+		} finally {
+			isLoadingSongs = false;
+		}
 	}
+
+	loadSongs();
 
 	return () => {
 		unsubLobby();
@@ -157,7 +161,7 @@ async function handleCreateRoomSubmit() {
 			songId: selectedSong.id,
 			name: selectedSong.title,
 			artist: selectedSong.artist,
-			coverUrl: selectedSong.imageUrl,
+			coverUrl: selectedSong.imageUrl ?? "", // Ensure it's not null/undefined
 			difficulty: selectedDifficulty || selectedSong.difficulties?.[0] || "Normal",
 			difficulties: selectedSong.difficulties
 		};

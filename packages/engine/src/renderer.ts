@@ -234,6 +234,6 @@ export class GameRenderer {
 		this.notePool?.destroy();
 		this.highway?.destroy?.();
 		this.app.canvas?.parentElement?.removeChild(this.app.canvas);
-		this.app.destroy({ removeView: true }, { children: true, texture: true, textureGC: true, baseTexture: true });
+		this.app.destroy({ removeView: true }, { children: true, texture: true });
 	}
 }

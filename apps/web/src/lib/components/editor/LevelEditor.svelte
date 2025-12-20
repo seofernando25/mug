@@ -12,7 +12,7 @@ interface Props {
 
 const { editorState, audioUrl }: Props = $props();
 
-let canvasElement: HTMLCanvasElement;
+let containerElement: HTMLDivElement;
 let gameRenderer: GameRenderer;
 let audioClock: AudioClock;
 let animationFrameId: number;
@@ -58,7 +58,7 @@ onMount(() => {
                 
                 // GameRenderer initialization
                 gameRenderer = new GameRenderer({
-                    canvas: canvasElement,
+                    container: containerElement,
                     lanes: editorState.chart.lanes,
                 });
 
@@ -66,11 +66,11 @@ onMount(() => {
                     gameRenderer.setEditorMode(true);
                 });
 
-                // Handle canvas resizing
+                // Handle container resizing
                 resizeObserver = new ResizeObserver(() => { // Assign here
                     gameRenderer.handleResize();
                 });
-                resizeObserver.observe(canvasElement);
+                resizeObserver.observe(containerElement);
 
                 // --- Render Loop ---
                 const animate = () => {
@@ -91,7 +91,7 @@ onMount(() => {
                 
                 animate();
 
-                canvasElement.addEventListener('wheel', handleWheel, { passive: false });
+                containerElement.addEventListener('wheel', handleWheel, { passive: false });
             }
         });
     })();
@@ -102,11 +102,11 @@ onMount(() => {
 
         cancelAnimationFrame(animationFrameId);
         // Only disconnect if resizeObserver was successfully observed
-        if (canvasElement && resizeObserver) {
+        if (containerElement && resizeObserver) {
             resizeObserver.disconnect();
         }
-        if (canvasElement) {
-            canvasElement.removeEventListener('wheel', handleWheel);
+        if (containerElement) {
+            containerElement.removeEventListener('wheel', handleWheel);
         }
         gameRenderer?.destroy();
         audioClock?.stop(); // Stop any playback
@@ -115,8 +115,7 @@ onMount(() => {
 });
 </script>
 
-<div class="editor-container">
-    <canvas bind:this={canvasElement}></canvas>
+<div class="editor-container" bind:this={containerElement}>
 </div>
 
 <style>
@@ -126,10 +125,5 @@ onMount(() => {
     overflow: hidden; /* Prevent scrollbars from appearing */
     position: relative;
     background-color: #333; /* Dark background for editor */
-}
-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
 }
 </style>

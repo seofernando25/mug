@@ -13,8 +13,8 @@ const { data } = $props();
 	songData={data.songData}
 	chartData={data.chartData}
 	callbacks={{
-		onScoreUpdate: (score, combo, maxCombo) => {},
-		onMatchFinished: (finalScore, maxCombo) => {},
+		onScoreUpdate: (score: number, combo: number, maxCombo: number) => {},
+		onMatchFinished: (finalScore: number, maxCombo: number) => {},
 		onRetry: () => {},
 		onExit: () => {
 			goto('/solo');

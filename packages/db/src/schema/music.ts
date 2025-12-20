@@ -10,7 +10,7 @@ import {
 	uuid,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
-import { relations } from "drizzle-orm";
+import { type InferSelectModel, type InferInsertModel, relations } from "drizzle-orm";
 
 export const song = pgTable("song", {
 	id: uuid("id").defaultRandom().primaryKey(),
@@ -27,6 +27,9 @@ export const song = pgTable("song", {
 	uploadDate: timestamp("upload_date").defaultNow().notNull(),
 });
 
+export type Song = InferSelectModel<typeof song>;
+export type NewSong = InferInsertModel<typeof song>;
+
 export const chart = pgTable("chart", {
 	id: uuid("id").defaultRandom().primaryKey(),
 	songId: uuid("song_id")
@@ -38,6 +41,9 @@ export const chart = pgTable("chart", {
 	lyrics: jsonb("lyrics"), // JSON array of { time: number, text: string } (Optional, still JSONB)
 	// Removed: hitObjects field
 });
+
+export type Chart = InferSelectModel<typeof chart>;
+export type NewChart = InferInsertModel<typeof chart>;
 
 export const noteTypePgEnum = pgEnum("note_type", ["tap", "hold"]);
 
@@ -52,6 +58,9 @@ export const chartHitObject = pgTable("chart_hit_object", {
 	duration: integer("duration"),
 });
 
+export type ChartHitObject = InferSelectModel<typeof chartHitObject>;
+export type NewChartHitObject = InferInsertModel<typeof chartHitObject>;
+
 export const score = pgTable("score", {
 	id: uuid("id").defaultRandom().primaryKey(),
 	chartId: uuid("chart_id")
@@ -65,6 +74,9 @@ export const score = pgTable("score", {
 	maxCombo: integer("max_combo").notNull(),
 	playDate: timestamp("play_date").defaultNow().notNull(),
 });
+
+export type Score = InferSelectModel<typeof score>;
+export type NewScore = InferInsertModel<typeof score>;
 
 export const songRelations = relations(song, (helpers) => ({
 	charts: helpers.many(chart),

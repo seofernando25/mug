@@ -1,12 +1,13 @@
 import { gameSocket } from "$lib/network/socket";
 import { Preferences } from "@mug/common";
 import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
-import type { ClientChart, ClientSong, ChartHitObject } from "$lib/types";
+import type { ClientSong } from "$lib/types";
+import type { GameChart } from "$lib/types/game";
 import { get } from "svelte/store";
-import { RhythmEngine } from "@mug/engine";
+import { RhythmEngine, type ChartHitObject } from "@mug/engine";
 import { AudioClock } from "@mug/engine";
 import { GameRenderer } from "@mug/engine";
-import { Sound } from "@pixi/sound";
+import { sound } from "@pixi/sound";
 
 
 export type GamePhase =
@@ -27,7 +28,7 @@ export interface GameOptions {
 
 export async function createGame(
 	songData: ClientSong,
-	chartData: ClientChart,
+	chartData: GameChart,
 	container: HTMLDivElement,
 	callbacks: {
 		onPhaseChange: (phase: GamePhase) => void;
@@ -44,11 +45,9 @@ export async function createGame(
 	},
 	options: GameOptions = {},
 ) {
-
-
 	// Attempt to resume AudioContext if suspended (common in multiplayer/autoplay scenarios)
-	if (Sound.context?.audioContext?.state === "suspended") {
-		Sound.context.audioContext.resume().catch((e) =>
+	if (sound.context?.audioContext?.state === "suspended") {
+		sound.context.audioContext.resume().catch((e) =>
 			console.warn("[MUG] Failed to resume AudioContext:", e),
 		);
 	}
@@ -56,7 +55,7 @@ export async function createGame(
 	if (chartData.hitObjects.length === 0)
 		console.warn("[MUG] ⚠️ WARNING: Chart has 0 notes!");
 	// 1) Initialize modules
-	const engine = new RhythmEngine(chartData.hitObjects as ChartHitObject[], {
+	const engine = new RhythmEngine(chartData.hitObjects, {
 		timingWindows: {
 			perfect: Preferences.prefs.gameplay.perfectWindowMs ?? 30,
 			excellent: Preferences.prefs.gameplay.excellentWindowMs ?? 60,
@@ -66,7 +65,7 @@ export async function createGame(
 		scrollSpeed: chartData.noteScrollSpeed ?? 1.0,
 	});
 
-	let sound: InstanceType<typeof Sound> | null = null;
+	let soundInstance: any = null;
 	// preload using the official loaded callback (no any-casting)
 	await new Promise<void>((resolve) => {
 		let isResolved = false;
@@ -80,13 +79,13 @@ export async function createGame(
 			resolve();
 		};
 
-		sound = Sound.from({
+		soundInstance = sound.add("game_audio", {
 			url: songData.audioUrl,
 			preload: true,
 			loaded: (err) => finish(err),
 		});
 
-		if (sound.isLoaded) {
+		if (soundInstance.isLoaded) {
 			finish(null);
 			return;
 		}
@@ -98,10 +97,12 @@ export async function createGame(
 			}
 		}, 3000);
 	});
+	
 	// Ensure we have a concrete sound instance for the rest of the flow
-	const soundInstance =
-		sound ?? Sound.from({ url: songData.audioUrl, preload: true });
-	sound = soundInstance;
+	if (!soundInstance) {
+		soundInstance = sound.add("game_audio_fallback", { url: songData.audioUrl, preload: true });
+	}
+	
 	soundInstance.volume = get(masterVolume) * get(musicVolume);
 
 	// Subscribe to volume changes and update audio in real-time
@@ -124,17 +125,16 @@ export async function createGame(
 	let lastNoteTime = 0;
 	if (chartData.hitObjects?.length) {
 		const validStartTimes = chartData.hitObjects
-			.map((ho) => ho.time)
+			.map((ho: any) => ho.time)
 			.filter(
-									(startTime) =>
-										typeof startTime === "number" && !Number.isNaN(startTime),
-									);
+							(startTime: any) =>
+								typeof startTime === "number" && !Number.isNaN(startTime),
+							);
 
 		if (validStartTimes.length > 0) {
 			lastNoteTime = Math.max(...validStartTimes);
 		}
 	}
-
 	// 2) State
 	let phase: GamePhase = "loading";
 	let isPaused = false;

@@ -30,7 +30,7 @@ export const load = async ({ params, url }) => {
 	}
 
 	const charts = Array.isArray(songData.charts) ? songData.charts : [];
-	const chartData = charts.find((c) => c.difficultyName === difficulty);
+	const chartData = charts.find((c: any) => c.difficultyName === difficulty);
 	if (!chartData) {
 		throw error(404, { message: "Selected difficulty chart not found" });
 	}

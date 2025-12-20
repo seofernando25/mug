@@ -42,7 +42,7 @@ let songDurationMsStore = $state<number>(0);
 let gameKey = $state(0); // Used to force-remount canvas on retry
 
 let canvasElementContainer: HTMLDivElement;
-let pixiContainer: HTMLDivElement;
+let pixiContainer = $state<HTMLDivElement>();
 let screenPulseComponent: ScreenPulse;
 
 let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
@@ -208,7 +208,7 @@ onMount(() => {
 						}
 					},
 					onNoteHit: (note, judgment) => {
-						if (screenPulseComponent) {
+						if (screenPulseComponent && pixiContainer) {
 							const canvasRect = pixiContainer.getBoundingClientRect();
 							const highwayMetrics = gameInstance?.getHighwayMetrics();
 							if (!highwayMetrics) return;

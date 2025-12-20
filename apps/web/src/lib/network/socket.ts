@@ -219,8 +219,8 @@ class GameSocket {
 									name: ev.room.name,
 									playerCount: ev.room.playerCount,
 									status: ev.room.status,
-									hostId: ev.room.hostId,
-									hostName: ev.room.hostName,
+									hostId: ev.room.hostId || undefined,
+									hostName: ev.room.hostName || undefined,
 								});
 							return next;
 						}

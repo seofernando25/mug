@@ -8,15 +8,14 @@ interface Props {
 	onUpdateRoom?: (name: string, password?: string) => void;
 }
 
-const { roomName, roomId, isHost, onUpdateRoom }: Props = $props();
+let { roomName, roomId, isHost, onUpdateRoom }: Props = $props();
 
 let isSettingsOpen = $state(false);
-let editName = $state(roomName);
 let editPassword = $state("");
 
 function toggleSettings() {
 	if (!isSettingsOpen) {
-		editName = roomName;
+		roomName = roomName;
 		editPassword = "";
 	}
 	isSettingsOpen = !isSettingsOpen;
@@ -24,7 +23,7 @@ function toggleSettings() {
 
 function handleSave() {
 	if (onUpdateRoom) {
-		onUpdateRoom(editName, editPassword || undefined);
+		onUpdateRoom(roomName, editPassword || undefined);
 	}
 	isSettingsOpen = false;
 }
@@ -85,7 +84,7 @@ function handleDocumentClick(e: MouseEvent) {
 							<input 
 								type="text" 
 								id="roomName"
-								bind:value={editName}
+								bind:value={roomName}
 								class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-purple-500 outline-none"
 							/>
 						</div>

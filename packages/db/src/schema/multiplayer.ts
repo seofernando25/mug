@@ -9,7 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { chart } from "./music";
-import { relations } from "drizzle-orm";
+import { type InferSelectModel, type InferInsertModel, relations } from "drizzle-orm";
 
 export const room = pgTable("room", {
 	id: serial("id").primaryKey(),
@@ -26,6 +26,9 @@ export const room = pgTable("room", {
 	}),
 });
 
+export type Room = InferSelectModel<typeof room>;
+export type NewRoom = InferInsertModel<typeof room>;
+
 export const roomPlayer = pgTable(
 	"room_player",
 	{
@@ -39,6 +42,9 @@ export const roomPlayer = pgTable(
 	},
 	(table) => [primaryKey({ columns: [table.roomId, table.userId] })],
 );
+
+export type RoomPlayer = InferSelectModel<typeof roomPlayer>;
+export type NewRoomPlayer = InferInsertModel<typeof roomPlayer>;
 
 export const roomRelations = relations(room, (helpers) => ({
 	currentChart: helpers.one(chart, {

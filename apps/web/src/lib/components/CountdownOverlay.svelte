@@ -2,7 +2,7 @@
 const { countdownValue }: { countdownValue: number } = $props();
 </script>
 
-<div class="overlay-container countdown-overlay">
+<div class="countdown-container">
 	<div class="center-content">
 		<h1 class="countdown-text">{countdownValue}</h1>
 		<p class="ready-text">GET READY</p>
@@ -14,15 +14,12 @@ const { countdownValue }: { countdownValue: number } = $props();
 	</div>
 </div>
 
-<style>
-	.overlay-container {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
+<style lang="postcss">
+	.countdown-container {
+		position: fixed;
+		inset: 0;
 		display: flex;
-		flex-col: column;
+		flex-direction: column;
 		justify-content: center;
 		align-items: center;
 		background-color: transparent; /* Removed dark background */

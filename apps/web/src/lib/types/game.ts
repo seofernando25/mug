@@ -1,3 +1,14 @@
+import type { ChartHitObject } from "@mug/engine";
+
+export interface GameChart {
+	id: string;
+	songId: string;
+	difficultyName: string;
+	lanes: number;
+	noteScrollSpeed: number;
+	hitObjects: ChartHitObject[];
+}
+
 export const Colors = {
 	HIGHWAY_LINE: 0x808080,
 	LANE_BACKGROUNDS: [0x9f7b19, 0x9d4401, 0x851638, 0x7f2593],

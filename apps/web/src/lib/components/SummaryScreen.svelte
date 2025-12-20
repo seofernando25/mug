@@ -2,6 +2,18 @@
 import { fade, fly, scale } from "svelte/transition";
 import { backOut, cubicOut } from "svelte/easing";
 import { matchState } from "$lib/network/socket";
+import type { MouseEventHandler } from "svelte/elements";
+
+interface Props {
+	score: number;
+	maxCombo: number;
+	songTitle?: string;
+	artist?: string;
+	difficultyName?: string;
+	onRetry?: MouseEventHandler<HTMLButtonElement>;
+	onExit: MouseEventHandler<HTMLButtonElement>;
+	isMultiplayer?: boolean;
+}
 
 const {
 	score,
@@ -9,10 +21,10 @@ const {
 	songTitle = "",
 	artist = "",
 	difficultyName = "",
-	onRetry = () => {},
-	onExit = () => {},
+	onRetry,
+	onExit,
 	isMultiplayer = false,
-} = $props();
+}: Props = $props();
 
 const formattedScore = $derived(score.toLocaleString().padStart(7, '0'));
 

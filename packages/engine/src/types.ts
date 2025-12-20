@@ -1,6 +1,6 @@
-import type { chartHitObject } from "@mug/db";
+import type { ChartHitObject as DbChartHitObject } from "@mug/db";
 
-export type ChartHitObject = typeof chartHitObject.$inferSelect;
+export type ChartHitObject = DbChartHitObject;
 
 export type Judgment = "PERFECT" | "EXCELLENT" | "GOOD" | "MEH" | "MISS";
 
