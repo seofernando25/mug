@@ -3,7 +3,6 @@ import { orpcClient } from "$lib/rpc/client";
 
 let isDragging = $state(false);
 let importedFile: File | null = $state(null);
-let convertedData: string | null = $state(null);
 let errorMessage = $state<string | null>(null);
 let fileInput: HTMLInputElement;
 let isConverting = $state(false);
@@ -14,17 +13,17 @@ function handleDragLeave(e: DragEvent) { e.preventDefault(); e.stopPropagation()
 
 async function uploadAndProcessFile(file: File, onProgress?: (msg: string) => void) {
     onProgress?.(`Uploading ${file.name}...`);
-    const formData = new FormData();
-    formData.append("levelFile", file, file.name);
-
     try {
         const response = await orpcClient.song.install({ file: file });
         if (!response.success) return { success: false, message: response.message };
-        onProgress?.(response.message);
+        onProgress?.(response.message || "Success!");
         return response;
-    } catch (error: any) {
-        onProgress?.("");
-        return { success: false, message: error.message };
+    } catch (error: unknown) {
+        console.error("Import failed:", error);
+        return { 
+            success: false, 
+            message: error instanceof Error ? error.message : "Import failed" 
+        };
     }
 }
 
@@ -42,8 +41,11 @@ async function handleFile(file: File) {
     }
 
     const result = await uploadAndProcessFile(file, (msg) => (conversionProgress = msg));
-    if (!result.success) errorMessage = result.message;
-    else conversionProgress = "Done!";
+    if (!result.success) {
+        errorMessage = result.message || "An unknown error occurred";
+    } else {
+        conversionProgress = "Done!";
+    }
     isConverting = false;
 }
 
