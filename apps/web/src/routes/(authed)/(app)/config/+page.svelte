@@ -8,6 +8,8 @@ import {
 } from "$lib/stores/settingsStore";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
+import { fade, fly } from "svelte/transition";
+import Toggle from "$lib/components/Toggle.svelte";
 
 onMount(() => {
 	const handleKeyDown = (event: KeyboardEvent) => {
@@ -22,119 +24,126 @@ onMount(() => {
 		window.removeEventListener("keydown", handleKeyDown);
 	};
 });
-
-// Helper for range input if needed, or direct bind
 </script>
 
 <svelte:head>
-	<title>Configuration - MUG</title>
+	<title>Config - MUG</title>
 </svelte:head>
 
-<div class="space-y-8 text-gray-100">
-	<h1 class="text-3xl font-bold text-purple-400">Configuration</h1>
+<div class="max-w-4xl mx-auto space-y-12 pb-12" in:fade={{ duration: 300 }}>
+	<!-- Header -->
+	<header class="text-left space-y-2">
+		<h1 class="text-7xl font-black italic tracking-tighter text-white drop-shadow-2xl">
+			CONFIG<span class="text-purple-500">.</span>
+		</h1>
+		<p class="text-gray-400 font-bold uppercase tracking-[0.3em] text-sm ml-1">
+			System Preferences & Calibrations
+		</p>
+	</header>
 
-	<section class="space-y-4 p-6 bg-gray-800 rounded-lg shadow-md">
-		<h2 class="text-2xl font-semibold text-purple-300 border-b border-gray-700 pb-2">
-			General Settings
-		</h2>
-		<div class="flex items-center justify-between">
-			<label for="skipLogin" class="text-lg">Skip Login Screen</label>
-			<input
-				type="checkbox"
-				id="skipLogin"
-				bind:checked={$skipLogin}
-				class="form-checkbox h-6 w-6 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
-			/>
-		</div>
-	</section>
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+		<!-- General Settings -->
+		<section 
+			class="p-8 bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl space-y-6 shadow-xl"
+			in:fly={{ y: 20, delay: 100, duration: 400 }}
+		>
+			<h2 class="text-xs font-black uppercase tracking-[0.4em] text-purple-400 leading-none mb-6">General</h2>
+			
+			<div class="space-y-8">
+				<div class="flex flex-col gap-2">
+					<Toggle 
+						bind:checked={$skipLogin} 
+						label="Skip Login" 
+						color="purple" 
+					/>
+					<span class="text-[10px] text-gray-500 font-bold uppercase ml-[4.5rem]">Bypass landing screen on start</span>
+				</div>
 
-	<section class="space-y-4 p-6 bg-gray-800 rounded-lg shadow-md">
-		<h2 class="text-2xl font-semibold text-purple-300 border-b border-gray-700 pb-2">
-			Visual Settings
-		</h2>
-		<div class="flex items-center justify-between">
-			<label for="enableScreenPulse" class="text-lg">Enable Screen Pulse Effect</label>
-			<input
-				type="checkbox"
-				id="enableScreenPulse"
-				bind:checked={$enableScreenPulse}
-				class="form-checkbox h-6 w-6 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
-			/>
-		</div>
-	</section>
-
-	<section class="space-y-4 p-6 bg-gray-800 rounded-lg shadow-md">
-		<h2 class="text-2xl font-semibold text-purple-300 border-b border-gray-700 pb-2">
-			Audio Settings
-		</h2>
-		<div class="space-y-3">
-			<div>
-				<label for="masterVolume" class="block text-lg mb-1"
-					>Master Volume: {Math.round($masterVolume * 100)}%</label
-				>
-				<input
-					type="range"
-					id="masterVolume"
-					bind:value={$masterVolume}
-					min="0"
-					max="1"
-					step="0.01"
-					class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
-				/>
+				<div class="flex flex-col gap-2">
+					<Toggle 
+						bind:checked={$autoPlay} 
+						label="Auto-Play" 
+						color="yellow" 
+					/>
+					<span class="text-[10px] text-yellow-500/50 font-black uppercase tracking-widest ml-[4.5rem]">Debug Mode enabled</span>
+				</div>
 			</div>
-			<div>
-				<label for="musicVolume" class="block text-lg mb-1"
-					>Music Volume: {Math.round($musicVolume * 100)}%</label
-				>
-				<input
-					type="range"
-					id="musicVolume"
-					bind:value={$musicVolume}
-					min="0"
-					max="1"
-					step="0.01"
-					class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
-				/>
-			</div>
-		</div>
-	</section>
+		</section>
 
-	<section class="space-y-4 p-6 bg-gray-800 rounded-lg shadow-md">
-		<h2 class="text-2xl font-semibold text-purple-300 border-b border-gray-700 pb-2">
-			Gameplay Debug
-		</h2>
-		<div class="flex items-center justify-between">
-			<label for="autoPlay" class="text-lg">Enable Auto-Play (for testing)</label>
-			<input
-				type="checkbox"
-				id="autoPlay"
-				bind:checked={$autoPlay}
-				class="form-checkbox h-6 w-6 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
-			/>
-		</div>
-	</section>
+		<!-- Visual Settings -->
+		<section 
+			class="p-8 bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl space-y-6 shadow-xl"
+			in:fly={{ y: 20, delay: 200, duration: 400 }}
+		>
+			<h2 class="text-xs font-black uppercase tracking-[0.4em] text-cyan-400 leading-none mb-6">Visuals</h2>
+			
+			<div class="space-y-8">
+				<div class="flex flex-col gap-2">
+					<Toggle 
+						bind:checked={$enableScreenPulse} 
+						label="Screen Pulse" 
+						color="cyan" 
+					/>
+					<span class="text-[10px] text-gray-500 font-bold uppercase ml-[4.5rem]">Flash effects on note hits</span>
+				</div>
+			</div>
+		</section>
+
+		<!-- Audio Settings -->
+		<section 
+			class="p-8 bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl space-y-8 shadow-xl md:col-span-2"
+			in:fly={{ y: 20, delay: 300, duration: 400 }}
+		>
+			<h2 class="text-xs font-black uppercase tracking-[0.4em] text-pink-400 leading-none">Audio Engine</h2>
+			
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-12 mt-4">
+				<div class="space-y-4">
+					<div class="flex justify-between items-end">
+						<label for="masterVolume" class="text-[10px] font-black uppercase tracking-widest text-gray-400">Master Volume</label>
+						<span class="text-2xl font-black italic text-white tabular-nums leading-none">
+							{Math.round($masterVolume * 100)}<span class="text-xs not-italic text-pink-500 ml-0.5">%</span>
+						</span>
+					</div>
+					<input
+						type="range"
+						id="masterVolume"
+						bind:value={$masterVolume}
+						min="0"
+						max="1"
+						step="0.01"
+						class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-pink-500 hover:accent-pink-400 transition-all"
+					/>
+				</div>
+
+				<div class="space-y-4">
+					<div class="flex justify-between items-end">
+						<label for="musicVolume" class="text-[10px] font-black uppercase tracking-widest text-gray-400">Music Volume</label>
+						<span class="text-2xl font-black italic text-white tabular-nums leading-none">
+							{Math.round($musicVolume * 100)}<span class="text-xs not-italic text-pink-500 ml-0.5">%</span>
+						</span>
+					</div>
+					<input
+						type="range"
+						id="musicVolume"
+						bind:value={$musicVolume}
+						min="0"
+						max="1"
+						step="0.01"
+						class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-pink-500 hover:accent-pink-400 transition-all"
+					/>
+				</div>
+			</div>
+		</section>
+	</div>
+
+	<!-- Navigation -->
+	<div class="flex justify-center pt-8">
+		<button
+			onclick={() => goto("/home")}
+			class="group px-12 py-4 bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl font-black text-xl italic tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-105 hover:shadow-pink-500/40 transition active:scale-95 flex items-center gap-4"
+		>
+			SAVE & EXIT
+			<span class="text-sm not-italic opacity-50 font-bold group-hover:translate-x-1 transition-transform">ESC</span>
+		</button>
+	</div>
 </div>
-
-<style lang="postcss">
-	/* Ensure Tailwind forms plugin styles are applied if you're using it or add custom checkbox/range styles */
-	/* For basic styling of range input track and thumb if not using a plugin: */
-	input[type='range']::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
-		width: 20px;
-		height: 20px;
-		background: #a855f7; /* purple-500 */
-		cursor: pointer;
-		border-radius: 50%;
-		margin-top: -6px; /* Adjust to center thumb on track */
-	}
-
-	input[type='range']::-moz-range-thumb {
-		width: 20px;
-		height: 20px;
-		background: #a855f7; /* purple-500 */
-		cursor: pointer;
-		border-radius: 50%;
-		border: none;
-	}
-</style>

@@ -3,6 +3,11 @@ import { Preferences } from "@mug/common";
 import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
 import type { ClientChart, ClientSong, ChartHitObject } from "$lib/types";
 import { get } from "svelte/store";
+import { RhythmEngine } from "@mug/engine";
+import { AudioClock } from "@mug/engine";
+import { GameRenderer } from "@mug/engine";
+import { Sound } from "@pixi/sound";
+
 
 export type GamePhase =
 	| "loading"
@@ -23,7 +28,7 @@ export interface GameOptions {
 export async function createGame(
 	songData: ClientSong,
 	chartData: ClientChart,
-	canvasElement: HTMLCanvasElement,
+	container: HTMLDivElement,
 	callbacks: {
 		onPhaseChange: (phase: GamePhase) => void;
 		onCountdownUpdate: (value: number) => void;
@@ -35,13 +40,11 @@ export async function createGame(
 		getIsPaused: () => boolean;
 		getCountdownValue: () => number;
 		onTimeUpdate?: (time: number) => void;
-		onAudioLoaded?: () => void;
+		onAudioLoaded?: (durationMs: number) => void;
 	},
 	options: GameOptions = {},
 ) {
-	// Dynamically import the engine ONLY on the client
-	const { RhythmEngine, AudioClock, GameRenderer } = await import("@mug/engine");
-	const { Sound } = await import("@pixi/sound");
+
 
 	// Attempt to resume AudioContext if suspended (common in multiplayer/autoplay scenarios)
 	if (Sound.context?.audioContext?.state === "suspended") {
@@ -111,7 +114,7 @@ export async function createGame(
 
 	const clock = new AudioClock(soundInstance);
 	const renderer = new GameRenderer({
-		canvas: canvasElement,
+		container: container,
 		lanes: chartData.lanes ?? 4,
 		scrollSpeed: chartData.noteScrollSpeed ?? 1,
 	});
@@ -303,7 +306,7 @@ export async function createGame(
 	const isTestEnv = typeof process !== "undefined" && !!process.env?.BUN_TEST;
 
 	// Notify that audio is loaded (for multiplayer ready-up)
-	callbacks.onAudioLoaded?.();
+	callbacks.onAudioLoaded?.(soundInstance.duration * 1000);
 
 	if (isTestEnv) {
 		setPhase("playing");

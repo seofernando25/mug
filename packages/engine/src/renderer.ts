@@ -20,7 +20,7 @@ import {
 } from "svelte/store";
 
 interface RendererOptions {
-	canvas: HTMLCanvasElement;
+	container: HTMLElement;
 	lanes: number;
 	scrollSpeed?: number;
 }
@@ -57,18 +57,20 @@ export class GameRenderer {
 	}
 
 	async init() {
-		const { canvas } = this.opts;
+		const { container } = this.opts;
 
 		await this.app.init({
-			canvas,
-			width: canvas.clientWidth,
-			height: canvas.clientHeight,
+			resizeTo: container,
+			width: container.clientWidth,
+			height: container.clientHeight,
 			antialias: true,
 			resolution: window.devicePixelRatio || 1,
 			autoDensity: true,
 			backgroundColor: 0x000000,
 			backgroundAlpha: 0.0,
 		});
+
+		container.appendChild(this.app.canvas);
 
 		this.appWidth = writable(this.app.screen.width);
 		this.appHeight = writable(this.app.screen.height);
@@ -179,10 +181,10 @@ export class GameRenderer {
 	handleResize(songTimeMs?: number) {
 		if (!this.initialized) return;
 
-		// Get actual canvas dimensions
-		const canvas = this.opts.canvas;
-		const newWidth = canvas.clientWidth;
-		const newHeight = canvas.clientHeight;
+		// Get actual container dimensions
+		const container = this.opts.container;
+		const newWidth = container.clientWidth;
+		const newHeight = container.clientHeight;
 
 		// Update the dimension stores to trigger highway metrics recalculation
 		this.appWidth.set(newWidth);
@@ -211,12 +213,14 @@ export class GameRenderer {
 		// Redraw highway with new metrics
 		this.highway?.redraw?.();
 
-		// Resize PIXI renderer to new dimensions
+		// Resize PIXI renderer to new dimensions (Pixi handles canvas resize if resizeTo is set, but explicit resize is safer)
 		this.app.renderer.resize(newWidth, newHeight);
 	}
 
 	destroy() {
+		this.notePool?.destroy();
 		this.highway?.destroy?.();
-		this.app.destroy();
+		this.app.canvas?.parentElement?.removeChild(this.app.canvas);
+		this.app.destroy({ removeView: true }, { children: true, texture: true, textureGC: true, baseTexture: true });
 	}
 }

@@ -3,18 +3,12 @@ const { score = 0 } = $props();
 
 let scoreDisplayElement = $state<HTMLParagraphElement | undefined>(undefined);
 
-// Scale based on score magnitude (can be adjusted)
+// Scale based on score magnitude
 const currentScoreMagnitudeScale = $derived(
-	1 + Math.log10(Math.max(1, score / 1000 + 1)) * 0.1,
-); // Adjusted for typical score values
+	1 + Math.log10(Math.max(1, score / 1000 + 1)) * 0.05,
+);
 
-const POP_ANIMATION_DURATION = 300; // ms - match this with CSS animation duration
-
-// Constants for randomization
-const MAX_POP_TRANSLATE = 3; // px
-const MAX_POP_ROTATE = 3; // degrees
-const MIN_POP_EXPLOSION_SCALE_FACTOR = 1.1;
-const MAX_POP_EXPLOSION_SCALE_FACTOR = 1.3;
+const POP_ANIMATION_DURATION = 300;
 
 $effect(() => {
 	if (scoreDisplayElement) {
@@ -24,31 +18,14 @@ $effect(() => {
 		);
 
 		if (score > 0) {
-			// Trigger effect if score is not zero, or on any change if preferred
-			const randomTX = (Math.random() - 0.5) * 2 * MAX_POP_TRANSLATE;
-			const randomTY = (Math.random() - 0.5) * 2 * MAX_POP_TRANSLATE;
-			const randomRot = (Math.random() - 0.5) * 2 * MAX_POP_ROTATE;
-			const randomScaleFactor =
-				MIN_POP_EXPLOSION_SCALE_FACTOR +
-				Math.random() *
-					(MAX_POP_EXPLOSION_SCALE_FACTOR - MIN_POP_EXPLOSION_SCALE_FACTOR);
+			const randomTX = (Math.random() - 0.5) * 4;
+			const randomScaleFactor = 1.1 + Math.random() * 0.1;
 
-			scoreDisplayElement.style.setProperty(
-				"--pop-translate-x",
-				`${randomTX}px`,
-			);
-			scoreDisplayElement.style.setProperty(
-				"--pop-translate-y",
-				`${randomTY}px`,
-			);
-			scoreDisplayElement.style.setProperty("--pop-rotate", `${randomRot}deg`);
-			scoreDisplayElement.style.setProperty(
-				"--pop-explosion-scale",
-				String(randomScaleFactor),
-			);
+			scoreDisplayElement.style.setProperty("--pop-translate-x", `${randomTX}px`);
+			scoreDisplayElement.style.setProperty("--pop-explosion-scale", String(randomScaleFactor));
 
 			scoreDisplayElement.classList.remove("score-pop-eff");
-			void scoreDisplayElement.offsetWidth; // Force reflow
+			void scoreDisplayElement.offsetWidth;
 			scoreDisplayElement.classList.add("score-pop-eff");
 
 			const timeoutId = setTimeout(() => {
@@ -58,87 +35,45 @@ $effect(() => {
 			}, POP_ANIMATION_DURATION);
 
 			return () => clearTimeout(timeoutId);
-		} else {
-			scoreDisplayElement.classList.remove("score-pop-eff");
 		}
 	}
 });
 </script>
 
-{#if score !== undefined}
-	<!-- Display even if score is 0 -->
-	{#key score}
-		<div class="score-display-container">
-			<div class="p-4 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg inline-block">
-				<p bind:this={scoreDisplayElement} class="score-display">
-					<span class="score-label">SCORE</span>
-					<span class="score-value">{score}</span>
-				</p>
-			</div>
+<div class="score-display-container">
+	<div class="px-6 py-2 rounded-bl-3xl bg-black/60 backdrop-blur-xl border-l-4 border-b-4 border-cyan-500/50 shadow-[0_0_30px_rgba(6,182,212,0.2)]">
+		<div bind:this={scoreDisplayElement} class="flex flex-col items-end">
+			<span class="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400/70 leading-none mb-1">SCORE</span>
+			<span class="text-4xl font-black italic tracking-tighter text-white tabular-nums drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+				{score.toLocaleString()}
+			</span>
 		</div>
-	{/key}
-{/if}
+	</div>
+</div>
 
 <style lang="postcss">
 	.score-display-container {
-		position: fixed; /* Changed from absolute for broader applicability */
-		top: 2rem; /* Adjusted position */
-		right: 2rem;
-		z-index: 20;
-		text-align: right;
+		position: fixed;
+		top: 0;
+		right: 0;
+		z-index: 50;
 		pointer-events: none;
 	}
 
-	.score-display {
-		font-size: 2.2rem; /* Slightly smaller than combo */
-		color: #ffd700; /* Gold color */
-		text-shadow: /* Adjusted shadow for gold text */
-			0 0 3px #fff,
-			0 0 6px #ffd700,
-			0 0 9px #ffae00,
-			0 0 12px #ff8c00;
-		font-family: 'Arial Black', Gadget, sans-serif; /* Example of a punchier font */
-		font-weight: bold;
-		transform-origin: center center;
-		transform: scale(var(--current-score-magnitude-scale, 1)) translate(0px, 0px) rotate(0deg);
-		transition: transform 0.2s ease-out;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-	}
-
-	.score-label {
-		font-size: 0.8rem;
-		color: #eee; /* Lighter color for the label */
-		text-shadow: 0 0 2px #000;
-		margin-bottom: -0.5rem; /* Pull value closer */
-	}
-
-	.score-value {
-		padding-top: 0.5rem;
-		line-height: 1;
-	}
-
 	:global(.score-pop-eff) {
-		animation: scorePopKeyframes var(--pop-duration, 0.3s) ease-out; /* Duration matches POP_ANIMATION_DURATION */
+		animation: scorePopKeyframes 0.3s ease-out;
 	}
 
 	@keyframes scorePopKeyframes {
 		0% {
-			transform: scale(var(--current-score-magnitude-scale, 1)) translate(0px, 0px) rotate(0deg);
-			opacity: 0.8;
+			transform: scale(var(--current-score-magnitude-scale, 1));
 		}
 		40% {
-			transform: scale(
-					calc(var(--current-score-magnitude-scale, 1) * var(--pop-explosion-scale, 1.15))
-				)
-				translate(var(--pop-translate-x, 0px), var(--pop-translate-y, 0px))
-				rotate(var(--pop-rotate, 0deg));
-			opacity: 1;
+			transform: scale(calc(var(--current-score-magnitude-scale, 1) * var(--pop-explosion-scale, 1.1))) translateX(var(--pop-translate-x, 0px));
+			filter: brightness(1.5);
 		}
 		100% {
-			transform: scale(var(--current-score-magnitude-scale, 1)) translate(0px, 0px) rotate(0deg);
-			opacity: 1;
+			transform: scale(var(--current-score-magnitude-scale, 1));
 		}
 	}
 </style>

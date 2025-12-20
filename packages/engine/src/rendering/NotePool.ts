@@ -132,4 +132,25 @@ export class NotePool {
 			note.laneWidth = newLaneWidth;
 		});
 	}
+
+	destroy() {
+		this.activeNotes.forEach((note) => {
+			note.headGraphics.destroy();
+			if (note instanceof HoldNote) {
+				note.bodyGraphics.destroy();
+				note.tailGraphics.destroy();
+			}
+		});
+		this.activeNotes.clear();
+
+		this.tapNotePool.forEach((note) => note.headGraphics.destroy());
+		this.tapNotePool = [];
+
+		this.holdNotePool.forEach((note) => {
+			note.headGraphics.destroy();
+			note.bodyGraphics.destroy();
+			note.tailGraphics.destroy();
+		});
+		this.holdNotePool = [];
+	}
 }

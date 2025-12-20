@@ -11,7 +11,7 @@ import { createGame, type GamePhase } from "$lib/game/game.client.js";
 import MultiplayerLeaderboard from "$lib/components/game/MultiplayerLeaderboard.svelte";
 import { socketStatus, gameSocket, currentRoomState } from "$lib/network/socket";
 import { Colors } from "$lib/types/game";
-import { onMount } from "svelte";
+import { onMount, tick } from "svelte";
 
 const { songData, chartData, callbacks, showMultiplayerLeaderboard = false, canPause = true, isMultiplayer = false, suppressSummaryScreen = false } = $props();
 
@@ -25,9 +25,11 @@ let currentComboStore = $state<number>(0);
 let maxComboSoFarStore = $state<number>(0);
 let isPausedStore = $state<boolean>(false);
 let currentSongTimeMsStore = $state<number>(0);
+let songDurationMsStore = $state<number>(0);
+let gameKey = $state(0); // Used to force-remount canvas on retry
 
-let canvasElement: HTMLCanvasElement;
 let canvasElementContainer: HTMLDivElement;
+let pixiContainer: HTMLDivElement;
 let screenPulseComponent: ScreenPulse;
 
 let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
@@ -52,6 +54,8 @@ const showComboMeter = $derived(
 );
 
 // --- Svelte Lifecycle ---
+let initializeGame: () => Promise<void>;
+
 onMount(() => {
 	let cleanupCalled = false;
 
@@ -123,97 +127,126 @@ onMount(() => {
 		}
 	};
 
-	const initializeGame = async () => {
-		const instance = await createGame(
-			songData,
-			chartData,
-			canvasElement,
-			{
-				onPhaseChange: (phase: GamePhase) => {
-					gamePhaseStore = phase;
-					if (!(phase === "playing" || phase === "countdown")) {
-						isPausedStore = false;
-					}
-					// Notify parent when match finishes
-					if (phase === "summary") {
-						callbacks.onMatchFinished?.(currentScoreStore, maxComboSoFarStore);
-					}
-				},
-				onCountdownUpdate: (value: number) => (countdownValueStore = value),
-				onSongEnd: () => {},
-				onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
-					currentScoreStore = score;
-					currentComboStore = combo;
-					maxComboSoFarStore = maxCombo;
-					callbacks.onScoreUpdate?.(score, combo, maxCombo);
-				},
-				onNoteHit: (note, judgment) => {
-					if (screenPulseComponent) {
-						const canvasRect = canvasElement.getBoundingClientRect();
-						const highwayMetrics = gameInstance?.getHighwayMetrics();
-						if (!highwayMetrics) return;
+	initializeGame = async () => {
+		console.log("[GameSession] Initializing game...");
+		// Cleanup existing instance if any
+		if (gameInstance) {
+			console.log("[GameSession] Cleaning up previous instance");
+			gameInstance.cleanup();
+			gameInstance = null;
+		}
 
-						const color =
-							Colors.LANE_COLORS[note.lane % Colors.LANE_COLORS.length];
+		// Force canvas recreation to ensure clean WebGL context
+		gameKey++;
+		await tick();
 
-						const laneX =
-							canvasRect.left +
-							highwayMetrics.x +
-							highwayMetrics.laneWidth * note.lane +
-							highwayMetrics.laneWidth / 2;
-						const laneY = canvasRect.top + highwayMetrics.judgmentLineYPosition;
-
-						screenPulseComponent.triggerPulse(
-							laneX,
-							laneY,
-							color,
-							0.3,
-							50,
-							300,
-						);
-					}
-				},
-				onNoteMiss: () => {},
-				getGamePhase: () => gamePhaseStore,
-				getIsPaused: () => isPausedStore,
-				getCountdownValue: () => countdownValueStore,
-				onTimeUpdate: (timeMs: number) => {
-					currentSongTimeMsStore = timeMs;
-				},
-				onAudioLoaded: () => {
-					if (isMultiplayer) {
-						isWaitingForPlayers = true;
-						gameSocket.send("client_ready", {});
-					}
-				},
-			},
-			{ manualStart: isMultiplayer },
-		);
-
-		// Prevent zombie game instance if component unmounted during creation
-		if (cleanupCalled) {
-			instance.cleanup();
+		// Ensure container is present
+		if (!pixiContainer) {
+			console.error("[GameSession] Pixi container not found!");
 			return;
 		}
-
-		gameInstance = instance;
-
-		if (!isMultiplayer) {
-			gameInstance.beginGameplaySequence();
-		}
-
-		window.addEventListener("keydown", handleKeyDown);
-		window.addEventListener("keyup", handleKeyUp);
-		window.addEventListener("resize", handleResize);
 		
-		console.log("Game can pause:", canPause);
-		if (canPause) {
-			document.addEventListener("visibilitychange", handlePageFocusChange);
-			window.addEventListener("blur", handleWindowBlur);
+		// Clear any previous children (e.g. from previous Pixi instances if they weren't cleaned up)
+		pixiContainer.innerHTML = '';
+
+		try {
+			console.log("[GameSession] Creating new game instance");
+			const instance = await createGame(
+				songData,
+				chartData,
+				pixiContainer, // Pass the container, not the canvas
+				{
+					onPhaseChange: (phase: GamePhase) => {
+						gamePhaseStore = phase;
+						if (!(phase === "playing" || phase === "countdown")) {
+							isPausedStore = false;
+						}
+						// Notify parent when match finishes
+						if (phase === "summary") {
+							callbacks.onMatchFinished?.(currentScoreStore, maxComboSoFarStore);
+						}
+					},
+					onCountdownUpdate: (value: number) => (countdownValueStore = value),
+					onSongEnd: () => {},
+					onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
+						currentScoreStore = score;
+						currentComboStore = combo;
+						maxComboSoFarStore = maxCombo;
+						callbacks.onScoreUpdate?.(score, combo, maxCombo);
+					},
+					onNoteHit: (note, judgment) => {
+						if (screenPulseComponent) {
+							const canvasRect = pixiContainer.getBoundingClientRect();
+							const highwayMetrics = gameInstance?.getHighwayMetrics();
+							if (!highwayMetrics) return;
+
+							const color =
+								Colors.LANE_COLORS[note.lane % Colors.LANE_COLORS.length];
+
+							const laneX =
+								canvasRect.left +
+								highwayMetrics.x +
+								highwayMetrics.laneWidth * note.lane +
+								highwayMetrics.laneWidth / 2;
+							const laneY = canvasRect.top + highwayMetrics.judgmentLineYPosition;
+
+							screenPulseComponent.triggerPulse(
+								laneX,
+								laneY,
+								color,
+								0.3,
+								50,
+								300,
+							);
+						}
+					},
+					onNoteMiss: () => {},
+					getGamePhase: () => gamePhaseStore,
+					getIsPaused: () => isPausedStore,
+					getCountdownValue: () => countdownValueStore,
+					onTimeUpdate: (timeMs: number) => {
+						currentSongTimeMsStore = timeMs;
+					},
+					onAudioLoaded: (durationMs: number) => {
+						songDurationMsStore = durationMs;
+						if (isMultiplayer) {
+							isWaitingForPlayers = true;
+							gameSocket.send("client_ready", {});
+						}
+					},
+				},
+				{ manualStart: isMultiplayer },
+			);
+
+			// Prevent zombie game instance if component unmounted during creation
+			if (cleanupCalled) {
+				console.log("[GameSession] Component unmounted during creation, cleaning up");
+				instance.cleanup();
+				return;
+			}
+
+			gameInstance = instance;
+			console.log("[GameSession] Game instance created");
+
+			if (!isMultiplayer) {
+				gameInstance.beginGameplaySequence();
+			}
+		} catch (e) {
+			console.error("[GameSession] Fatal error creating game:", e);
 		}
 	};
 
 	initializeGame();
+
+	window.addEventListener("keydown", handleKeyDown);
+	window.addEventListener("keyup", handleKeyUp);
+	window.addEventListener("resize", handleResize);
+	
+	console.log("Game can pause:", canPause);
+	if (canPause) {
+		document.addEventListener("visibilitychange", handlePageFocusChange);
+		window.addEventListener("blur", handleWindowBlur);
+	}
 
 	// Subscribe to room state changes for multiplayer countdown sync
 	let unsubRoomState: (() => void) | undefined;
@@ -249,12 +282,16 @@ onMount(() => {
 });
 
 function handleRetry() {
+	console.log("[GameSession] Retry requested");
 	currentScoreStore = 0;
 	currentComboStore = 0;
 	maxComboSoFarStore = 0;
 	isPausedStore = false;
 	callbacks.onRetry?.();
-	gameInstance?.beginGameplaySequence();
+	// Re-initialize the game instead of just calling beginGameplaySequence
+	if (initializeGame) {
+		initializeGame();
+	}
 }
 
 function handleExit() {
@@ -271,7 +308,11 @@ function handleExit() {
 	bind:this={canvasElementContainer}
 	style="--bg-url: url('{songData.imageUrl}');"
 >	
-	<canvas bind:this={canvasElement}></canvas>
+	<!-- PixiJS Container - Recreated on retry -->
+	{#key gameKey}
+		<div bind:this={pixiContainer} class="absolute inset-0"></div>
+	{/key}
+	
 	<ScreenPulse bind:this={screenPulseComponent} />
 	{#if isWaitingForPlayers}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -323,8 +364,10 @@ function handleExit() {
 			difficultyName={chartData.difficultyName}
 			bpm={songData.bpm}
 			songTimeMs={currentSongTimeMsStore}
+			durationMs={songDurationMsStore}
 		/>
 	{/if}
+
 
 	{#if showComboMeter}
 		<ComboMeter combo={currentComboStore} />
@@ -370,11 +413,4 @@ function handleExit() {
 		opacity: 1;
 		pointer-events: none;
 	}
-
-	canvas {
-		width: 100%;
-		height: 100%;
-		display: block;
-	}
 </style>
-

@@ -59,8 +59,6 @@ export class AudioClock {
 	}
 
 	get currentTimeMs(): number {
-		// Check the internal flag to avoid reading progress while it's being set by seek()
-		console.log("Getting current time ms", this.instance?.progress, this.sound.duration, this.isSeekingInternal, this.instance?.paused);
 		if (
 			this.instance &&
 			typeof this.instance.progress === "number" &&

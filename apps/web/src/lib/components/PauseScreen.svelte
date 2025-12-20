@@ -1,6 +1,6 @@
-<!-- Placeholder for PauseScreen component -->
 <script lang="ts">
 import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
+import { fade, fly, scale } from "svelte/transition";
 
 const {
 	onResume = () => {},
@@ -13,186 +13,81 @@ const {
 } = $props();
 </script>
 
-<div class="overlay-container pause-overlay">
-	<div class="pause-box">
-		<h2 class="pause-title">Paused</h2>
+<div 
+	class="fixed inset-0 z-[1000] flex items-center justify-center bg-gray-900/90 backdrop-blur-md text-white font-sans"
+	transition:fade={{ duration: 200 }}
+>
+	<div 
+		class="w-[500px] max-w-[95vw] flex flex-col gap-8"
+		transition:scale={{ start: 0.95, duration: 200 }}
+	>
+		<!-- Header -->
+		<div class="text-center">
+			<h1 class="text-6xl font-black italic tracking-tighter text-white drop-shadow-xl mb-2">PAUSED</h1>
+			<div class="h-1 w-24 bg-gradient-to-r from-purple-500 to-cyan-500 mx-auto rounded-full"></div>
+		</div>
 
-		<section class="settings-section">
-			<h3 class="section-title">Audio Settings</h3>
-			<div class="volume-controls">
-				<div class="volume-control">
-					<label for="pauseMasterVolume">Master Volume: {Math.round($masterVolume * 100)}%</label>
+		<!-- Audio Settings -->
+		<div class="bg-black/40 border border-white/10 rounded-2xl p-6 space-y-6 backdrop-blur-sm">
+			<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Audio Settings</h3>
+			
+			<div class="space-y-4">
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-sm font-bold">
+						<span class="text-gray-300">Master Volume</span>
+						<span class="text-cyan-400">{Math.round($masterVolume * 100)}%</span>
+					</div>
 					<input
 						type="range"
-						id="pauseMasterVolume"
 						bind:value={$masterVolume}
 						min="0"
 						max="1"
 						step="0.01"
-						class="volume-slider"
+						class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400 transition-all"
 					/>
 				</div>
-				<div class="volume-control">
-					<label for="pauseMusicVolume">Music Volume: {Math.round($musicVolume * 100)}%</label>
+
+				<div class="space-y-2">
+					<div class="flex justify-between items-center text-sm font-bold">
+						<span class="text-gray-300">Music Volume</span>
+						<span class="text-cyan-400">{Math.round($musicVolume * 100)}%</span>
+					</div>
 					<input
 						type="range"
-						id="pauseMusicVolume"
 						bind:value={$musicVolume}
 						min="0"
 						max="1"
 						step="0.01"
-						class="volume-slider"
+						class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400 transition-all"
 					/>
 				</div>
 			</div>
-		</section>
+		</div>
 
-		<div class="pause-buttons">
-			<button onclick={onResume} class="pause-button resume-button">Resume</button>
-			<button onclick={onRetry} class="pause-button retry-button">Retry</button>
-			<button onclick={onExit} class="pause-button exit-button">Exit to Menu</button>
+		<!-- Buttons -->
+		<div class="flex flex-col gap-3">
+			<button
+				onclick={onResume}
+				class="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl font-black text-2xl italic tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-[1.02] hover:shadow-pink-500/40 transition active:scale-[0.98]"
+			>
+				RESUME
+			</button>
+
+			<div class="grid grid-cols-2 gap-3">
+				<button
+					onclick={onRetry}
+					class="py-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-xl font-bold uppercase tracking-widest transition hover:scale-[1.02]"
+				>
+					Retry
+				</button>
+				
+				<button
+					onclick={onExit}
+					class="py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl font-bold uppercase tracking-widest transition hover:scale-[1.02]"
+				>
+					Exit
+				</button>
+			</div>
 		</div>
 	</div>
 </div>
-
-<style>
-	.overlay-container {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		background-color: rgba(0, 0, 0, 0.85); /* Darker overlay */
-		z-index: 1000;
-		color: white;
-		animation: fadeIn 0.3s ease-out;
-	}
-
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
-
-	.pause-box {
-		background-color: rgba(30, 30, 50, 0.95); /* Slightly different from summary */
-		padding: 30px 40px;
-		border-radius: 15px;
-		text-align: center;
-		box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
-		border: 1px solid rgba(120, 120, 220, 0.7);
-		min-width: 300px;
-	}
-
-	.pause-title {
-		font-size: 2.5rem;
-		margin-bottom: 25px;
-		color: #60a5fa; /* A blueish accent for pause */
-	}
-
-	.settings-section {
-		margin: 20px 0;
-		text-align: left;
-	}
-
-	.section-title {
-		font-size: 1.2rem;
-		color: #93c5fd;
-		margin-bottom: 15px;
-		border-bottom: 1px solid rgba(120, 120, 220, 0.3);
-		padding-bottom: 8px;
-	}
-
-	.volume-controls {
-		display: flex;
-		flex-direction: column;
-		gap: 15px;
-	}
-
-	.volume-control {
-		display: flex;
-		flex-direction: column;
-		gap: 5px;
-	}
-
-	.volume-control label {
-		font-size: 0.9rem;
-		color: #e2e8f0;
-	}
-
-	.volume-slider {
-		width: 100%;
-		height: 6px;
-		background: rgba(120, 120, 220, 0.3);
-		border-radius: 3px;
-		outline: none;
-		appearance: none;
-	}
-
-	.volume-slider::-webkit-slider-thumb {
-		appearance: none;
-		width: 16px;
-		height: 16px;
-		background: #60a5fa;
-		border-radius: 50%;
-		cursor: pointer;
-		transition: background 0.2s;
-	}
-
-	.volume-slider::-webkit-slider-thumb:hover {
-		background: #93c5fd;
-	}
-
-	.pause-buttons {
-		display: flex;
-		flex-direction: column; /* Stack buttons vertically */
-		gap: 15px; /* Space between buttons */
-		margin-top: 20px;
-	}
-
-	.pause-button {
-		display: block; /* Make buttons take full width of their container (centered by pause-box) */
-		width: 100%;
-		padding: 12px 20px;
-		color: white;
-		text-decoration: none;
-		border-radius: 8px;
-		font-size: 1.1rem;
-		font-weight: bold;
-		transition:
-			background-color 0.3s ease,
-			transform 0.2s ease;
-		border: none;
-		cursor: pointer;
-	}
-
-	.resume-button {
-		background-color: #34d399; /* Green for resume */
-	}
-	.resume-button:hover {
-		background-color: #6ee7b7;
-		transform: translateY(-2px);
-	}
-
-	.retry-button {
-		background-color: #f59e0b; /* Amber for retry */
-	}
-	.retry-button:hover {
-		background-color: #fbbf24;
-		transform: translateY(-2px);
-	}
-
-	.exit-button {
-		background-color: #ef4444; /* Red for exit */
-	}
-	.exit-button:hover {
-		background-color: #f87171;
-		transform: translateY(-2px);
-	}
-</style>

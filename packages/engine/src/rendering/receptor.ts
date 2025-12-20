@@ -20,16 +20,18 @@ export function drawReceptor(
 	}[] = [];
 
 	const redraw = () => {
+		const currentPositions = get(positions);
+		const currentSize = get(size);
+		
 		individualReceptors.forEach((receptor, index) => {
-			const pos = get(positions)[index];
+			const pos = currentPositions[index];
 			if (!pos) return;
 
 			receptor.graphics.x = pos.x;
 			receptor.graphics.y = pos.y;
 
-			const s = get(size);
 			// Match GameNote width (90% of lane)
-			const width = s.width * 0.9;
+			const width = currentSize.width * 0.9;
 			const height = 30; // Match GameNote height approximately
 
 			const laneColor =
@@ -47,8 +49,6 @@ export function drawReceptor(
 
 	get(positions).forEach((pos, index) => {
 		const graphics = new Graphics();
-		// Initial draw handled by redraw() loop or subsequent update, 
-		// but we need to initialize it here to add to container.
 		graphics.x = pos.x;
 		graphics.y = pos.y;
 		graphics.zIndex = 1;
@@ -70,6 +70,7 @@ export function drawReceptor(
 
 			setTimeout(() => {
 				// Revert to default state
+				if (graphics.destroyed) return;
 				graphics
 					.clear()
 					.rect(-width / 2, -height / 2, width, height)
@@ -105,10 +106,16 @@ export function drawReceptor(
 		individualReceptors.push({ graphics, flash, press, release });
 	});
 
-	// Call redraw once to render initial state correctly
+	// Initial draw
 	redraw();
 
+	// Set up subscriptions for reactivity
+	const unsubPositions = positions.subscribe(() => redraw());
+	const unsubSize = size.subscribe(() => redraw());
+
 	const destroy = () => {
+		unsubPositions();
+		unsubSize();
 		parentContainer.removeChild(receptorContainer);
 		receptorContainer.destroy({ children: true });
 	};
@@ -125,15 +132,15 @@ export function drawReceptor(
 export function getReceptorPositions(
 	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>,
 ) {
-	return derived(highwayMetrics, (_metrics) => {
+	return derived(highwayMetrics, (m) => {
 		const positions = [];
-		for (let i = 0; i < get(highwayMetrics).numLanes; i++) {
+		for (let i = 0; i < m.numLanes; i++) {
 			positions.push({
 				x:
-					get(highwayMetrics).x +
-					i * get(highwayMetrics).laneWidth +
-					get(highwayMetrics).laneWidth / 2, // Center of the lane
-				y: get(highwayMetrics).receptorYPosition,
+					m.x +
+					i * m.laneWidth +
+					m.laneWidth / 2, // Center of the lane
+				y: m.receptorYPosition,
 			});
 		}
 		return positions;
@@ -150,10 +157,9 @@ export function getReceptorSize(
 	const highwayWidthProportion = lanes <= 4 ? 0.5 : lanes <= 6 ? 0.6 : 0.75;
 	const totalHighwayWidth = canvasWidth * highwayWidthProportion;
 	const typicalLaneWidth = totalHighwayWidth / lanes;
-	const noteHeight = canvasHeight * DEFAULT_NOTE_HEIGHT_PROPORTION;
 
 	return {
-		width: typicalLaneWidth, // Receptor can be full lane width
-		height: noteHeight * 1.5, // Receptors can be a bit taller than notes
+		width: typicalLaneWidth,
+		height: 30, 
 	};
 }
