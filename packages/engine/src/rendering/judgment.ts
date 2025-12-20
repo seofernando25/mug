@@ -9,57 +9,69 @@ export function drawJudgmentText(
 	centerX: number,
 	yPosition: number,
 ) {
+	const upperText = text.toUpperCase();
+	
+	let glowColor = Colors.JUDGMENTS.PERFECT;
+	if (upperText === "MISS") glowColor = Colors.JUDGMENTS.MISS;
+	else if (upperText === "MEH") glowColor = Colors.JUDGMENTS.MEH;
+	else if (upperText === "GOOD") glowColor = Colors.JUDGMENTS.GOOD;
+	else if (upperText === "EXCELLENT") glowColor = Colors.JUDGMENTS.EXCELLENT;
+
 	const style = new TextStyle({
-		fontFamily: "Arial",
-		fontSize: 48, // Increased font size for visibility
-		fontWeight: "bold",
-		fill: text === "Miss" ? Colors.JUDGMENT_MISS : Colors.JUDGMENT_HIT,
-		stroke: { color: "#000000", width: 4 }, // Thicker stroke
+		fontFamily: ["Inter", "Helvetica", "Arial", "sans-serif"],
+		fontSize: 64, 
+		fontWeight: "900",
+		fontStyle: "italic",
+		fill: "#ffffff", // Pure white text like combo number
 		align: "center",
+		letterSpacing: -3,
 		dropShadow: {
-			color: "#000000",
-			blur: 4,
-			angle: Math.PI / 6,
-			distance: 6,
+			color: glowColor,
+			blur: 15,
+			alpha: 0.8,
+			angle: 0,
+			distance: 0,
 		},
 	});
 
-	const judgmentText = new Text({ text, style }) as JudgmentText;
+	const judgmentText = new Text({ text: upperText, style }) as JudgmentText;
 	judgmentText.anchor.set(0.5, 0.5);
 
 	judgmentText.x = centerX;
 	judgmentText.y = yPosition;
 	judgmentText.alpha = 1;
-	judgmentText.scale.set(0.5); // Start small for pop-in effect
+	judgmentText.scale.set(0.8); // Start slightly smaller
 	judgmentText.creationTime = app.ticker.lastTime;
 	parentContainer.addChild(judgmentText);
 
-	const animationDuration = 500; // ms
+	const animationDuration = 500; 
 	let currentAnimationTime = 0;
 
 	judgmentText.updateAnimation = function (deltaMs: number) {
 		currentAnimationTime += deltaMs;
 		const progress = Math.min(1, currentAnimationTime / animationDuration);
 
-		// Pop in effect
-		if (progress < 0.2) {
-			const popProgress = progress / 0.2;
-			const scale = 0.5 + 0.7 * Math.sin(popProgress * Math.PI); // Bounce to 1.2
+		// Fast Pop (matching .animate-pop feel)
+		if (progress < 0.1) {
+			const popProgress = progress / 0.1;
+			const scale = 0.8 + 0.3 * popProgress; // Scale from 0.8 to 1.1
+			this.scale.set(scale);
+		} else if (progress < 0.2) {
+			const settleProgress = (progress - 0.1) / 0.1;
+			const scale = 1.1 - 0.1 * settleProgress; // Settle to 1.0
 			this.scale.set(scale);
 		} else {
 			this.scale.set(1);
 		}
 
-		// Fade out and move up slightly at the end
-		if (progress > 0.5) {
-			const fadeProgress = (progress - 0.5) / 0.5;
+		// Fade out and float up
+		if (progress > 0.4) {
+			const fadeProgress = (progress - 0.4) / 0.6;
 			this.alpha = 1 - fadeProgress;
-			this.y = yPosition - fadeProgress * 20;
+			this.y = yPosition - fadeProgress * 30;
 		}
-
-		// TODO: remove from parent and destroy when animation is complete
-		// handled by renderer
 	};
 
 	return judgmentText;
 }
+

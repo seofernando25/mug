@@ -33,20 +33,32 @@ export class HoldNote extends GameNote {
 
 	protected _createOrUpdateHoldPartsGraphics() {
 		const noteVisualWidth = this.laneWidth * 0.9;
-		const laneNoteColor =
+		let laneNoteColor =
 			Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
+
+		const shouldDesaturate = this.isBroken || this.isSatisfied;
+
+		if (shouldDesaturate) {
+			laneNoteColor = 0x666666; // Gray out
+		}
 
 		this.bodyGraphics.clear();
 		// Body slightly narrower than the head for visual distinction
 		const bodyWidth = noteVisualWidth * 0.8;
 		this.bodyGraphics
 			.rect(-bodyWidth / 2, 0, bodyWidth, 1)
-			.fill({ color: laneNoteColor, alpha: 0.8 }); // Semi-transparent body
+			.fill({ color: laneNoteColor, alpha: shouldDesaturate ? 0.4 : 0.8 }); 
 
 		this.tailGraphics.clear();
 		const tailHeight = 30; // Match head height
 		// Tail is a rectangle at the end
 		this.tailGraphics
+			.rect(-noteVisualWidth / 2, -tailHeight / 2, noteVisualWidth, tailHeight)
+			.fill({ color: laneNoteColor });
+
+		// Also update head color
+		this.headGraphics.clear();
+		this.headGraphics
 			.rect(-noteVisualWidth / 2, -tailHeight / 2, noteVisualWidth, tailHeight)
 			.fill({ color: laneNoteColor });
 	}
@@ -108,6 +120,12 @@ export class HoldNote extends GameNote {
 		editorViewCenterTimeMs: number, // New: Editor viewport center time
 		editorPixelsPerSecond: number, // New: Editor zoom level
 	) {
+		// If satisfied (perfect finish), hide it as if it were a properly hit tap note.
+		if (this.isSatisfied && !isEditorMode) {
+			this.hide();
+			return;
+		}
+
 		super.reposition(
 			highwayX,
 			songTimeMs,
@@ -150,26 +168,45 @@ export class HoldNote extends GameNote {
 			this.headGraphics.y = currentHeadY; // Update the actual graphic position
 		}
 
+		const shouldDesaturate = this.isBroken;
+		let laneNoteColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
+		const desaturatedColor = 0x666666;
+		
+		if (shouldDesaturate) {
+			laneNoteColor = desaturatedColor;
+		}
+
+		// Update Head Graphics (Color/Alpha)
+		this.headGraphics.clear();
+		const headHeight = 30;
+		const noteVisualWidth = this.laneWidth * 0.9;
+		this.headGraphics
+			.rect(-noteVisualWidth / 2, -headHeight / 2, noteVisualWidth, headHeight)
+			.fill({ color: laneNoteColor, alpha: shouldDesaturate ? 0.4 : 1.0 });
+
+		// Update Tail Graphics
 		this.tailGraphics.x = laneCenterX;
 		this.tailGraphics.y = currentTailY;
+		this.tailGraphics.clear();
+		this.tailGraphics
+			.rect(-noteVisualWidth / 2, -headHeight / 2, noteVisualWidth, headHeight)
+			.fill({ color: laneNoteColor, alpha: shouldDesaturate ? 0.4 : 1.0 });
 
+		// Update Body Graphics
 		this.bodyGraphics.x = laneCenterX;
-
 		const topY = Math.min(currentHeadY, currentTailY);
 		const bottomY = Math.max(currentHeadY, currentTailY);
 		const visualBodyHeight = bottomY - topY;
-
 		this.bodyGraphics.y = topY;
 
 		this.bodyGraphics.clear();
 		if (visualBodyHeight > 0 && this.duration > 0) {
-			const noteVisualWidth = this.laneWidth * 0.9;
 			const bodyWidth = noteVisualWidth * 0.8;
 			this.bodyGraphics
 				.rect(-bodyWidth / 2, 0, bodyWidth, visualBodyHeight)
 				.fill({
-					color: Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length],
-					alpha: 0.8,
+					color: laneNoteColor,
+					alpha: shouldDesaturate ? 0.4 : 0.8,
 				});
 		}
 	}

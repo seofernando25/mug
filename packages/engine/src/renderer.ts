@@ -34,7 +34,7 @@ export class GameRenderer {
 	private receptorSize!: Readable<{ width: number; height: number }>;
 	private highway: ReturnType<typeof drawHighway> | null = null;
 	private receptors: ReturnType<typeof drawReceptor> | null = null;
-	private activeJudgments: Set<ReturnType<typeof drawJudgmentText>> = new Set();
+	private activeJudgment: ReturnType<typeof drawJudgmentText> | null = null;
 	private scrollSpeed: number;
 	private initialized = false;
 	private opts: RendererOptions;
@@ -125,7 +125,13 @@ export class GameRenderer {
 			return {
 				...n,
 				isActivelyHeld: n.isHolding,
-			} as ChartHitObject & { isActivelyHeld?: boolean };
+				holdBroken: n.holdBroken,
+				holdSatisfied: n.holdSatisfied,
+			} as ChartHitObject & { 
+				isActivelyHeld?: boolean; 
+				holdBroken?: boolean; 
+				holdSatisfied?: boolean 
+			};
 		});
 
 		updateNotes(
@@ -144,14 +150,14 @@ export class GameRenderer {
 			this.editorPixelsPerSecond, // Pass editor pixels per second (zoom)
 		);
 
-		// Animate and clean up judgment texts
-		for (const jt of this.activeJudgments) {
-			jt.updateAnimation(deltaMs);
+		// Animate and clean up single judgment text
+		if (this.activeJudgment) {
+			this.activeJudgment.updateAnimation(deltaMs);
 			// Fallback absolute lifetime of 800ms
-			if (jt.alpha <= 0.01 || jt.creationTime + 800 <= timeMs) {
-				jt.parent?.removeChild(jt);
-				jt.destroy();
-				this.activeJudgments.delete(jt);
+			if (this.activeJudgment.alpha <= 0.01) {
+				this.activeJudgment.parent?.removeChild(this.activeJudgment);
+				this.activeJudgment.destroy();
+				this.activeJudgment = null;
 			}
 		}
 	}
@@ -164,18 +170,25 @@ export class GameRenderer {
 
 	showJudgment(lane: number, judgment: string, _color?: number) {
 		const metrics = get(this.highwayMetricsStore);
+		
+		// Destroy previous judgment if it exists to override
+		if (this.activeJudgment) {
+			this.activeJudgment.parent?.removeChild(this.activeJudgment);
+			this.activeJudgment.destroy();
+			this.activeJudgment = null;
+		}
+
 		// Center on highway, slightly above receptors
 		const centerX = metrics.x + metrics.width / 2;
 		const yPos = metrics.receptorYPosition - metrics.height * 0.1; // 10% up from receptors
 
-		const text = drawJudgmentText(
+		this.activeJudgment = drawJudgmentText(
 			this.app,
 			this.mainContainer,
 			judgment,
 			centerX,
 			yPos,
 		);
-		this.activeJudgments.add(text);
 	}
 
 	handleResize(songTimeMs?: number) {

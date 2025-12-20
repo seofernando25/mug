@@ -128,7 +128,7 @@ async function handleLogin(event: Event) {
 				<button
 					type="submit"
 					disabled={isLoading}
-					class="w-full py-5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl font-black text-xl italic tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-[1.02] hover:shadow-pink-500/40 transition active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:hover:scale-100"
+					class="w-full py-5 bg-linear-to-r from-pink-600 to-purple-600 rounded-2xl font-black text-xl italic tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-[1.02] hover:shadow-pink-500/40 transition active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:hover:scale-100"
 				>
 					{isLoading ? 'INITIALIZING...' : 'SIGN IN'}
 				</button>

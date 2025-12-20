@@ -1,5 +1,6 @@
 <script lang="ts">
-import GameResultsDisplay from "$lib/components/game/GameResultsDisplay.svelte";
+import { fade, fly, scale } from "svelte/transition";
+import { backOut, cubicOut } from "svelte/easing";
 
 const {
 	score,
@@ -10,115 +11,80 @@ const {
 	onRetry = () => {},
 	onExit = () => {},
 	isMultiplayer = false,
-}: {
-	score: number;
-	maxCombo: number;
-	songTitle?: string;
-	artist?: string;
-	difficultyName?: string;
-	onRetry?: () => void;
-	onExit?: () => void;
-	isMultiplayer?: boolean;
 } = $props();
+
+const formattedScore = $derived(score.toLocaleString().padStart(7, '0'));
 </script>
 
-<div class="overlay-container summary-overlay">
-	<div class="summary-box">
-		<h2 class="summary-title">{songTitle ? songTitle : 'Song Cleared!'}</h2>
-		<GameResultsDisplay
-			score={score}
-			maxCombo={maxCombo}
-			songTitle={songTitle}
-			artist={artist}
-			difficultyName={difficultyName}
-		/>
-		<div class="summary-buttons">
+<div 
+	class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
+	in:fade={{ duration: 400 }}
+>
+	<div 
+		class="w-full max-w-2xl bg-black/40 backdrop-blur-xl border border-white/5 rounded-[40px] shadow-2xl overflow-hidden flex flex-col"
+		in:fly={{ y: 40, duration: 600, easing: backOut }}
+	>
+		<!-- Header Section -->
+		<div class="p-10 pb-6 text-center space-y-2">
+			<span class="text-[10px] font-black uppercase tracking-[0.5em] text-cyan-400">SESSION COMPLETE</span>
+			<h1 class="text-6xl font-black italic tracking-tighter text-white drop-shadow-2xl">
+				RESULTS<span class="text-purple-500">.</span>
+			</h1>
+		</div>
+
+		<!-- Song Info Bar -->
+		<div class="px-10 py-4 bg-white/5 border-y border-white/5 flex justify-between items-center">
+			<div class="flex flex-col text-left">
+				<span class="text-xl font-black italic text-white leading-tight">{songTitle}</span>
+				<span class="text-xs font-bold text-gray-500 italic uppercase tracking-wider">{artist}</span>
+			</div>
+			<div class="px-3 py-1 rounded bg-purple-500/20 border border-purple-500/40">
+				<span class="text-[10px] font-black uppercase tracking-widest text-purple-300">
+					{difficultyName}
+				</span>
+			</div>
+		</div>
+
+		<!-- Stats Grid -->
+		<div class="p-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+			<!-- Score -->
+			<div class="space-y-1">
+				<span class="text-[10px] font-black uppercase tracking-widest text-gray-500">TOTAL SCORE</span>
+				<div class="text-5xl font-black italic tracking-tighter text-white tabular-nums drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+					{formattedScore}
+				</div>
+			</div>
+
+			<!-- Max Combo -->
+			<div class="space-y-1">
+				<span class="text-[10px] font-black uppercase tracking-widest text-gray-500">MAX COMBO</span>
+				<div class="text-5xl font-black italic tracking-tighter text-pink-500 tabular-nums drop-shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+					{maxCombo}<span class="text-xl ml-1 not-italic opacity-50 font-black text-white">x</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Action Footer -->
+		<div class="p-10 pt-0 flex flex-col sm:flex-row gap-4">
 			{#if !isMultiplayer}
-			<button onclick={onRetry} class="summary-button retry-button">Retry</button>
+				<button 
+					onclick={onRetry} 
+					class="flex-1 py-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-black text-xl italic tracking-widest text-white transition-all active:scale-[0.98]"
+				>
+					RETRY
+				</button>
 			{/if}
-			<button onclick={onExit} class="summary-button exit-button">Exit to Menu</button>
+			
+			<button 
+				onclick={onExit} 
+				class="flex-[1.5] py-5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl font-black text-xl italic tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-[1.02] hover:shadow-pink-500/40 transition-all active:scale-[0.98]"
+			>
+				FINISH SESSION
+			</button>
 		</div>
 	</div>
 </div>
 
 <style>
-	.overlay-container {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		background-color: rgba(0, 0, 0, 0.85);
-		z-index: 100; /* Ensure it's above the game canvas */
-		color: white;
-		animation: fadeIn 0.5s ease-out;
-	}
-
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
-
-	.summary-box {
-		background-color: rgba(20, 20, 40, 0.9);
-		padding: 30px 40px;
-		border-radius: 15px;
-		text-align: center;
-		box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-		border: 1px solid rgba(100, 100, 200, 0.7);
-		min-width: 300px;
-	}
-
-	.summary-title {
-		font-size: 2.2rem; /* Adjusted */
-		margin-bottom: 10px; /* Adjusted */
-		color: #40c9ff;
-	}
-
-	.summary-buttons {
-		display: flex;
-		justify-content: center; /* Spaced out buttons */
-		gap: 20px; /* Space between buttons */
-		margin-top: 25px; /* Adjusted */
-	}
-
-	.summary-button {
-		display: inline-block;
-		padding: 10px 20px; /* Adjusted */
-		color: white;
-		text-decoration: none;
-		border-radius: 8px;
-		font-size: 1rem; /* Adjusted */
-		font-weight: bold;
-		transition:
-			background-color 0.3s ease,
-			transform 0.2s ease;
-		border: none;
-		cursor: pointer;
-	}
-
-	.retry-button {
-		background-color: #40c9ff;
-		color: black;
-	}
-	.retry-button:hover {
-		background-color: #60daff;
-		transform: translateY(-2px);
-	}
-
-	.exit-button {
-		background-color: #ff4081;
-		color: white;
-	}
-	.exit-button:hover {
-		background-color: #ff60a1;
-		transform: translateY(-2px);
-	}
+	/* Custom styles if needed, but Tailwind handles most of it */
 </style>

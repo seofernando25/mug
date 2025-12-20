@@ -17,7 +17,7 @@ export function updateNotes(
 	scrollSpeed: number,
 	canvasHeight: number,
 	visibleOrUpcomingHitObjects: Array<
-		ChartHitObject & { isActivelyHeld?: boolean }
+		ChartHitObject & { isActivelyHeld?: boolean; holdBroken?: boolean; holdSatisfied?: boolean }
 	>,
 	judgedNoteIds: ReadonlySet<number>,
 	isEditorMode: boolean, // New: Editor mode flag
@@ -44,6 +44,17 @@ export function updateNotes(
 			if (!activeNote) return;
 			activeNote.isJudged = true;
 			activeNote.isActivelyHeld = noteData.isActivelyHeld ?? false;
+			
+			const wasBroken = activeNote.isBroken;
+			activeNote.isBroken = noteData.holdBroken ?? false;
+			activeNote.isSatisfied = noteData.holdSatisfied ?? false;
+
+			if (activeNote instanceof HoldNote && activeNote.isBroken && !wasBroken) {
+				// Re-create graphics to apply gray-out
+				// We don't have a public method but we can call reposition which will clear and redraw
+				// Or we can add a method. For now reposition in HoldNote handles it via clear()
+			}
+
 			if (activeNote.note_type === "tap") {
 				notePool.releaseNote(activeNote);
 			} else if (activeNote instanceof HoldNote) {
@@ -80,6 +91,9 @@ export function updateNotes(
 				activeNote = notePool.getNote(noteData);
 			}
 			activeNote.isActivelyHeld = noteData.isActivelyHeld ?? false;
+			activeNote.isBroken = noteData.holdBroken ?? false;
+			activeNote.isSatisfied = noteData.holdSatisfied ?? false;
+
 			activeNote.reposition(
 				highwayX,
 				songTimeMs,

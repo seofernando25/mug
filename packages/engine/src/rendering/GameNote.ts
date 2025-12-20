@@ -13,6 +13,8 @@ export class GameNote {
 	isVisible: boolean = false;
 	isJudged: boolean = false;
 	isActivelyHeld: boolean = false;
+	isBroken: boolean = false;
+	isSatisfied: boolean = false;
 	private prevIsActivelyHeld: boolean = false;
 
 	protected noteData: ChartHitObject;

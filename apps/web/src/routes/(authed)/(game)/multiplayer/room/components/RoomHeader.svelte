@@ -48,8 +48,7 @@ function handleDocumentClick(e: MouseEvent) {
 				<h1 class="text-xl font-black italic text-white tracking-tight">{roomName || "Untitled Room"}</h1>
 				<!-- Room Tags -->
 				<div class="flex gap-1">
-					<span class="text-[10px] font-bold bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30 uppercase tracking-wider">Head-to-head</span>
-					<span class="text-[10px] font-bold bg-gray-700 text-gray-400 px-2 py-0.5 rounded border border-gray-600 uppercase tracking-wider">Host Rotate</span>
+					<span class="text-[10px] font-bold bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30 uppercase tracking-wider">Versus</span>
 				</div>
 			</div>
 			
