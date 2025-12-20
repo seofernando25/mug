@@ -55,7 +55,6 @@
         "@mug/game-logic": "workspace:*",
         "@orpc/client": "^1.12.2",
         "@orpc/server": "^1.12.2",
-        "@pixi/sound": "^6.0.1",
         "@types/uuid": "^11.0.0",
         "arktype": "^2.1.28",
         "better-auth": "^1.4.6",
@@ -327,8 +326,6 @@
     "@oxc-project/types": ["@oxc-project/types@0.71.0", "", {}, "sha512-5CwQ4MI+P4MQbjLWXgNurA+igGwu/opNetIE13LBs9+V93R64MLvDKOOLZIXSzEfovU3Zef3q3GjPnMTgJTn2w=="],
 
     "@pixi/colord": ["@pixi/colord@2.9.6", "", {}, "sha512-nezytU2pw587fQstUu1AsJZDVEynjskwOL+kibwcdxsMBFqPsFFNA7xl0ii/gXuDi6M0xj3mfRJj8pBSc2jCfA=="],
-
-    "@pixi/sound": ["@pixi/sound@6.0.1", "", { "peerDependencies": { "pixi.js": "^8.0.0" } }, "sha512-hpFlQSScAR2L/CsEoIvDi7s1oGsu8y9Zd742Vd3982N+q3IF2vFuIfV9HN4ryjlGnhCT8yBlEgs1gp4G9Rt9TA=="],
 
     "@polka/url": ["@polka/url@1.0.0-next.29", "", {}, "sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww=="],
 

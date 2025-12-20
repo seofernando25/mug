@@ -13,19 +13,19 @@ export default defineConfig({
 	},
 	build: {
 		sourcemap: true,
-		// rollupOptions: {
-		// 	external: (id) => {
-		// 		if ( id === 'pixi.js' || id === '@pixi/sound') {
-		// 			return true;
-		// 		}
-		// 		return false;
-		// 	}
-		// }
+		rollupOptions: {
+			external: ["pixi.js"],
+		},
 	},
-	// ssr: {
-	// 	external: [
-	// 		'pixi.js',
-	// 		'@pixi/sound'
-	// 	]
-	// }
+	ssr: {
+		external: [
+			"@mug/common",
+			"@mug/contract",
+			"@mug/db",
+			"@mug/engine",
+			"@mug/game-logic",
+			"pixi.js",
+		],
+	},
+
 });

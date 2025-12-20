@@ -4,10 +4,7 @@ import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
 import type { ClientSong } from '$lib/types';
 import type { GameChart } from '$lib/types/game';
 import { get } from 'svelte/store';
-import { RhythmEngine, type ChartHitObject } from '@mug/engine';
-import { AudioClock } from '@mug/engine';
-import { GameRenderer } from '@mug/engine';
-import { sound, Sound } from '@pixi/sound';
+import { RhythmEngine, AudioClock, GameRenderer, WebAudioInstance } from '@mug/engine';
 
 export type GamePhase = 'loading' | 'countdown' | 'playing' | 'finished' | 'summary';
 
@@ -18,6 +15,16 @@ export interface GameOptions {
 	 * Used for multiplayer to sync all players before starting.
 	 */
 	manualStart?: boolean;
+}
+
+// Global shared AudioContext
+let globalAudioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+	if (!globalAudioContext) {
+		globalAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+	}
+	return globalAudioContext;
 }
 
 export async function createGame(
@@ -39,14 +46,17 @@ export async function createGame(
 	},
 	options: GameOptions = {}
 ) {
+	const audioContext = getAudioContext();
+
 	// Attempt to resume AudioContext if suspended (common in multiplayer/autoplay scenarios)
-	if (sound.context?.audioContext?.state === 'suspended') {
-		sound.context.audioContext
+	if (audioContext.state === 'suspended') {
+		audioContext
 			.resume()
 			.catch((e: unknown) => console.warn('[MUG] Failed to resume AudioContext:', e));
 	}
 
 	if (chartData.hitObjects.length === 0) console.warn('[MUG] ⚠️ WARNING: Chart has 0 notes!');
+	
 	// 1) Initialize modules
 	const engine = new RhythmEngine(chartData.hitObjects, {
 		timingWindows: {
@@ -58,42 +68,13 @@ export async function createGame(
 		scrollSpeed: chartData.noteScrollSpeed ?? 1.0
 	});
 
-	let soundInstance: Sound | null = null;
-	// preload using the official loaded callback (no any-casting)
-	await new Promise<void>((resolve) => {
-		let isResolved = false;
-
-		const finish = (err: Error | null) => {
-			if (isResolved) return;
-			isResolved = true;
-			if (err) {
-				console.error('[MUG] ❌ Audio Failed to Load:', err);
-			}
-			resolve();
-		};
-
-		soundInstance = Sound.from({
-			url: songData.audioUrl,
-			preload: true,
-			loaded: (err: Error | null) => finish(err)
-		});
-
-		if (soundInstance.isLoaded) {
-			finish(null);
-			return;
-		}
-
-		// Timeout safety valve
-		setTimeout(() => {
-			if (!isResolved) {
-				finish(null);
-			}
-		}, 3000);
-	});
-
-	// Ensure we have a concrete sound instance for the rest of the flow
-	if (!soundInstance) {
-		soundInstance = Sound.from({ url: songData.audioUrl, preload: true });
+	let soundInstance: WebAudioInstance | null = null;
+	
+	try {
+		soundInstance = await WebAudioInstance.fromUrl(audioContext, songData.audioUrl);
+	} catch (err) {
+		console.error('[MUG] ❌ Audio Failed to Load:', err);
+		throw new Error('Failed to load audio');
 	}
 
 	soundInstance.volume = get(masterVolume) * get(musicVolume);

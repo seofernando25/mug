@@ -8,18 +8,7 @@ function installEngineMocks() {
 	// These mocks prevent any external dependencies from affecting the engine
 	mock.module('$app/environment', () => ({}));
 	mock.module('svelte/store', () => ({}));
-	mock.module('@pixi/sound', () => ({
-		Sound: {
-			from: mock(() => ({
-				duration: 100,
-				isLoaded: true,
-				destroy: mock(),
-				play: mock(),
-				stop: mock(),
-				volume: 1
-			}))
-		}
-	}));
+	
 	mock.module('$lib/preferences', () => ({}));
 }
 

@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { GameRenderer, AudioClock } from '@mug/engine';
+	import type { GameRenderer, AudioClock, WebAudioInstance } from '@mug/engine';
 	import type { EditorState } from '$lib/stores/EditorState.svelte';
-	import type { Sound } from '@pixi/sound';
 
 	// Props for the component
 	interface Props {
@@ -16,7 +15,7 @@
 	let gameRenderer: GameRenderer;
 	let audioClock: AudioClock;
 	let animationFrameId: number;
-	let pixiSoundInstance: Sound;
+	let audioInstance: WebAudioInstance;
 	let resizeObserver: ResizeObserver; // Declare at top-level
 
 	// --- Input Handling ---
@@ -45,64 +44,60 @@
 
 		// Dynamically import the engine ONLY on the client
 		(async () => {
-			const { GameRenderer, AudioClock } = await import('@mug/engine');
-			const { Sound } = await import('@pixi/sound');
+			const { GameRenderer, AudioClock, WebAudioInstance } = await import('@mug/engine');
 
-			// Load audio using PixiSound
-			pixiSoundInstance = Sound.from({
-				url: audioUrl,
-				preload: true,
-				autoPlay: false,
-				loop: false,
-				loaded: () => {
-					// Use the loaded callback directly in options
-					audioClock = new AudioClock(pixiSoundInstance);
+			const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+			
+			try {
+				audioInstance = await WebAudioInstance.fromUrl(audioContext, audioUrl);
+				
+				audioClock = new AudioClock(audioInstance);
 
-					// GameRenderer initialization
-					gameRenderer = new GameRenderer({
-						container: containerElement,
-						lanes: editorState.chart.lanes
-					});
+				// GameRenderer initialization
+				gameRenderer = new GameRenderer({
+					container: containerElement,
+					lanes: editorState.chart.lanes
+				});
 
-					gameRenderer.init().then(() => {
-						gameRenderer.setEditorMode(true);
-					});
+				await gameRenderer.init();
+				gameRenderer.setEditorMode(true);
 
-					// Handle container resizing
-					resizeObserver = new ResizeObserver(() => {
-						// Assign here
-						gameRenderer.handleResize();
-					});
-					resizeObserver.observe(containerElement);
+				// Handle container resizing
+				resizeObserver = new ResizeObserver(() => {
+					// Assign here
+					gameRenderer.handleResize();
+				});
+				resizeObserver.observe(containerElement);
 
-					// --- Render Loop ---
-					const animate = () => {
-						// In editor mode, we render based on editorState.scrollTime
-						// The game state for notes would come from editorState.chart.hitObjects
-						// We need to transform ChartHitObject into EngineNote for the renderer
-						const editorGameState = {
-							score: 0,
-							combo: 0,
-							maxCombo: 0,
-							notes: editorState.chart.hitObjects.map((ho) => ({
-								...ho,
-								id: ho.id as number, // Cast Drizzle's serial id to number if needed
-								isHit: false,
-								isMissed: false,
-								isHolding: false,
-								holdSatisfied: false,
-								holdBroken: false
-							}))
-						};
-						gameRenderer.render(editorGameState, editorState.scrollTime);
-						animationFrameId = requestAnimationFrame(animate);
+				// --- Render Loop ---
+				const animate = () => {
+					// In editor mode, we render based on editorState.scrollTime
+					// The game state for notes would come from editorState.chart.hitObjects
+					// We need to transform ChartHitObject into EngineNote for the renderer
+					const editorGameState = {
+						score: 0,
+						combo: 0,
+						maxCombo: 0,
+						notes: editorState.chart.hitObjects.map((ho) => ({
+							...ho,
+							id: ho.id as number, // Cast Drizzle's serial id to number if needed
+							isHit: false,
+							isMissed: false,
+							isHolding: false,
+							holdSatisfied: false,
+							holdBroken: false
+						}))
 					};
+					gameRenderer.render(editorGameState, editorState.scrollTime);
+					animationFrameId = requestAnimationFrame(animate);
+				};
 
-					animate();
+				animate();
 
-					containerElement.addEventListener('wheel', handleWheel, { passive: false });
-				}
-			});
+				containerElement.addEventListener('wheel', handleWheel, { passive: false });
+			} catch (err) {
+				console.error("Failed to initialize editor audio/renderer:", err);
+			}
 		})();
 
 		return () => {
@@ -119,7 +114,7 @@
 			}
 			gameRenderer?.destroy();
 			audioClock?.stop(); // Stop any playback
-			pixiSoundInstance?.destroy(); // Release PixiSound resources
+			audioInstance?.destroy();
 		};
 	});
 </script>

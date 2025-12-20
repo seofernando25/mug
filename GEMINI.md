@@ -7,7 +7,7 @@ MUG is a web-based rhythm game featuring real-time multiplayer capabilities. The
 - **Frontend:** SvelteKit (Svelte 5 Runes) for the web interface.
 - **Backend:** A custom WebSocket server named "Bancho" handles matchmaking and real-time state.
 - **Database:** PostgreSQL with Drizzle ORM and Redis.
-- **Engine:** PixiJS and `@pixi/sound` drive the visual rendering and audio timing.
+- **Engine:** PixiJS  drive the visual rendering and audio timing.
 - **Communication:** ORPC is used for RPC calls, and ArkType handles strict schema validation for WebSocket packets.
 
 ### Architecture & Folder Structure
