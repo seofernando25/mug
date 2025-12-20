@@ -69,10 +69,12 @@ $effect(() => {
 	<!-- Display even if score is 0 -->
 	{#key score}
 		<div class="score-display-container">
-			<p bind:this={scoreDisplayElement} class="score-display">
-				<span class="score-label">SCORE</span>
-				<span class="score-value">{score}</span>
-			</p>
+			<div class="p-4 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg inline-block">
+				<p bind:this={scoreDisplayElement} class="score-display">
+					<span class="score-label">SCORE</span>
+					<span class="score-value">{score}</span>
+				</p>
+			</div>
 		</div>
 	{/key}
 {/if}

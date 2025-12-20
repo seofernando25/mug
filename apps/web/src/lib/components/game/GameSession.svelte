@@ -124,7 +124,7 @@ onMount(() => {
 	};
 
 	const initializeGame = async () => {
-		gameInstance = await createGame(
+		const instance = await createGame(
 			songData,
 			chartData,
 			canvasElement,
@@ -189,6 +189,14 @@ onMount(() => {
 			},
 			{ manualStart: isMultiplayer },
 		);
+
+		// Prevent zombie game instance if component unmounted during creation
+		if (cleanupCalled) {
+			instance.cleanup();
+			return;
+		}
+
+		gameInstance = instance;
 
 		if (!isMultiplayer) {
 			gameInstance.beginGameplaySequence();

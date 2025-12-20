@@ -136,6 +136,7 @@ export async function createGame(
 	let phase: GamePhase = "loading";
 	let isPaused = false;
 	let countdownTimer: ReturnType<typeof setInterval> | null = null;
+	let countdownCount = 3;
 	let rafId = 0;
 	let started = false;
 	let audioFinished = false;
@@ -244,17 +245,13 @@ export async function createGame(
 	};
 
 	// 5) Lifecycle
-	const startSequence = () => {
-		if (started) return;
-		started = true;
-		setPhase("countdown");
-		let count = 3;
-		callbacks.onCountdownUpdate(count);
+	const startCountdownTimer = () => {
+		if (countdownTimer) clearInterval(countdownTimer);
 
 		countdownTimer = setInterval(async () => {
-			count--;
-			callbacks.onCountdownUpdate(count);
-			if (count <= 0) {
+			countdownCount--;
+			callbacks.onCountdownUpdate(countdownCount);
+			if (countdownCount <= 0) {
 				if (countdownTimer) {
 					clearInterval(countdownTimer);
 				}
@@ -266,6 +263,15 @@ export async function createGame(
 				loop();
 			}
 		}, 1000);
+	};
+
+	const startSequence = () => {
+		if (started) return;
+		started = true;
+		setPhase("countdown");
+		countdownCount = 3;
+		callbacks.onCountdownUpdate(countdownCount);
+		startCountdownTimer();
 	};
 
 	const endGame = () => {
@@ -299,11 +305,18 @@ export async function createGame(
 		pauseGame: () => {
 			isPaused = true;
 			clock.pause();
+			if (countdownTimer) {
+				clearInterval(countdownTimer);
+				countdownTimer = null;
+			}
 			console.log("Paused game");
 		},
 		resumeGame: () => {
 			isPaused = false;
 			clock.resume();
+			if (phase === "countdown") {
+				startCountdownTimer();
+			}
 		},
 		handleKeyPress,
 		handleKeyRelease,

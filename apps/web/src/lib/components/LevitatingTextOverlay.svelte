@@ -15,24 +15,24 @@ const titleScale = $derived(1 + 0.02 * Math.sin(beatProgress * Math.PI));
 </script>
 
 <!-- HTML Overlay for Title and Difficulty with Levitate Effect -->
-<div class="fixed top-4 left-4 z-10 p-3 rounded-md bg-black bg-opacity-30 text-overlay-container">
+<div class="fixed top-4 left-4 z-10 p-4 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg text-overlay-container">
 	{#if title || artist}
 		<h1
 			use:levitateText
-			class="title-text text-2xl font-bold mb-1"
+			class="title-text text-2xl font-bold mb-1 text-white drop-shadow-md"
 			style="transform: scale({titleScale});"
 		>
 			{title}{artist ? ` - ${artist}` : ''}
 		</h1>
 	{/if}
 	{#if difficultyName}
-		<p use:levitateText class="difficulty-text text-sm">
-			Difficulty: <span class="font-mono text-purple-300">{difficultyName}</span>
+		<p use:levitateText class="difficulty-text text-sm font-medium text-gray-200">
+			Difficulty: <span class="font-mono text-purple-300 font-bold">{difficultyName}</span>
 		</p>
 	{/if}
 	{#if songTimeMs !== undefined}
-		<p class="time-text text-lg text-gray-400 mt-1">
-			Time: <span class="font-mono text-green-400">{songTimeMs.toFixed(0)} ms</span>
+		<p class="time-text text-lg text-gray-300 mt-2 font-mono">
+			Time: <span class="text-green-400 font-bold">{songTimeMs.toFixed(0)}</span> <span class="text-xs text-gray-500">ms</span>
 		</p>
 	{/if}
 </div>
