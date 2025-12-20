@@ -9,11 +9,24 @@ import SummaryScreen from "$lib/components/SummaryScreen.svelte";
 import ScoreDisplay from "$lib/components/ScoreDisplay.svelte";
 import { createGame, type GamePhase } from "$lib/game/game.client.js";
 import MultiplayerLeaderboard from "$lib/components/game/MultiplayerLeaderboard.svelte";
-import { socketStatus, gameSocket, currentRoomState } from "$lib/network/socket";
+import { socketStatus, gameSocket, currentRoomState, matchState, clearMatchState } from "$lib/network/socket";
+import { authClient } from "$lib/auth-client";
 import { Colors } from "$lib/types/game";
 import { onMount, tick } from "svelte";
 
-const { songData, chartData, callbacks, showMultiplayerLeaderboard = false, canPause = true, isMultiplayer = false, suppressSummaryScreen = false } = $props();
+let { 
+	songData, 
+	chartData, 
+	callbacks, 
+	showMultiplayerLeaderboard = false, 
+	canPause = true, 
+	isMultiplayer = false, 
+	suppressSummaryScreen = false,
+	triggerExit = $bindable()
+} = $props();
+
+const session = authClient.useSession();
+const currentUser = $derived($session.data?.user);
 
 // Multiplayer state
 let isWaitingForPlayers = $state(false);
@@ -129,6 +142,10 @@ onMount(() => {
 
 	initializeGame = async () => {
 		console.log("[GameSession] Initializing game...");
+		
+		// Reset local match state tracking
+		clearMatchState();
+
 		// Cleanup existing instance if any
 		if (gameInstance) {
 			console.log("[GameSession] Cleaning up previous instance");
@@ -173,6 +190,22 @@ onMount(() => {
 						currentComboStore = combo;
 						maxComboSoFarStore = maxCombo;
 						callbacks.onScoreUpdate?.(score, combo, maxCombo);
+
+						// Update own state in multiplayer leaderboard
+						if (isMultiplayer && currentUser) {
+							const displayName = currentUser.username || currentUser.name || `GUEST-${currentUser.id.slice(0, 5).toUpperCase()}`;
+							matchState.update(s => ({
+								...s,
+								[currentUser!.id]: {
+									userId: currentUser!.id,
+									username: displayName,
+									score: score,
+									combo: combo,
+									maxCombo: maxCombo,
+									finished: false
+								}
+							}));
+						}
 					},
 					onNoteHit: (note, judgment) => {
 						if (screenPulseComponent) {
@@ -301,6 +334,11 @@ function handleExit() {
 	}
 	callbacks.onExit();
 }
+
+// Assign the internal handleExit to the bindable prop so parent can call it
+$effect(() => {
+	triggerExit = handleExit;
+});
 </script>
 
 <div

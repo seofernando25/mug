@@ -176,6 +176,7 @@ onMount(() => {
 
 	const unsubRoom = currentRoomState.subscribe((state) => {
 		if (state && state.id === roomId) {
+			const oldStatus = roomDetails?.status;
 			roomDetails = { ...state, players: state.players ?? [] };
 
 			// Handle countdown logic
@@ -196,9 +197,14 @@ onMount(() => {
 				updateCountdown();
 			}
 
-			// Handle game start - navigate when loading phase begins
-			// Players will load audio and send client_ready, then countdown starts
-			if (state.status === "loading" || state.status === "playing") {
+			// If we just finished a match and returned to lobby, resync time
+			if (state.status === "idle" && oldStatus !== "idle" && oldStatus !== undefined) {
+				syncTimeWithServer();
+			}
+
+			// Handle game start - ONLY navigate when the loading phase begins
+			// This prevents players who forfeit or join late from being stuck in a redirect loop
+			if (state.status === "loading") {
 				goto(`/multiplayer/game/${roomId}`);
 			}
 

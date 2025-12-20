@@ -115,7 +115,14 @@ const ErrorPacket = type({
 const RoomListPacket = type({ op: "'room_list'", data: RoomInfo.array() });
 const RoomEventPacket = type({
 	op: "'room_event'",
-	data: { type: "'add'|'remove'|'update'", "room?": RoomInfo, "id?": "string" },
+	data: { 
+		type: "'add'|'remove'|'update'|'join'|'leave'", 
+		"room?": RoomInfo, 
+		"id?": "string",
+		"payload?": {
+			"userId?": "string"
+		}
+	},
 });
 const RoomStatePacket = type({
 	op: "'room_state'",

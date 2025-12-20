@@ -28,29 +28,12 @@ const { handleLeaveRoom, isLeaving, isHost, startGame }: Props = $props();
     <!-- Right: Match Control -->
     <div class="flex items-center gap-6">
         {#if isHost}
-            <div class="text-right mr-2 hidden md:block">
-                <div class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Match Settings</div>
-                <div class="text-xs font-bold text-purple-400">HEAD-TO-HEAD • HARD</div>
-            </div>
-
             <button
                 onclick={startGame}
-                class="px-12 py-4 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl font-black text-xl tracking-widest text-white shadow-lg shadow-green-900/20 hover:scale-105 hover:shadow-green-500/30 transition active:scale-95 skew-x-[-10deg]"
+                class="px-12 py-4 bg-linear-to-r from-green-500 to-emerald-600 rounded-xl font-black text-xl tracking-widest text-white shadow-lg shadow-green-900/20 hover:scale-105 hover:shadow-green-500/30 transition active:scale-95 skew-x-[-10deg]"
             >
-                <span class="block skew-x-[10deg]">START MATCH</span>
+                <span class="block skew-x-10">START MATCH</span>
             </button>
-        {:else}
-            <div class="flex items-center gap-4">
-                <div class="text-right">
-                    <div class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Status</div>
-                    <div class="text-xs font-bold text-yellow-400">NOT READY</div>
-                </div>
-                
-                <button class="px-10 py-4 bg-gray-700 hover:bg-green-600 hover:text-white text-gray-400 rounded-xl font-black text-xl tracking-widest transition active:scale-95 skew-x-[-10deg] group">
-                     <span class="block skew-x-[10deg] group-hover:hidden">NOT READY</span>
-                     <span class="hidden skew-x-[10deg] group-hover:block">READY</span>
-                </button>
-            </div>
         {/if}
     </div>
 </div>

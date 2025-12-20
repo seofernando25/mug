@@ -93,6 +93,9 @@ function handleScoreUpdate(score: number, combo: number, maxCombo: number) {
 	});
 }
 
+// Callback reference to trigger exit from GameSession (handles cleanup)
+let triggerExit: (() => void) | undefined = $state();
+
 function handleMatchFinished(finalScore: number, maxCombo: number) {
 	// Notify other players that we finished
 	gameSocket.send("match_finished", {
@@ -100,17 +103,7 @@ function handleMatchFinished(finalScore: number, maxCombo: number) {
 		maxCombo,
 	});
 	console.log("[Multiplayer] Match finished, score:", finalScore);
-
-	// Navigate to a dedicated multiplayer results page
-	goto(`/multiplayer/room/${roomId}/results`, {
-		state: {
-			finalScore,
-			maxCombo,
-			songId: songData?.id, // Pass only song ID
-			chartDifficultyName: chartData?.difficultyName, // Pass only chart difficulty name
-			roomId: roomId ?? undefined, // Pass roomId to fetch full results on the results page
-		},
-	});
+	// No more goto! GameSession will show the summary screen automatically
 }
 
 function handleRetry() {
@@ -119,11 +112,13 @@ function handleRetry() {
 }
 
 function handleExit() {
-	// Leave the room and go back to multiplayer lobby
+	// Return to the room lobby
+	console.log("[Multiplayer] Exiting to room lobby:", roomId);
 	if (roomId) {
-		gameSocket.send("leave_room", { roomId });
+		goto(`/multiplayer/room/${roomId}`);
+	} else {
+		goto("/multiplayer");
 	}
-	goto("/multiplayer");
 }
 
 // Forfeit Logic
@@ -131,14 +126,18 @@ function handleKeyDown(e: KeyboardEvent) {
 	// Only handle if we are in the game
 	if (isLoading || error) return;
 	
-	if (e.key === 'Escape' && !isHoldingEsc) {
-		isHoldingEsc = true;
-		startForfeitTimer();
+	if (e.key === 'Escape') {
+		e.preventDefault(); // Stop browser stop/refresh behaviors
+		if (!isHoldingEsc) {
+			isHoldingEsc = true;
+			startForfeitTimer();
+		}
 	}
 }
 
 function handleKeyUp(e: KeyboardEvent) {
 	if (e.key === 'Escape') {
+		e.preventDefault();
 		isHoldingEsc = false;
 		cancelForfeitTimer();
 	}
@@ -155,7 +154,19 @@ function startForfeitTimer() {
 		forfeitProgress = Math.min((elapsed / duration) * 100, 100);
 
 		if (forfeitProgress >= 100) {
-			handleExit();
+			console.log("[Multiplayer] Forfeit triggered");
+			// Notify server we finished (with current score)
+			gameSocket.send("match_finished", {
+				score: 0, // Forfeit = 0 score? Or keep current? 0 is safer for forfeit
+				maxCombo: 0,
+			});
+			
+			// Use the callback from GameSession to ensure Pixi cleanup happens
+			if (triggerExit) {
+				triggerExit();
+			} else {
+				handleExit();
+			}
 		} else {
 			forfeitAnimationFrame = requestAnimationFrame(animate);
 		}
@@ -201,10 +212,10 @@ function cancelForfeitTimer() {
 	<GameSession
 		{songData}
 		{chartData}
+		bind:triggerExit
 		showMultiplayerLeaderboard={true}
 		canPause={false}
 		isMultiplayer={true}
-		suppressSummaryScreen={true}
 		callbacks={{
 			onScoreUpdate: handleScoreUpdate,
 			onMatchFinished: handleMatchFinished,

@@ -56,6 +56,10 @@ export interface PeerState {
 // Map<userId, PeerState>
 export const matchState = writable<Record<string, PeerState>>({});
 
+export function clearMatchState() {
+	matchState.set({});
+}
+
 class GameSocket {
 	private ws: WebSocket | null = null;
 	private shouldReconnect = true;
@@ -194,10 +198,16 @@ class GameSocket {
 				break;
 			}
 			case "room_event": {
-				const ev = (packet.data ?? packet) as {
-					type?: string;
-					room?: RoomSummary;
-				};
+				const ev = packet.data;
+				if (ev.type === "leave" && ev.payload?.userId) {
+					const leftUserId = ev.payload.userId;
+					matchState.update(s => {
+						const next = { ...s };
+						delete next[leftUserId];
+						return next;
+					});
+				}
+
 				lobbyRooms.update((rooms) => {
 					if (!ev || !ev.type) return rooms;
 					switch (ev.type) {

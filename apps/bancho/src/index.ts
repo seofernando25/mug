@@ -51,11 +51,14 @@ const server = Bun.serve<PlayerData>({
 			return new Response("Invalid session", { status: 403 });
 		}
 
+		// Fallback for guest usernames: use username, or name, or GUEST-ID
+		const displayName = session.user.username || session.user.name || `GUEST-${session.user.id.slice(0, 5).toUpperCase()}`;
+
 		const success = srv.upgrade(req, {
 			data: {
 				user: {
 					id: session.user.id,
-					username: session.user.username ?? session.user.name,
+					username: displayName,
 				},
 			},
 		});
