@@ -6,7 +6,7 @@ import { fly } from "svelte/transition";
 $: leaderboard = Object.values($matchState).sort((a, b) => b.score - a.score);
 </script>
 
-<div class="absolute top-20 left-4 w-64 flex flex-col gap-1 pointer-events-none">
+<div class="absolute top-1/2 -translate-y-1/2 left-4 w-64 flex flex-col gap-1 pointer-events-none">
 	{#each leaderboard as peer, i (peer.userId)}
 		<div
 			transition:fly={{ x: -20, duration: 300 }}
