@@ -19,72 +19,94 @@ export function drawReceptor(
 		release: () => void;
 	}[] = [];
 
-	get(positions).forEach((pos, _index) => {
+	const redraw = () => {
+		individualReceptors.forEach((receptor, index) => {
+			const pos = get(positions)[index];
+			if (!pos) return;
+
+			receptor.graphics.x = pos.x;
+			receptor.graphics.y = pos.y;
+
+			const s = get(size);
+			// Match GameNote width (90% of lane)
+			const width = s.width * 0.9;
+			const height = 30; // Match GameNote height approximately
+
+			const laneColor =
+				Colors.LANE_COLORS[index % Colors.LANE_COLORS.length];
+
+			receptor.graphics.clear();
+			
+			// Receptor Frame
+			receptor.graphics
+				.rect(-width / 2, -height / 2, width, height)
+				.stroke({ width: 4, color: laneColor, alpha: 0.5 })
+				.fill({ color: 0x000000, alpha: 0.3 }); // Dark background for contrast
+		});
+	};
+
+	get(positions).forEach((pos, index) => {
 		const graphics = new Graphics();
-		graphics
-			.rect(
-				-get(size).width / 2,
-				-get(size).height / 2,
-				get(size).width,
-				get(size).height,
-			)
-			.fill({ color: "#aaaaaa", alpha: 0.5 });
+		// Initial draw handled by redraw() loop or subsequent update, 
+		// but we need to initialize it here to add to container.
 		graphics.x = pos.x;
 		graphics.y = pos.y;
 		graphics.zIndex = 1;
 		receptorContainer.addChild(graphics);
 
+		const laneColor = Colors.LANE_COLORS[index % Colors.LANE_COLORS.length];
+
 		const flash = () => {
-			graphics.alpha = 1;
+			const s = get(size);
+			const width = s.width * 0.9;
+			const height = 30;
+			
+			// Bright flash on hit
+			graphics
+				.clear()
+				.rect(-width / 2, -height / 2, width, height)
+				.stroke({ width: 4, color: laneColor, alpha: 1 })
+				.fill({ color: laneColor, alpha: 0.6 });
+
 			setTimeout(() => {
-				graphics.alpha = Colors.LANE_BACKGROUND_ALPHA;
+				// Revert to default state
+				graphics
+					.clear()
+					.rect(-width / 2, -height / 2, width, height)
+					.stroke({ width: 4, color: laneColor, alpha: 0.5 })
+					.fill({ color: 0x000000, alpha: 0.3 });
 			}, 100);
 		};
+
 		const press = () => {
+			const s = get(size);
+			const width = s.width * 0.9;
+			const height = 30;
+			// Pressed state (held down)
 			graphics
 				.clear()
-				.rect(
-					-get(size).width / 2,
-					-get(size).height / 2,
-					get(size).width,
-					get(size).height,
-				)
-				.fill({ color: "#aaaaaa", alpha: 0.5 });
+				.rect(-width / 2, -height / 2, width * 0.95, height * 0.95) // Slight shrink effect
+				.stroke({ width: 4, color: laneColor, alpha: 1 })
+				.fill({ color: laneColor, alpha: 0.4 });
 		};
+
 		const release = () => {
+			const s = get(size);
+			const width = s.width * 0.9;
+			const height = 30;
+			// Back to default
 			graphics
 				.clear()
-				.rect(
-					-get(size).width / 2,
-					-get(size).height / 2,
-					get(size).width,
-					get(size).height,
-				)
-				.fill({ color: "#aaaaaa", alpha: 0.3 });
+				.rect(-width / 2, -height / 2, width, height)
+				.stroke({ width: 4, color: laneColor, alpha: 0.5 })
+				.fill({ color: 0x000000, alpha: 0.3 });
 		};
 
 		individualReceptors.push({ graphics, flash, press, release });
 	});
 
-	const redraw = () => {
-		individualReceptors.forEach((receptor, index) => {
-			receptor.graphics.x = get(positions)[index].x;
-			receptor.graphics.y = get(positions)[index].y;
-			receptor.graphics
-				.clear()
-				.rect(
-					-get(size).width / 2,
-					-get(size).height / 2,
-					get(size).width,
-					get(size).height,
-				)
-				.fill({
-					color:
-						Colors.LANE_BACKGROUNDS[index % Colors.LANE_BACKGROUNDS.length],
-					alpha: Colors.LANE_BACKGROUND_ALPHA,
-				});
-		});
-	};
+	// Call redraw once to render initial state correctly
+	redraw();
 
 	const destroy = () => {
 		parentContainer.removeChild(receptorContainer);

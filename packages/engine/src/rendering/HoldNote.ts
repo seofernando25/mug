@@ -32,26 +32,30 @@ export class HoldNote extends GameNote {
 	}
 
 	protected _createOrUpdateHoldPartsGraphics() {
-		const noteVisualWidth =
-			this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+		const noteVisualWidth = this.laneWidth * 0.9;
 		const laneNoteColor =
 			Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 
 		this.bodyGraphics.clear();
-		const bodyWidth = noteVisualWidth * 0.5;
+		// Body slightly narrower than the head for visual distinction
+		const bodyWidth = noteVisualWidth * 0.8;
 		this.bodyGraphics
 			.rect(-bodyWidth / 2, 0, bodyWidth, 1)
-			.fill({ color: laneNoteColor });
+			.fill({ color: laneNoteColor, alpha: 0.8 }); // Semi-transparent body
 
 		this.tailGraphics.clear();
-		const noteRadius = noteVisualWidth / 2;
-		this.tailGraphics.circle(0, 0, noteRadius).fill({ color: laneNoteColor });
+		const tailHeight = 30; // Match head height
+		// Tail is a rectangle at the end
+		this.tailGraphics
+			.rect(-noteVisualWidth / 2, -tailHeight / 2, noteVisualWidth, tailHeight)
+			.fill({ color: laneNoteColor });
 	}
 
 	addToStage(stage: Container) {
-		super.addToStage(stage);
+		// Add body and tail BEFORE head so head is on top
 		if (!this.bodyGraphics.parent) stage.addChild(this.bodyGraphics);
 		if (!this.tailGraphics.parent) stage.addChild(this.tailGraphics);
+		super.addToStage(stage);
 	}
 
 	removeFromStage() {
@@ -159,13 +163,13 @@ export class HoldNote extends GameNote {
 
 		this.bodyGraphics.clear();
 		if (visualBodyHeight > 0 && this.duration > 0) {
-			const noteVisualWidthForBody =
-				this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-			const bodyRectWidth = noteVisualWidthForBody * 0.5;
+			const noteVisualWidth = this.laneWidth * 0.9;
+			const bodyWidth = noteVisualWidth * 0.8;
 			this.bodyGraphics
-				.rect(-bodyRectWidth / 2, 0, bodyRectWidth, visualBodyHeight)
+				.rect(-bodyWidth / 2, 0, bodyWidth, visualBodyHeight)
 				.fill({
 					color: Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length],
+					alpha: 0.8,
 				});
 		}
 	}

@@ -6,31 +6,34 @@ export function drawJudgmentText(
 	app: Application,
 	parentContainer: Container,
 	text: string,
-	lane: number,
-	highwayStartX: number,
-	laneWidth: number,
+	centerX: number,
 	yPosition: number,
 ) {
 	const style = new TextStyle({
 		fontFamily: "Arial",
-		fontSize: 36,
+		fontSize: 48, // Increased font size for visibility
+		fontWeight: "bold",
 		fill: text === "Miss" ? Colors.JUDGMENT_MISS : Colors.JUDGMENT_HIT,
-		stroke: { color: "#000000", width: 2 },
+		stroke: { color: "#000000", width: 4 }, // Thicker stroke
 		align: "center",
+		dropShadow: {
+			color: "#000000",
+			blur: 4,
+			angle: Math.PI / 6,
+			distance: 6,
+		},
 	});
 
 	const judgmentText = new Text({ text, style }) as JudgmentText;
 	judgmentText.anchor.set(0.5, 0.5);
 
-	const laneCenterX = highwayStartX + lane * laneWidth + laneWidth / 2;
-	judgmentText.x = laneCenterX;
+	judgmentText.x = centerX;
 	judgmentText.y = yPosition;
 	judgmentText.alpha = 1;
+	judgmentText.scale.set(0.5); // Start small for pop-in effect
 	judgmentText.creationTime = app.ticker.lastTime;
-	judgmentText.lane = lane;
 	parentContainer.addChild(judgmentText);
 
-	const initialY = judgmentText.y;
 	const animationDuration = 500; // ms
 	let currentAnimationTime = 0;
 
@@ -38,16 +41,24 @@ export function drawJudgmentText(
 		currentAnimationTime += deltaMs;
 		const progress = Math.min(1, currentAnimationTime / animationDuration);
 
-		this.y = initialY - progress * 30; // Moves up by 30 pixels
-		this.alpha = 1 - progress; // Fades out
+		// Pop in effect
+		if (progress < 0.2) {
+			const popProgress = progress / 0.2;
+			const scale = 0.5 + 0.7 * Math.sin(popProgress * Math.PI); // Bounce to 1.2
+			this.scale.set(scale);
+		} else {
+			this.scale.set(1);
+		}
+
+		// Fade out and move up slightly at the end
+		if (progress > 0.5) {
+			const fadeProgress = (progress - 0.5) / 0.5;
+			this.alpha = 1 - fadeProgress;
+			this.y = yPosition - fadeProgress * 20;
+		}
 
 		// TODO: remove from parent and destroy when animation is complete
-		// if (progress >= 1) {
-		//     if (this.parent) {
-		//         this.parent.removeChild(this);
-		//     }
-		//     this.destroy();
-		// }
+		// handled by renderer
 	};
 
 	return judgmentText;

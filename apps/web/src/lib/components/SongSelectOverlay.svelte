@@ -121,7 +121,7 @@ function handleSearchChange(term: string) {
 <svelte:window onkeydown={handleKeydown} />
 
 <!-- Hidden Audio Element -->
-<audio bind:this={audioElement} loop />
+<audio bind:this={audioElement} loop></audio>
 
 {#if isOpen}
 	<div

@@ -34,10 +34,7 @@ export class GameRenderer {
 	private receptorSize!: Readable<{ width: number; height: number }>;
 	private highway: ReturnType<typeof drawHighway> | null = null;
 	private receptors: ReturnType<typeof drawReceptor> | null = null;
-	private judgmentTextsByLane: Record<
-		number,
-		ReturnType<typeof drawJudgmentText> | null
-	> = {};
+	private activeJudgments: Set<ReturnType<typeof drawJudgmentText>> = new Set();
 	private scrollSpeed: number;
 	private initialized = false;
 	private opts: RendererOptions;
@@ -146,16 +143,13 @@ export class GameRenderer {
 		);
 
 		// Animate and clean up judgment texts
-		for (const laneKey of Object.keys(this.judgmentTextsByLane)) {
-			const lane = Number(laneKey);
-			const jt = this.judgmentTextsByLane[lane];
-			if (!jt) continue;
+		for (const jt of this.activeJudgments) {
 			jt.updateAnimation(deltaMs);
-			// Fallback absolute lifetime of 800ms even if alpha doesn't reach 0 (safety)
+			// Fallback absolute lifetime of 800ms
 			if (jt.alpha <= 0.01 || jt.creationTime + 800 <= timeMs) {
 				jt.parent?.removeChild(jt);
 				jt.destroy();
-				this.judgmentTextsByLane[lane] = null;
+				this.activeJudgments.delete(jt);
 			}
 		}
 	}
@@ -167,26 +161,19 @@ export class GameRenderer {
 	}
 
 	showJudgment(lane: number, judgment: string, _color?: number) {
-		const rp = get(this.receptorPositions);
 		const metrics = get(this.highwayMetricsStore);
-		const yPos = rp?.[lane]?.y ?? 0;
-		// Clean up any existing judgment on this lane before drawing a new one
-		const existing = this.judgmentTextsByLane[lane];
-		if (existing) {
-			existing.parent?.removeChild(existing);
-			existing.destroy();
-			this.judgmentTextsByLane[lane] = null;
-		}
+		// Center on highway, slightly above receptors
+		const centerX = metrics.x + metrics.width / 2;
+		const yPos = metrics.receptorYPosition - metrics.height * 0.1; // 10% up from receptors
+
 		const text = drawJudgmentText(
 			this.app,
 			this.mainContainer,
 			judgment,
-			lane,
-			metrics?.x ?? 0,
-			metrics?.laneWidth ?? 0,
+			centerX,
 			yPos,
 		);
-		this.judgmentTextsByLane[lane] = text;
+		this.activeJudgments.add(text);
 	}
 
 	handleResize(songTimeMs?: number) {

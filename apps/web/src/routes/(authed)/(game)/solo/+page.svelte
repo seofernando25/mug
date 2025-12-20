@@ -7,6 +7,7 @@ import SongWheel, { type SongWheelItem } from "$lib/components/song-select/SongW
 import SongDetailPanel from "./SongDetailPanel.svelte";
 import BottomBar from "$lib/components/BottomBar.svelte";
 import type { SongListItem } from "./types";
+import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
 
 let allSongs = $state<SongListItem[]>([]);
 let currentError = $state<string | null>(null);
@@ -49,6 +50,8 @@ $effect(() => {
 			audioElement.currentTime = startMs > 0 ? startMs / 1000 : 0;
 			audioElement.volume = 0; // Start silent for fade in
 			
+			const targetVolume = $masterVolume * $musicVolume * 0.3; // 0.3 is base preview volume factor
+
 			const playPromise = audioElement.play();
 			if (playPromise !== undefined) {
 				playPromise
@@ -60,10 +63,9 @@ $effect(() => {
 								clearInterval(fadeInterval);
 								return;
 							}
-							vol += 0.05;
-							if (vol >= 0.3) { // Target volume
-								vol = 0.3;
-								audioElement.volume = vol;
+							vol +=  targetVolume;
+							if (vol >= targetVolume) {
+								audioElement.volume = targetVolume;
 								clearInterval(fadeInterval);
 							} else {
 								audioElement.volume = vol;
@@ -125,7 +127,7 @@ function handleSearchChange(term: string) {
 </svelte:head>
 
 <!-- Hidden Audio Element for Preview -->
-<audio bind:this={audioElement} loop />
+<audio bind:this={audioElement} loop></audio>
 
 <div class="fixed inset-0 flex overflow-hidden bg-gray-900 text-white font-sans select-none">
 	<!-- Dynamic Background -->
@@ -135,7 +137,7 @@ function handleSearchChange(term: string) {
 			style="background-image: url({selectedSong?.imageUrl}); filter: blur(24px) brightness(0.3);"
 			transition:fade={{ duration: 500 }}
 		></div>
-		<div class="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/80 to-transparent"></div>
+		<div class="absolute inset-0 bg-linear-to-r from-gray-900 via-gray-900/80 to-transparent"></div>
 	{/key}
 
 	{#if isLoadingSongs}
@@ -210,7 +212,7 @@ function handleSearchChange(term: string) {
 						handleSongConfirm(songItem);
 					}
 				}}
-				class="px-12 py-4 bg-gradient-to-r from-pink-600 to-purple-600 rounded-xl font-black text-xl tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-105 hover:shadow-pink-500/40 transition active:scale-95 disabled:opacity-50 disabled:grayscale"
+				class="px-12 py-4 bg-linear-to-r from-pink-600 to-purple-600 rounded-xl font-black text-xl tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-105 hover:shadow-pink-500/40 transition active:scale-95 disabled:opacity-50 disabled:grayscale"
 				disabled={!selectedSong}
 			>
 				PLAY

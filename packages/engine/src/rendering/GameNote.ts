@@ -35,13 +35,15 @@ export class GameNote {
 	}
 
 	protected _createOrUpdateHeadGraphics() {
-		const noteVisualWidth =
-			this.laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
-		const noteRadius = (3 * noteVisualWidth) / 4;
+		const noteVisualWidth = this.laneWidth * 0.9;
+		const noteHeight = 30; // Fixed height for the rectangle
 		const headColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 
 		this.headGraphics.clear();
-		this.headGraphics.circle(0, 0, noteRadius).fill({ color: headColor });
+		// Draw a rectangle centered horizontally
+		this.headGraphics
+			.rect(-noteVisualWidth / 2, -noteHeight / 2, noteVisualWidth, noteHeight)
+			.fill({ color: headColor });
 	}
 
 	addToStage(stage: Container) {
