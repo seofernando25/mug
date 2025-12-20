@@ -84,7 +84,7 @@ export async function installSong(
 	try {
 		await s3.write(audioS3Key, audioContent, { type: audioContentType });
 	} catch (s3Err: unknown) {
-		const errorMessage = (s3Err as Error)?.message || "Unknown S3 error";
+		const errorMessage = s3Err instanceof Error ? s3Err.message : String(s3Err);
 		throw new Error(`Failed to upload audio file to storage: ${errorMessage}`);
 	}
 

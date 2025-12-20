@@ -15,7 +15,11 @@ export default defineConfig({
 		sourcemap: true,
 		rollupOptions: {
 			external: (id) => {
-				if (id === "@mug/engine" || id === "pixi.js" || id === "@pixi/sound") {
+				if (
+					id.startsWith("@mug/") ||
+					id === "pixi.js" ||
+					id === "@pixi/sound"
+				) {
 					return true;
 				}
 				return false;
@@ -23,6 +27,14 @@ export default defineConfig({
 		},
 	},
 	ssr: {
-		external: ["@mug/engine", "pixi.js", "@pixi/sound"],
+		external: [
+			"@mug/common",
+			"@mug/contract",
+			"@mug/db",
+			"@mug/engine",
+			"@mug/game-logic",
+			"pixi.js",
+			"@pixi/sound",
+		],
 	},
 });
