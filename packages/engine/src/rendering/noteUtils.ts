@@ -3,7 +3,7 @@ export function getNoteYPosition(
 	currentTimeMs: number,
 	receptorYPosition: number,
 	speedMultiplier: number, // User's preferred speed setting
-	canvasHeight: number,
+	canvasHeight: number
 ) {
 	const pixelsPerSecondBase = canvasHeight * 0.6; // Travels 60% of screen height per second at 1x
 	const timeDifferenceSeconds = (noteTimeMs - currentTimeMs) / 1000;
@@ -15,7 +15,7 @@ export function getEditorNoteYPosition(
 	noteTimeMs: number,
 	editorViewCenterTimeMs: number,
 	editorPixelsPerSecond: number,
-	canvasHeight: number,
+	canvasHeight: number
 ): number {
 	const centerScreenY = canvasHeight / 2;
 	const timeDifferenceMs = noteTimeMs - editorViewCenterTimeMs;

@@ -1,35 +1,35 @@
 // Test-specific mocks - MUST be before any module imports
-import { mock } from "bun:test";
-import type { ClientSong, ClientChart } from "$lib/types";
+import { mock } from 'bun:test';
+import type { ClientSong, ClientChart } from '$lib/types';
 
 // Mock $app/environment FIRST - before any module that imports it
-mock.module("$app/environment", () => ({
+mock.module('$app/environment', () => ({
 	browser: true,
 	dev: true,
 	building: false,
-	version: "test",
+	version: 'test'
 }));
 
 // Mock settingsStore to avoid $app/environment dependency
-mock.module("$lib/stores/settingsStore", () => ({
+mock.module('$lib/stores/settingsStore', () => ({
 	masterVolume: {
 		subscribe: (fn: (value: any) => void) => {
 			fn(0.75);
 			return () => {};
-		},
+		}
 	},
 	musicVolume: {
 		subscribe: (fn: (value: any) => void) => {
 			fn(0.75);
 			return () => {};
-		},
-	},
+		}
+	}
 }));
 
-import { setupSvelteKitMocks } from "$lib/test-utils";
+import { setupSvelteKitMocks } from '$lib/test-utils';
 
 // Test-specific mocks (game engine and app modules)
-mock.module("@pixi/sound", () => ({
+mock.module('@pixi/sound', () => ({
 	Sound: {
 		from: mock((options: any) => {
 			const mockSound = {
@@ -38,7 +38,7 @@ mock.module("@pixi/sound", () => ({
 				destroy: mock(),
 				play: mock(),
 				stop: mock(),
-				volume: 1,
+				volume: 1
 			};
 
 			// Call loaded callback immediately
@@ -47,18 +47,18 @@ mock.module("@pixi/sound", () => ({
 			}
 
 			return mockSound;
-		}),
-	},
+		})
+	}
 }));
 
-mock.module("@mug/engine", () => ({
+mock.module('@mug/engine', () => ({
 	RhythmEngine: class {
 		constructor(chart: any[]) {
 			this.update = mock(() => []);
 			this.submitInput = mock(() => ({
-				type: "hit",
-				noteId: "test",
-				judgment: "Perfect",
+				type: 'hit',
+				noteId: 'test',
+				judgment: 'Perfect'
 			}));
 			this.releaseInput = mock();
 			this.state = { score: 100, combo: 5, maxCombo: 5, notes: [] };
@@ -101,35 +101,35 @@ mock.module("@mug/engine", () => ({
 		showJudgment: any;
 		flashLane: any;
 		highwayMetricsStore: any;
-	},
+	}
 }));
 
-mock.module("$lib/network/socket", () => ({
+mock.module('$lib/network/socket', () => ({
 	gameSocket: {
-		send: mock(),
-	},
+		send: mock()
+	}
 }));
 
-mock.module("@mug/common", () => ({
+mock.module('@mug/common', () => ({
 	Preferences: {
 		prefs: {
 			gameplay: {
-				keybindings: ["d", "f", "j", "k"],
+				keybindings: ['d', 'f', 'j', 'k'],
 				perfectWindowMs: 30,
 				excellentWindowMs: 60,
 				goodWindowMs: 90,
-				mehWindowMs: 150,
-			},
-		},
-	},
+				mehWindowMs: 150
+			}
+		}
+	}
 }));
 
 // Now import the actual modules
-import { describe, test, expect, spyOn, beforeAll, afterEach } from "bun:test";
+import { describe, test, expect, spyOn, beforeAll, afterEach } from 'bun:test';
 
 // Test basic mocking first
-describe("Mocking Infrastructure", () => {
-	test("mocks are working", () => {
+describe('Mocking Infrastructure', () => {
+	test('mocks are working', () => {
 		expect(true).toBe(true);
 	});
 });
@@ -146,47 +146,47 @@ const mockCallbacks = {
 	onScoreUpdate: mock(),
 	onNoteHit: mock(),
 	onNoteMiss: mock(),
-	getGamePhase: mock(() => "playing" as const),
+	getGamePhase: mock(() => 'playing' as const),
 	getIsPaused: mock(() => false),
 	getCountdownValue: mock(() => 0),
-	onTimeUpdate: mock(),
+	onTimeUpdate: mock()
 };
 
 const mockSong: ClientSong = {
-	id: "test-song",
-	title: "Test Song",
-	artist: "Test Artist",
-	audioUrl: "test.mp3",
+	id: 'test-song',
+	title: 'Test Song',
+	artist: 'Test Artist',
+	audioUrl: 'test.mp3',
 	imageUrl: undefined,
 	previewStartTime: 0,
 	bpm: 120,
-	audioFilename: "test.mp3",
-	audioS3Key: "test-key",
+	audioFilename: 'test.mp3',
+	audioS3Key: 'test-key',
 	imageS3Key: null,
-	uploaderId: "test-user",
+	uploaderId: 'test-user',
 	uploadDate: new Date(),
-	charts: [],
+	charts: []
 };
 
 const mockChart: ClientChart = {
-	id: "test-chart",
-	songId: "test-song",
-	difficultyName: "Easy",
+	id: 'test-chart',
+	songId: 'test-song',
+	difficultyName: 'Easy',
 	lanes: 4,
 	noteScrollSpeed: 1.0,
 	lyrics: null,
-	hitObjects: [],
+	hitObjects: []
 };
 
-describe("Game Client - createGame", () => {
+describe('Game Client - createGame', () => {
 	beforeAll(async () => {
 		// Set test environment variable for test helpers
-		process.env.BUN_TEST = "true";
+		process.env.BUN_TEST = 'true';
 		// Set up SvelteKit mocks for this test suite
 		setupSvelteKitMocks();
 
 		// Mock svelte/store before importing modules that use it
-		mock.module("svelte/store", () => ({
+		mock.module('svelte/store', () => ({
 			writable: mock((initial: any) => {
 				let value = initial;
 				const subscribers = new Set<Function>();
@@ -204,7 +204,7 @@ describe("Game Client - createGame", () => {
 					update: mock((updater: Function) => {
 						value = updater(value);
 						subscribers.forEach((fn) => fn(value));
-					}),
+					})
 				};
 			}),
 			get: mock((store: any) => {
@@ -212,13 +212,13 @@ describe("Game Client - createGame", () => {
 				const unsub = store.subscribe((v: any) => (value = v));
 				unsub();
 				return value;
-			}),
+			})
 		}));
 
 		// Dynamic imports after mocks are set up
-		const gameClient = await import("./game.client");
-		const socket = await import("$lib/network/socket");
-		const common = await import("@mug/common");
+		const gameClient = await import('./game.client');
+		const socket = await import('$lib/network/socket');
+		const common = await import('@mug/common');
 
 		createGame = gameClient.createGame;
 		gameSocket = socket.gameSocket;
@@ -240,38 +240,38 @@ describe("Game Client - createGame", () => {
 		gameSocket.send.mockClear();
 	});
 
-	describe("Initialization & Audio Safety Valve", () => {
-		test("initializes game successfully", async () => {
-			const canvas = document.createElement("canvas");
+	describe('Initialization & Audio Safety Valve', () => {
+		test('initializes game successfully', async () => {
+			const canvas = document.createElement('canvas');
 			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
 
 			// In test environment, game starts in playing phase directly
-			expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith("playing");
+			expect(mockCallbacks.onPhaseChange).toHaveBeenCalledWith('playing');
 
 			expect(game).toBeDefined();
-			expect(typeof game.beginGameplaySequence).toBe("function");
-			expect(typeof game.handleKeyPress).toBe("function");
-			expect(typeof game.cleanup).toBe("function");
+			expect(typeof game.beginGameplaySequence).toBe('function');
+			expect(typeof game.handleKeyPress).toBe('function');
+			expect(typeof game.cleanup).toBe('function');
 
 			game.cleanup();
 		});
 
-		test("handles audio load failure gracefully", async () => {
+		test('handles audio load failure gracefully', async () => {
 			// Temporarily change the mock to fail
 			// Mock the Sound.from method to fail
-			mock.module("@pixi/sound", () => ({
+			mock.module('@pixi/sound', () => ({
 				Sound: {
 					from: mock((options: any) => {
 						// Call loaded with error immediately
 						if (options.loaded) {
-							options.loaded(new Error("Network error"), null);
+							options.loaded(new Error('Network error'), null);
 						}
 						return { duration: 0, destroy: mock() };
-					}),
-				},
+					})
+				}
 			}));
 
-			const canvas = document.createElement("canvas");
+			const canvas = document.createElement('canvas');
 			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
 
 			// Should still create game despite audio failure
@@ -280,47 +280,47 @@ describe("Game Client - createGame", () => {
 		});
 	});
 
-	describe("Gameplay & Input", () => {
-		test("input handling setup works", async () => {
-			const canvas = document.createElement("canvas");
+	describe('Gameplay & Input', () => {
+		test('input handling setup works', async () => {
+			const canvas = document.createElement('canvas');
 			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
 
 			// Verify the game object has the expected methods
-			expect(typeof game.handleKeyPress).toBe("function");
+			expect(typeof game.handleKeyPress).toBe('function');
 
 			// Force phase to playing using test helper
 			if (game.__setPhaseForTest) {
-				game.__setPhaseForTest("playing");
+				game.__setPhaseForTest('playing');
 			}
 
 			// Test that handleKeyPress doesn't crash (basic smoke test)
-			expect(() => game.handleKeyPress("d")).not.toThrow();
+			expect(() => game.handleKeyPress('d')).not.toThrow();
 
 			game.cleanup();
 		});
 
-		test("key input validation works", async () => {
-			const canvas = document.createElement("canvas");
+		test('key input validation works', async () => {
+			const canvas = document.createElement('canvas');
 			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
 
 			// Test unmapped key doesn't crash
-			expect(() => game.handleKeyPress("x")).not.toThrow();
+			expect(() => game.handleKeyPress('x')).not.toThrow();
 
 			// Test valid key doesn't crash when not in playing phase
-			expect(() => game.handleKeyPress("d")).not.toThrow();
+			expect(() => game.handleKeyPress('d')).not.toThrow();
 
 			game.cleanup();
 		});
 	});
 
-	describe("Control Flow", () => {
-		test("control methods exist and are callable", async () => {
-			const canvas = document.createElement("canvas");
+	describe('Control Flow', () => {
+		test('control methods exist and are callable', async () => {
+			const canvas = document.createElement('canvas');
 			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
 
 			// Verify control methods exist
-			expect(typeof game.pauseGame).toBe("function");
-			expect(typeof game.cleanup).toBe("function");
+			expect(typeof game.pauseGame).toBe('function');
+			expect(typeof game.cleanup).toBe('function');
 
 			// Test they don't crash
 			expect(() => game.pauseGame()).not.toThrow();
@@ -328,16 +328,16 @@ describe("Game Client - createGame", () => {
 		});
 	});
 
-	describe("Engine Integration", () => {
-		test("engine is properly initialized", async () => {
-			const canvas = document.createElement("canvas");
+	describe('Engine Integration', () => {
+		test('engine is properly initialized', async () => {
+			const canvas = document.createElement('canvas');
 			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
 
 			// Access engine through test helper
 			if (game.__getEngineForTest) {
 				const engine = game.__getEngineForTest();
 				expect(engine).toBeDefined();
-				expect(typeof engine.update).toBe("function");
+				expect(typeof engine.update).toBe('function');
 			}
 
 			game.cleanup();

@@ -1,51 +1,51 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { page } from "$app/state";
-import { authClient } from "$lib/auth-client";
-import { onMount, tick } from "svelte";
-import { fade, fly } from "svelte/transition";
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { authClient } from '$lib/auth-client';
+	import { onMount, tick } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 
-let isLoading = $state(false);
-let error = $state<string | null>(null);
-let nonExistentUsername = $state("");
+	let isLoading = $state(false);
+	let error = $state<string | null>(null);
+	let nonExistentUsername = $state('');
 
-// Reference to DOM element
-let claimButtonElement = $state<HTMLButtonElement | undefined>();
+	// Reference to DOM element
+	let claimButtonElement = $state<HTMLButtonElement | undefined>();
 
-onMount(() => {
-	const urlUsername = page.url.searchParams.get("username");
-	if (urlUsername) {
-		nonExistentUsername = urlUsername;
-	} else {
-		goto("/"); 
-	}
-	tick().then(() => {
-		claimButtonElement?.focus();
+	onMount(() => {
+		const urlUsername = page.url.searchParams.get('username');
+		if (urlUsername) {
+			nonExistentUsername = urlUsername;
+		} else {
+			goto('/');
+		}
+		tick().then(() => {
+			claimButtonElement?.focus();
+		});
 	});
-});
 
-async function handleStayAnonymous() {
-	if (isLoading) return;
-	isLoading = true;
-	error = null;
-	const { data, error: anonError } = await authClient.signIn.anonymous();
-	if (anonError) {
-		error = anonError.message || null;
-	} else if (data?.user) {
-		goto("/home");
-	} else {
-		error = "Failed to create guest session.";
+	async function handleStayAnonymous() {
+		if (isLoading) return;
+		isLoading = true;
+		error = null;
+		const { data, error: anonError } = await authClient.signIn.anonymous();
+		if (anonError) {
+			error = anonError.message || null;
+		} else if (data?.user) {
+			goto('/home');
+		} else {
+			error = 'Failed to create guest session.';
+		}
+		isLoading = false;
 	}
-	isLoading = false;
-}
 
-function handleRegisterNonExistentUser() {
-	goto(`/register?username=${encodeURIComponent(nonExistentUsername)}`);
-}
+	function handleRegisterNonExistentUser() {
+		goto(`/register?username=${encodeURIComponent(nonExistentUsername)}`);
+	}
 
-function handleGoBack() {
-	goto(`/?username=${encodeURIComponent(nonExistentUsername)}`);
-}
+	function handleGoBack() {
+		goto(`/?username=${encodeURIComponent(nonExistentUsername)}`);
+	}
 </script>
 
 <svelte:head>
@@ -55,12 +55,11 @@ function handleGoBack() {
 <div class="min-h-screen flex items-center justify-center bg-gray-900 p-6 overflow-hidden relative">
 	<!-- Ambient Background Glow -->
 	<div class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/10 blur-[120px] rounded-full"></div>
-	<div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 blur-[120px] rounded-full"></div>
+	<div
+		class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 blur-[120px] rounded-full"
+	></div>
 
-	<div 
-		class="w-full max-w-lg space-y-10 relative z-10"
-		in:fade={{ duration: 400 }}
-	>
+	<div class="w-full max-w-lg space-y-10 relative z-10" in:fade={{ duration: 400 }}>
 		<!-- Header -->
 		<header class="text-center space-y-2">
 			<h1 class="text-7xl font-black italic tracking-tighter text-white drop-shadow-2xl">
@@ -72,7 +71,7 @@ function handleGoBack() {
 		</header>
 
 		<!-- Info Card -->
-		<div 
+		<div
 			class="p-10 bg-black/40 backdrop-blur-xl border border-white/5 rounded-[40px] shadow-2xl space-y-10"
 			in:fly={{ y: 40, delay: 100, duration: 600 }}
 		>

@@ -1,6 +1,6 @@
-import type { ServerWebSocket } from "bun";
-import type { PlayerData } from "./state";
-import type { ServerPacket, ServerPacketData } from "@mug/contract";
+import type { ServerWebSocket } from 'bun';
+import type { PlayerData } from './state';
+import type { ServerPacket, ServerPacketData } from '@mug/contract';
 
 /**
  * A type-safe wrapper around the Bun ServerWebSocket.
@@ -20,7 +20,7 @@ export class TypedSocket {
 	 * Type-safe send.
 	 * Example: socket.send('pong', { serverTime: 123 })
 	 */
-	send<Op extends ServerPacket["op"]>(op: Op, data?: ServerPacketData<Op>) {
+	send<Op extends ServerPacket['op']>(op: Op, data?: ServerPacketData<Op>) {
 		if (this.ws.readyState !== 1) return; // 1 = Open
 
 		const payload = JSON.stringify({ op, data });

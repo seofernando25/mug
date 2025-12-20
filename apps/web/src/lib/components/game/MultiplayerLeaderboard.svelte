@@ -1,9 +1,9 @@
 <script lang="ts">
-import { matchState } from "$lib/network/socket";
-import { fly } from "svelte/transition";
+	import { matchState } from '$lib/network/socket';
+	import { fly } from 'svelte/transition';
 
-// Sort peers by score descending
-$: leaderboard = Object.values($matchState).sort((a, b) => b.score - a.score);
+	// Sort peers by score descending
+	$: leaderboard = Object.values($matchState).sort((a, b) => b.score - a.score);
 </script>
 
 <div class="absolute top-1/2 -translate-y-1/2 left-4 w-64 flex flex-col gap-1 pointer-events-none">
@@ -25,4 +25,3 @@ $: leaderboard = Object.values($matchState).sort((a, b) => b.score - a.score);
 		</div>
 	{/each}
 </div>
-

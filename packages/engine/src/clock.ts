@@ -1,5 +1,5 @@
-import type { IMediaInstance, Sound } from "@pixi/sound";
-import { sound } from "@pixi/sound";
+import type { IMediaInstance, Sound } from '@pixi/sound';
+import { sound } from '@pixi/sound';
 
 sound.disableAutoPause = true;
 
@@ -19,22 +19,20 @@ export class AudioClock {
 	async play(onComplete?: () => void): Promise<void> {
 		if (this.instance) return;
 
-		const maybeInstance = this.sound.play(
-			onComplete ? { complete: onComplete } : undefined,
-		);
+		const maybeInstance = this.sound.play(onComplete ? { complete: onComplete } : undefined);
 		this.instance = await Promise.resolve(maybeInstance);
 	}
 
 	pause() {
-		console.log("Pausing audio");
+		console.log('Pausing audio');
 		if (this.instance) {
-			this.instance.set("paused", true);
+			this.instance.set('paused', true);
 		}
 	}
 
 	resume() {
 		if (this.instance) {
-			this.instance.set("paused", false);
+			this.instance.set('paused', false);
 		}
 	}
 
@@ -52,7 +50,7 @@ export class AudioClock {
 			this.isSeekingInternal = true; // Set flag
 			const durationMs = this.sound.duration * 1000;
 			const clampedTimeMs = Math.max(0, Math.min(timeMs, durationMs));
-			console.log("Seeking audio to", clampedTimeMs / 1000);
+			console.log('Seeking audio to', clampedTimeMs / 1000);
 			(this.instance as any).currentTime = clampedTimeMs / 1000;
 			this.isSeekingInternal = false; // Reset flag
 		}
@@ -61,7 +59,7 @@ export class AudioClock {
 	get currentTimeMs(): number {
 		if (
 			this.instance &&
-			typeof this.instance.progress === "number" &&
+			typeof this.instance.progress === 'number' &&
 			this.sound.duration &&
 			!this.isSeekingInternal // Add condition here
 		) {

@@ -1,2 +1,2 @@
 // Common types and utilities
-export { Preferences } from "./preferences";
+export { Preferences } from './preferences';

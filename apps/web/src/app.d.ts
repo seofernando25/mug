@@ -9,8 +9,8 @@ declare global {
 			finalScore?: number;
 			maxCombo?: number;
 			score?: number;
-			songData?: import("$lib/types").ClientSong;
-			chartData?: import("$lib/types").ClientChart;
+			songData?: import('$lib/types').ClientSong;
+			chartData?: import('$lib/types').ClientChart;
 			songId?: string;
 			chartDifficultyName?: string;
 			roomId?: string;

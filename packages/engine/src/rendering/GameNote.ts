@@ -1,7 +1,7 @@
-import type { ChartHitObject } from "$lib/types";
-import { Colors, GameplaySizingConstants } from "./constants";
-import { type Container, Graphics } from "pixi.js";
-import { getNoteYPosition, getEditorNoteYPosition } from "./noteUtils";
+import type { ChartHitObject } from '$lib/types';
+import { Colors, GameplaySizingConstants } from './constants';
+import { type Container, Graphics } from 'pixi.js';
+import { getNoteYPosition, getEditorNoteYPosition } from './noteUtils';
 
 export class GameNote {
 	id: number;
@@ -9,7 +9,7 @@ export class GameNote {
 	lane: number;
 	originalTime: number;
 	effectiveScrollTime: number;
-	note_type: "tap" | "hold";
+	note_type: 'tap' | 'hold';
 	isVisible: boolean = false;
 	isJudged: boolean = false;
 	isActivelyHeld: boolean = false;
@@ -96,10 +96,9 @@ export class GameNote {
 		canvasHeight: number,
 		isEditorMode: boolean, // New: Editor mode flag
 		editorViewCenterTimeMs: number, // New: Editor viewport center time
-		editorPixelsPerSecond: number, // New: Editor zoom level
+		editorPixelsPerSecond: number // New: Editor zoom level
 	) {
-		const laneCenterX =
-			highwayX + this.lane * this.laneWidth + this.laneWidth / 2;
+		const laneCenterX = highwayX + this.lane * this.laneWidth + this.laneWidth / 2;
 		let idealHeadY: number;
 
 		if (isEditorMode) {
@@ -107,10 +106,10 @@ export class GameNote {
 				this.originalTime, // In editor, use original time for positioning
 				editorViewCenterTimeMs,
 				editorPixelsPerSecond,
-				canvasHeight,
+				canvasHeight
 			);
 		} else {
-			if (this.note_type === "hold") {
+			if (this.note_type === 'hold') {
 				if (this.isActivelyHeld) {
 					idealHeadY = hitZoneY;
 				} else {
@@ -118,8 +117,7 @@ export class GameNote {
 						const scrollPixelsPerSecond = canvasHeight * 0.6 * scrollSpeed;
 						if (scrollPixelsPerSecond > 0) {
 							this.effectiveScrollTime =
-								songTimeMs +
-								((receptorYPosition - hitZoneY) * 1000) / scrollPixelsPerSecond;
+								songTimeMs + ((receptorYPosition - hitZoneY) * 1000) / scrollPixelsPerSecond;
 						} else {
 							// Fallback if scroll speed is zero, should not happen in normal gameplay.
 						}
@@ -130,7 +128,7 @@ export class GameNote {
 							songTimeMs,
 							receptorYPosition,
 							scrollSpeed,
-							canvasHeight,
+							canvasHeight
 						);
 					}
 				}
@@ -140,7 +138,7 @@ export class GameNote {
 					songTimeMs,
 					receptorYPosition,
 					scrollSpeed,
-					canvasHeight,
+					canvasHeight
 				);
 			}
 		}
@@ -161,7 +159,7 @@ export class GameNote {
 		canvasHeight: number,
 		isEditorMode: boolean,
 		editorViewCenterTimeMs: number,
-		editorPixelsPerSecond: number,
+		editorPixelsPerSecond: number
 	) {
 		this.laneWidth = newLaneWidth;
 		this._createOrUpdateHeadGraphics();
@@ -174,7 +172,7 @@ export class GameNote {
 			canvasHeight,
 			isEditorMode,
 			editorViewCenterTimeMs,
-			editorPixelsPerSecond,
+			editorPixelsPerSecond
 		);
 	}
 
@@ -185,7 +183,7 @@ export class GameNote {
 		scrollSpeed: number,
 		isEditorMode: boolean,
 		editorViewCenterTimeMs: number,
-		editorPixelsPerSecond: number,
+		editorPixelsPerSecond: number
 	): boolean {
 		let headY: number;
 		if (isEditorMode) {
@@ -193,7 +191,7 @@ export class GameNote {
 				this.originalTime,
 				editorViewCenterTimeMs,
 				editorPixelsPerSecond,
-				canvasHeight,
+				canvasHeight
 			);
 			// In editor mode, a note is "offscreen" if it's far above or below the view
 			return headY < -100 || headY > canvasHeight + 100; // Add some buffer
@@ -203,7 +201,7 @@ export class GameNote {
 				songTimeMs,
 				receptorYPosition,
 				scrollSpeed,
-				canvasHeight,
+				canvasHeight
 			);
 			// A small visual buffer might be needed if notes are large.
 			return headY > canvasHeight;

@@ -1,21 +1,15 @@
-import { Colors, GameplaySizingConstants } from "./constants";
-import { type Application, Container, Graphics } from "pixi.js";
-import { get, type Readable } from "svelte/store";
-import { LaneIllumination } from "./LaneIllumination";
+import { Colors, GameplaySizingConstants } from './constants';
+import { type Application, Container, Graphics } from 'pixi.js';
+import { get, type Readable } from 'svelte/store';
+import { LaneIllumination } from './LaneIllumination';
 
 const DEFAULT_RECEPTOR_AREA_HEIGHT_PROPORTION = 0.15;
 
-export function getHighwayMetrics(
-	numLanes: number,
-	canvasWidth: number,
-	canvasHeight: number,
-) {
-	const highwayWidthProportion =
-		numLanes <= 4 ? 0.5 : numLanes <= 6 ? 0.6 : 0.75;
+export function getHighwayMetrics(numLanes: number, canvasWidth: number, canvasHeight: number) {
+	const highwayWidthProportion = numLanes <= 4 ? 0.5 : numLanes <= 6 ? 0.6 : 0.75;
 	const totalHighwayWidth = canvasWidth * highwayWidthProportion;
 	const laneWidth = totalHighwayWidth / numLanes;
-	const receptorY =
-		canvasHeight * (1 - DEFAULT_RECEPTOR_AREA_HEIGHT_PROPORTION);
+	const receptorY = canvasHeight * (1 - DEFAULT_RECEPTOR_AREA_HEIGHT_PROPORTION);
 
 	return {
 		x: (canvasWidth - totalHighwayWidth) / 2,
@@ -25,14 +19,14 @@ export function getHighwayMetrics(
 		numLanes: numLanes,
 		laneWidth: laneWidth,
 		receptorYPosition: receptorY,
-		judgmentLineYPosition: receptorY - canvasHeight * 0.05,
+		judgmentLineYPosition: receptorY - canvasHeight * 0.05
 	};
 }
 
 export function drawHighway(
 	_app: Application,
 	parentContainer: Container,
-	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>,
+	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>
 ) {
 	const highwayContainer = new Container();
 	const initialMetrics = get(highwayMetrics);
@@ -49,7 +43,7 @@ export function drawHighway(
 		const illumination = new LaneIllumination(
 			metricsSnapshot.laneWidth,
 			metricsSnapshot.height,
-			Colors.LANE_COLORS[i % Colors.LANE_COLORS.length],
+			Colors.LANE_COLORS[i % Colors.LANE_COLORS.length]
 		);
 		illumination.updatePosition(i * metricsSnapshot.laneWidth, 0);
 		highwayContainer.addChildAt(illumination, 0);
@@ -66,12 +60,10 @@ export function drawHighway(
 		highwayContainer.y = metrics.y;
 
 		for (let i = 0; i < metrics.numLanes; i++) {
-			mainRectsGraphics
-				.rect(i * metrics.laneWidth, 0, metrics.laneWidth, metrics.height)
-				.fill({
-					color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length],
-					alpha: Colors.LANE_BACKGROUND_ALPHA,
-				});
+			mainRectsGraphics.rect(i * metrics.laneWidth, 0, metrics.laneWidth, metrics.height).fill({
+				color: Colors.LANE_BACKGROUNDS[i % Colors.LANE_BACKGROUNDS.length],
+				alpha: Colors.LANE_BACKGROUND_ALPHA
+			});
 		}
 		lineGraphics.clear();
 		for (let i = 0; i < metrics.numLanes + 1; i++) {
@@ -81,7 +73,7 @@ export function drawHighway(
 					xPos - GameplaySizingConstants.HIGHWAY_LINE_THICKNESS / 2,
 					0,
 					GameplaySizingConstants.HIGHWAY_LINE_THICKNESS,
-					metrics.height,
+					metrics.height
 				)
 				.fill({ color: Colors.HIGHWAY_LINE });
 		}
@@ -112,7 +104,7 @@ export function drawHighway(
 			highwayContainer.destroy({ children: true, texture: true });
 		},
 		laneIlluminations,
-		triggerLaneIllumination,
+		triggerLaneIllumination
 	};
 }
 
@@ -121,7 +113,7 @@ export function drawHighwayLines(
 	stageHeight: number,
 	lanes: number,
 	highwayX: number,
-	laneWidth: number,
+	laneWidth: number
 ) {
 	lineGraphics.clear();
 	for (let i = 0; i < lanes + 1; i++) {
@@ -131,7 +123,7 @@ export function drawHighwayLines(
 				xPos - GameplaySizingConstants.HIGHWAY_LINE_THICKNESS / 2,
 				0,
 				GameplaySizingConstants.HIGHWAY_LINE_THICKNESS,
-				stageHeight,
+				stageHeight
 			)
 			.fill({ color: Colors.HIGHWAY_LINE });
 	}

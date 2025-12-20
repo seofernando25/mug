@@ -1,5 +1,5 @@
-import type { ServerWebSocket } from "bun";
-import type { ServerPacket } from "@mug/contract";
+import type { ServerWebSocket } from 'bun';
+import type { ServerPacket } from '@mug/contract';
 
 type ScoreUpdateData = {
 	score: number;
@@ -19,8 +19,8 @@ type MatchFinishData = {
 
 export type LobbyNotifier = (
 	event:
-		| { type: "add" | "remove"; room: { id: string; name: string } }
-		| { type: "update"; id: string },
+		| { type: 'add' | 'remove'; room: { id: string; name: string } }
+		| { type: 'update'; id: string }
 ) => void;
 
 export interface PlayerData {
@@ -34,7 +34,7 @@ type Room = {
 	password?: string;
 	hostId: string;
 	players: Set<ServerWebSocket<PlayerData>>;
-	status: "idle" | "loading" | "starting" | "playing" | "finished";
+	status: 'idle' | 'loading' | 'starting' | 'playing' | 'finished';
 	startTime?: number;
 	readyPlayers: Set<string>; // Set of user IDs who have loaded audio
 	finishedPlayers: Set<string>; // Set of user IDs who have finished the match
@@ -57,27 +57,20 @@ export class RoomManager {
 
 	constructor(
 		notify: LobbyNotifier = () => {},
-		setTimeoutFn: (
-			callback: () => void,
-			delay: number,
-		) => Timer = global.setTimeout,
-		clearTimeoutFn: (id: Timer) => void = global.clearTimeout,
+		setTimeoutFn: (callback: () => void, delay: number) => Timer = global.setTimeout,
+		clearTimeoutFn: (id: Timer) => void = global.clearTimeout
 	) {
 		this.notify = notify;
 		this.setTimeoutFn = setTimeoutFn;
 		this.clearTimeoutFn = clearTimeoutFn;
 	}
 
-	createRoom(
-		player: ServerWebSocket<PlayerData>,
-		name: string,
-		password?: string,
-	): Room {
+	createRoom(player: ServerWebSocket<PlayerData>, name: string, password?: string): Room {
 		// Enforce single room per host (by user id). If this user already hosts a room, remove it.
 		for (const [id, room] of this.rooms.entries()) {
 			if (room.hostId === player.data.user.id) {
 				this.rooms.delete(id);
-				this.notify({ type: "remove", room: { id, name: room.name } });
+				this.notify({ type: 'remove', room: { id, name: room.name } });
 			}
 		}
 
@@ -88,13 +81,13 @@ export class RoomManager {
 			password: password,
 			hostId: player.data.user.id,
 			players: new Set([player]),
-			status: "idle",
+			status: 'idle',
 			readyPlayers: new Set(),
-			finishedPlayers: new Set(),
+			finishedPlayers: new Set()
 		};
 		this.rooms.set(roomId, room);
 		player.data.roomId = roomId;
-		this.notify({ type: "add", room: { id: roomId, name: room.name } });
+		this.notify({ type: 'add', room: { id: roomId, name: room.name } });
 		return room;
 	}
 
@@ -107,17 +100,15 @@ export class RoomManager {
 			this.disconnectTimers.delete(userId);
 			this.swapSocket(roomId, userId, player);
 			const room = this.rooms.get(roomId);
-			if (!room) throw new Error("Room not found after socket swap");
+			if (!room) throw new Error('Room not found after socket swap');
 			return room;
 		}
 
 		// Normal join logic
 		const room = this.rooms.get(roomId);
-		if (!room) throw new Error("Room not found");
+		if (!room) throw new Error('Room not found');
 
-		const existingPlayer = Array.from(room.players).find(
-			(p) => p.data.user.id === userId,
-		);
+		const existingPlayer = Array.from(room.players).find((p) => p.data.user.id === userId);
 		if (existingPlayer) room.players.delete(existingPlayer);
 
 		room.players.add(player);
@@ -125,15 +116,15 @@ export class RoomManager {
 		this.broadcastToRoom(
 			roomId,
 			{
-				op: "room_event",
+				op: 'room_event',
 				data: {
-					op: "room_event",
+					op: 'room_event',
 					roomId,
-					event: "join",
-					payload: { userId: player.data.user.id },
-				},
+					event: 'join',
+					payload: { userId: player.data.user.id }
+				}
 			},
-			player,
+			player
 		);
 		return room;
 	}
@@ -149,32 +140,32 @@ export class RoomManager {
 
 		if (room.players.size === 0) {
 			this.rooms.delete(roomId);
-			this.notify({ type: "remove", room: { id: roomId, name: room.name } });
+			this.notify({ type: 'remove', room: { id: roomId, name: room.name } });
 		} else {
 			// If the host left, reassign to the next available player
 			if (room.hostId === player.data.user.id) {
 				const [nextHost] = Array.from(room.players);
 				if (nextHost) {
 					room.hostId = nextHost.data.user.id;
-					this.notify({ type: "update", id: roomId });
+					this.notify({ type: 'update', id: roomId });
 				}
 			}
 			this.broadcastToRoom(
 				roomId,
 				{
-					op: "room_event",
+					op: 'room_event',
 					data: {
-						op: "room_event",
+						op: 'room_event',
 						roomId,
-						event: "leave",
-						payload: { userId: player.data.user.id },
-					},
+						event: 'leave',
+						payload: { userId: player.data.user.id }
+					}
 				},
-				player,
+				player
 			);
 			const state = this.getRoomState(roomId);
 			if (state) {
-				this.broadcastToRoom(roomId, { op: "room_state", data: state });
+				this.broadcastToRoom(roomId, { op: 'room_state', data: state });
 			}
 		}
 	}
@@ -217,7 +208,7 @@ export class RoomManager {
 		const room = this.rooms.get(roomId);
 		if (!room) return false;
 
-		if (room.status !== "playing") {
+		if (room.status !== 'playing') {
 			return false;
 		}
 
@@ -236,24 +227,20 @@ export class RoomManager {
 		}
 
 		if (room.finishedPlayers.size >= uniquePlayerIds.size) {
-			room.status = "idle";
+			room.status = 'idle';
 			room.finishedPlayers.clear();
 			room.readyPlayers.clear();
 
 			const state = this.getRoomState(roomId);
 			if (state) {
-				this.broadcastToRoom(roomId, { op: "room_state", data: state });
+				this.broadcastToRoom(roomId, { op: 'room_state', data: state });
 			}
 		}
 
 		return true;
 	}
 
-	private swapSocket(
-		roomId: string,
-		userId: string,
-		newSocket: ServerWebSocket<PlayerData>,
-	): void {
+	private swapSocket(roomId: string, userId: string, newSocket: ServerWebSocket<PlayerData>): void {
 		const room = this.rooms.get(roomId);
 		if (!room) return;
 
@@ -276,7 +263,7 @@ export class RoomManager {
 			status: r.status,
 			hostId: r.hostId,
 			hostName: this.getHostName(r),
-			currentChart: r.currentChart,
+			currentChart: r.currentChart
 		}));
 	}
 
@@ -295,7 +282,7 @@ export class RoomManager {
 				uniquePlayers.set(userId, {
 					userId,
 					username: player.data.user.username ?? null,
-					avatarUrl: null,
+					avatarUrl: null
 				});
 			}
 		}
@@ -308,7 +295,7 @@ export class RoomManager {
 			status: room.status,
 			startTime: room.startTime,
 			currentChart: room.currentChart,
-			players: Array.from(uniquePlayers.values()),
+			players: Array.from(uniquePlayers.values())
 		};
 	}
 
@@ -317,32 +304,23 @@ export class RoomManager {
 	}
 
 	private getHostName(room: Room) {
-		const host = Array.from(room.players).find(
-			(p) => p.data.user.id === room.hostId,
-		);
+		const host = Array.from(room.players).find((p) => p.data.user.id === room.hostId);
 		return host?.data.user.username ?? host?.data.user.id ?? null;
 	}
 
-	broadcastToRoom(
-		roomId: string,
-		packet: ServerPacket,
-		exclude?: ServerWebSocket<PlayerData>,
-	) {
+	broadcastToRoom(roomId: string, packet: ServerPacket, exclude?: ServerWebSocket<PlayerData>) {
 		const room = this.rooms.get(roomId);
 		if (!room) return;
-		if (
-			packet.op === "peer_score_update" ||
-			packet.op === "peer_match_finished"
-		) {
+		if (packet.op === 'peer_score_update' || packet.op === 'peer_match_finished') {
 			console.log(
-				"[bancho] sending",
+				'[bancho] sending',
 				packet.op,
-				"to room",
+				'to room',
 				roomId,
-				"packet",
+				'packet',
 				JSON.stringify(packet),
-				"playerCount",
-				room.players.size,
+				'playerCount',
+				room.players.size
 			);
 		}
 		const msg = JSON.stringify(packet);
@@ -357,21 +335,20 @@ export class RoomManager {
 		if (!roomId) return;
 		const score = data?.score;
 		const userId = player.data.user?.id;
-		if (!userId || typeof userId !== "string") return;
-		if (typeof score !== "number" || Number.isNaN(score)) return;
+		if (!userId || typeof userId !== 'string') return;
+		if (typeof score !== 'number' || Number.isNaN(score)) return;
 		const packet: ServerPacket = {
-			op: "peer_score_update",
+			op: 'peer_score_update',
 			data: {
 				userId,
 				username: player.data.user?.username ?? null,
 				score,
-				combo: typeof data?.combo === "number" ? data.combo : undefined,
-				maxCombo:
-					typeof data?.maxCombo === "number" ? data.maxCombo : undefined,
-				health: typeof data?.health === "number" ? data.health : undefined,
-			},
+				combo: typeof data?.combo === 'number' ? data.combo : undefined,
+				maxCombo: typeof data?.maxCombo === 'number' ? data.maxCombo : undefined,
+				health: typeof data?.health === 'number' ? data.health : undefined
+			}
 		};
-		console.log("[bancho] broadcasting score", JSON.stringify(packet));
+		console.log('[bancho] broadcasting score', JSON.stringify(packet));
 		this.broadcastToRoom(roomId, packet, player); // exclude sender to reduce echo
 	}
 
@@ -379,17 +356,16 @@ export class RoomManager {
 		const roomId = player.data.roomId;
 		if (!roomId) return;
 		const userId = player.data.user?.id;
-		if (!userId || typeof userId !== "string") return;
+		if (!userId || typeof userId !== 'string') return;
 		const packet: ServerPacket = {
-			op: "peer_match_finished",
+			op: 'peer_match_finished',
 			data: {
 				userId,
-				finalScore: typeof data?.score === "number" ? data.score : 0,
-				maxCombo:
-					typeof data?.maxCombo === "number" ? data.maxCombo : undefined,
-			},
+				finalScore: typeof data?.score === 'number' ? data.score : 0,
+				maxCombo: typeof data?.maxCombo === 'number' ? data.maxCombo : undefined
+			}
 		};
-		console.log("[bancho] broadcasting match_finish", JSON.stringify(packet));
+		console.log('[bancho] broadcasting match_finish', JSON.stringify(packet));
 		this.broadcastToRoom(roomId, packet);
 	}
 
@@ -400,15 +376,15 @@ export class RoomManager {
 		const room = this.rooms.get(roomId);
 		if (!room) return false;
 
-		room.status = "loading";
+		room.status = 'loading';
 		room.readyPlayers.clear();
 
-		console.log("[bancho] room", roomId, "entering loading phase");
+		console.log('[bancho] room', roomId, 'entering loading phase');
 
 		// Broadcast the loading state
 		const state = this.getRoomState(roomId);
 		if (state) {
-			this.broadcastToRoom(roomId, { op: "room_state", data: state });
+			this.broadcastToRoom(roomId, { op: 'room_state', data: state });
 		}
 
 		return true;
@@ -426,8 +402,8 @@ export class RoomManager {
 		if (!room) return false;
 
 		// Only accept ready signals during loading phase
-		if (room.status !== "loading") {
-			console.log("[bancho] ignoring client_ready - room not in loading phase");
+		if (room.status !== 'loading') {
+			console.log('[bancho] ignoring client_ready - room not in loading phase');
 			return false;
 		}
 
@@ -436,11 +412,11 @@ export class RoomManager {
 
 		room.readyPlayers.add(userId);
 		console.log(
-			"[bancho] player",
+			'[bancho] player',
 			userId,
-			"ready in room",
+			'ready in room',
 			roomId,
-			`(${room.readyPlayers.size}/${room.players.size})`,
+			`(${room.readyPlayers.size}/${room.players.size})`
 		);
 
 		// Get unique player count (by user ID)
@@ -451,25 +427,25 @@ export class RoomManager {
 
 		// Check if all players are ready
 		if (room.readyPlayers.size >= uniquePlayerIds.size) {
-			console.log("[bancho] all players ready! Starting countdown in room", roomId);
+			console.log('[bancho] all players ready! Starting countdown in room', roomId);
 
 			// Transition to starting phase
-			room.status = "starting";
+			room.status = 'starting';
 			room.startTime = Date.now() + 3000;
 
 			// Broadcast the starting state
 			const state = this.getRoomState(roomId);
 			if (state) {
-				this.broadcastToRoom(roomId, { op: "room_state", data: state });
+				this.broadcastToRoom(roomId, { op: 'room_state', data: state });
 			}
 
 			// Schedule transition to playing after 3 seconds
 			this.setTimeoutFn(() => {
-				if (room.status === "starting") {
-					room.status = "playing";
+				if (room.status === 'starting') {
+					room.status = 'playing';
 					const finalState = this.getRoomState(roomId);
 					if (finalState) {
-						this.broadcastToRoom(roomId, { op: "room_state", data: finalState });
+						this.broadcastToRoom(roomId, { op: 'room_state', data: finalState });
 					}
 				}
 			}, 3000);

@@ -1,5 +1,5 @@
 <script lang="ts">
-const { countdownValue }: { countdownValue: number } = $props();
+	const { countdownValue }: { countdownValue: number } = $props();
 </script>
 
 <div class="countdown-container">
@@ -7,7 +7,7 @@ const { countdownValue }: { countdownValue: number } = $props();
 		<h1 class="countdown-text">{countdownValue}</h1>
 		<p class="ready-text">GET READY</p>
 	</div>
-	
+
 	<!-- Progress Bar at bottom -->
 	<div class="progress-bar-container">
 		<div class="progress-bar" style="width: {(countdownValue / 3) * 100}%"></div>
@@ -32,7 +32,7 @@ const { countdownValue }: { countdownValue: number } = $props();
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+		text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
 	}
 
 	.countdown-text {

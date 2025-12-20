@@ -1,81 +1,81 @@
-import { type } from "arktype";
+import { type } from 'arktype';
 
 // --- ArkType Schemas ---
 
 // --- Shared Sub-Schemas ---
 
 const UserInfo = type({
-	userId: "string",
-	"username?": "string|null",
-	"avatarUrl?": "string|null",
+	userId: 'string',
+	'username?': 'string|null',
+	'avatarUrl?': 'string|null'
 });
 
 const ChartInfo = type({
-	"coverUrl?": "string",
-	"name?": "string",
-	"artist?": "string",
-	"difficulty?": "string",
-	"songId?": "string",
-	"difficulties?": "string[]",
+	'coverUrl?': 'string',
+	'name?': 'string',
+	'artist?': 'string',
+	'difficulty?': 'string',
+	'songId?': 'string',
+	'difficulties?': 'string[]'
 });
 
 const RoomInfo = type({
-	id: "string",
-	name: "string",
-	"playerCount?": "number",
-	"status?": "string", // 'idle' | 'starting' | 'playing'
-	"hostId?": "string|null",
-	"hostName?": "string|null",
-	"currentChart?": ChartInfo,
+	id: 'string',
+	name: 'string',
+	'playerCount?': 'number',
+	'status?': 'string', // 'idle' | 'starting' | 'playing'
+	'hostId?': 'string|null',
+	'hostName?': 'string|null',
+	'currentChart?': ChartInfo
 });
 
 const ScoreData = type({
-	score: "number",
-	"combo?": "number",
-	"maxCombo?": "number",
-	"noteId?": "string|number",
-	"judgment?": "string",
-	"health?": "number",
+	score: 'number',
+	'combo?': 'number',
+	'maxCombo?': 'number',
+	'noteId?': 'string|number',
+	'judgment?': 'string',
+	'health?': 'number'
 });
 
 // --- Client Packet Types ---
 
-const PingPacket = type({ op: "'ping'", "data?": { "t1?": "number" } });
+const PingPacket = type({ op: "'ping'", 'data?': { 't1?': 'number' } });
 const NoopPacket = type({ op: "'noop'" });
 const CreateRoomPacket = type({
 	op: "'create_room'",
-	"data?": { "name?": "string", "password?": "string" },
+	'data?': { 'name?': 'string', 'password?': 'string' }
 });
-const JoinRoomPacket = type({ op: "'join_room'", data: { roomId: "string" } });
+const JoinRoomPacket = type({ op: "'join_room'", data: { roomId: 'string' } });
 const LeaveRoomPacket = type({
 	op: "'leave_room'",
-	"data?": { "roomId?": "string" },
+	'data?': { 'roomId?': 'string' }
 });
 const GetRoomStatePacket = type({
 	op: "'get_room_state'",
-	data: { roomId: "string" },
+	data: { roomId: 'string' }
 });
 const UpdateRoomPacket = type({
 	op: "'update_room'",
 	data: {
-		roomId: "string",
-		"currentChart?": ChartInfo,
-		"name?": "string",
-		"password?": "string",
-	},
+		roomId: 'string',
+		'currentChart?': ChartInfo,
+		'name?': 'string',
+		'password?': 'string'
+	}
 });
 const StartMatchPacket = type({
 	op: "'start_match'",
-	data: { roomId: "string" },
+	data: { roomId: 'string' }
 });
 const ScoreUpdatePacket = type({ op: "'score_update'", data: ScoreData });
 const MatchFinishedPacket = type({
 	op: "'match_finished'",
-	"data?": { "score?": "number", "maxCombo?": "number" },
+	'data?': { 'score?': 'number', 'maxCombo?': 'number' }
 });
 const ClientReadyPacket = type({
 	op: "'client_ready'",
-	"data?": { "roomId?": "string" },
+	'data?': { 'roomId?': 'string' }
 });
 
 // --- Client Packets (Sent by Web Client) ---
@@ -95,60 +95,60 @@ export const ClientPacketSchema = PingPacket.or(NoopPacket)
 
 const PongPacket = type({
 	op: "'pong'",
-	"data?": { "message?": "string", "serverTime?": "number", "t1?": "number" },
+	'data?': { 'message?': 'string', 'serverTime?': 'number', 't1?': 'number' }
 });
 const AckPacket = type({
 	op: "'ack'",
-	"data?": {
-		"message?": "string",
-		"roomId?": "string",
-		"name?": "string",
-	},
+	'data?': {
+		'message?': 'string',
+		'roomId?': 'string',
+		'name?': 'string'
+	}
 });
 const ErrorPacket = type({
 	op: "'error'",
 	data: {
 		code: "'UNAUTHORIZED'|'BAD_REQUEST'|'NOT_FOUND'|'CONFLICT'|'INTERNAL'",
-		"message?": "string",
-	},
+		'message?': 'string'
+	}
 });
 const RoomListPacket = type({ op: "'room_list'", data: RoomInfo.array() });
 const RoomEventPacket = type({
 	op: "'room_event'",
-	data: { 
-		type: "'add'|'remove'|'update'|'join'|'leave'", 
-		"room?": RoomInfo, 
-		"id?": "string",
-		"payload?": {
-			"userId?": "string"
+	data: {
+		type: "'add'|'remove'|'update'|'join'|'leave'",
+		'room?': RoomInfo,
+		'id?': 'string',
+		'payload?': {
+			'userId?': 'string'
 		}
-	},
+	}
 });
 const RoomStatePacket = type({
 	op: "'room_state'",
 	data: {
-		id: "string",
-		"name?": "string",
-		"hostId?": "string|null",
-		"hostName?": "string|null",
-		"status?": "string",
-		"startTime?": "number",
-		"currentChart?": ChartInfo,
-		players: UserInfo.array(),
-	},
+		id: 'string',
+		'name?': 'string',
+		'hostId?': 'string|null',
+		'hostName?': 'string|null',
+		'status?': 'string',
+		'startTime?': 'number',
+		'currentChart?': ChartInfo,
+		players: UserInfo.array()
+	}
 });
 const PeerScoreUpdatePacket = type({
 	op: "'peer_score_update'",
-	data: ScoreData.and({ userId: "string", "username?": "string" }),
+	data: ScoreData.and({ userId: 'string', 'username?': 'string' })
 });
 const PeerMatchFinishedPacket = type({
 	op: "'peer_match_finished'",
-	data: { userId: "string", finalScore: "number", "maxCombo?": "number" },
+	data: { userId: 'string', finalScore: 'number', 'maxCombo?': 'number' }
 });
 const ServerScoreUpdatePacket = type({ op: "'score_update'", data: ScoreData });
 const ServerMatchFinishedPacket = type({
 	op: "'match_finished'",
-	"data?": { "score?": "number", "maxCombo?": "number" },
+	'data?': { 'score?': 'number', 'maxCombo?': 'number' }
 });
 
 // --- Server Packets (Sent by Bancho) ---
@@ -170,8 +170,8 @@ export type ClientPacket = typeof ClientPacketSchema.infer;
 export type ServerPacket = typeof ServerPacketSchema.infer;
 
 // Extract op types from ArkType schemas
-export type ClientPacketOp = ClientPacket["op"];
-export type ServerPacketOp = ServerPacket["op"];
+export type ClientPacketOp = ClientPacket['op'];
+export type ServerPacketOp = ServerPacket['op'];
 
 // Helper to extract the 'data' type for a specific 'op' from ArkType schemas
 export type ClientPacketData<Op extends ClientPacketOp> =

@@ -1,5 +1,5 @@
-import { writable } from "svelte/store";
-import { browser } from "$app/environment";
+import { writable } from 'svelte/store';
+import { browser } from '$app/environment';
 
 // Helper function to create a persistent store
 function createPersistentStore<T>(key: string, startValue: T) {
@@ -31,17 +31,14 @@ function createPersistentStore<T>(key: string, startValue: T) {
 }
 
 // export const isOptionsMenuOpen = writable(false); // Removed
-export const masterVolume = createPersistentStore("masterVolume", 0.75);
-export const musicVolume = createPersistentStore("musicVolume", 0.75);
+export const masterVolume = createPersistentStore('masterVolume', 0.75);
+export const musicVolume = createPersistentStore('musicVolume', 0.75);
 export const isPaused = writable(false);
 
 // Added settings
-export const skipLogin = createPersistentStore("skipLogin", false);
-export const autoPlay = createPersistentStore("autoPlay", false);
-export const enableScreenPulse = createPersistentStore(
-	"enableScreenPulse",
-	true,
-);
+export const skipLogin = createPersistentStore('skipLogin', false);
+export const autoPlay = createPersistentStore('autoPlay', false);
+export const enableScreenPulse = createPersistentStore('enableScreenPulse', true);
 
 // Sync isPaused with isOptionsMenuOpen - REMOVED
 // isOptionsMenuOpen.subscribe(isOpen => {

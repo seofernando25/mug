@@ -1,7 +1,7 @@
-import type { ChartHitObject } from "../types";
-import type { Container } from "pixi.js";
-import { GameNote } from "./GameNote";
-import { HoldNote } from "./HoldNote";
+import type { ChartHitObject } from '../types';
+import type { Container } from 'pixi.js';
+import { GameNote } from './GameNote';
+import { HoldNote } from './HoldNote';
 
 export class NotePool {
 	private tapNotePool: GameNote[] = [];
@@ -11,11 +11,7 @@ export class NotePool {
 	private pixiStage: Container;
 	private currentLaneWidth: number;
 
-	constructor(
-		stage: Container,
-		initialLaneWidth: number,
-		initialPoolSize: number = 30,
-	) {
+	constructor(stage: Container, initialLaneWidth: number, initialPoolSize: number = 30) {
 		this.pixiStage = stage;
 		this.currentLaneWidth = initialLaneWidth;
 		this._prepopulatePools(initialPoolSize);
@@ -26,31 +22,29 @@ export class NotePool {
 			id: -1,
 			time: 0,
 			lane: 0,
-			note_type: "tap",
+			note_type: 'tap',
 			duration: null,
-			chartId: "",
+			chartId: ''
 		};
 		const dummyHoldData: ChartHitObject = {
 			id: -1,
 			time: 0,
 			lane: 0,
-			note_type: "hold",
+			note_type: 'hold',
 			duration: 100,
-			chartId: "",
+			chartId: ''
 		};
 
 		for (let i = 0; i < size; i++) {
 			this.tapNotePool.push(new GameNote(dummyTapData, this.currentLaneWidth));
-			this.holdNotePool.push(
-				new HoldNote(dummyHoldData, this.currentLaneWidth),
-			);
+			this.holdNotePool.push(new HoldNote(dummyHoldData, this.currentLaneWidth));
 		}
 	}
 
 	getNote(noteData: ChartHitObject): GameNote {
 		let note: GameNote;
 
-		if (noteData.note_type === "tap") {
+		if (noteData.note_type === 'tap') {
 			const pooledNote = this.tapNotePool.pop();
 			if (!pooledNote) {
 				note = new GameNote(noteData, this.currentLaneWidth);
@@ -108,7 +102,7 @@ export class NotePool {
 		canvasHeight: number,
 		isEditorMode: boolean,
 		editorViewCenterTimeMs: number,
-		editorPixelsPerSecond: number,
+		editorPixelsPerSecond: number
 	) {
 		this.currentLaneWidth = newLaneWidth;
 		this.activeNotes.forEach((note) => {
@@ -122,7 +116,7 @@ export class NotePool {
 				canvasHeight,
 				isEditorMode,
 				editorViewCenterTimeMs,
-				editorPixelsPerSecond,
+				editorPixelsPerSecond
 			);
 		});
 		this.tapNotePool.forEach((note) => {

@@ -1,12 +1,6 @@
-import type { ChartHitObject } from "./types";
-import { DEFAULT_CONFIG, SCORING, getJudgment } from "./rules";
-import type {
-	EngineNote,
-	GameConfig,
-	GameEvent,
-	GameState,
-	Judgment,
-} from "./types";
+import type { ChartHitObject } from './types';
+import { DEFAULT_CONFIG, SCORING, getJudgment } from './rules';
+import type { EngineNote, GameConfig, GameEvent, GameState, Judgment } from './types';
 
 export class RhythmEngine {
 	public state: GameState;
@@ -25,14 +19,14 @@ export class RhythmEngine {
 				isMissed: false,
 				isHolding: false,
 				holdSatisfied: false,
-				holdBroken: false,
+				holdBroken: false
 			}));
 
 		this.state = {
 			score: 0,
 			combo: 0,
 			maxCombo: 0,
-			notes,
+			notes
 		};
 	}
 
@@ -61,16 +55,12 @@ export class RhythmEngine {
 
 		// Hold completion/timeout
 		for (const note of this.state.notes) {
-			if (note.note_type !== "hold") continue;
+			if (note.note_type !== 'hold') continue;
 
 			const endTime = note.time + (note.duration ?? 0);
 			if (note.isHolding && timeMs > endTime + missWindow) {
 				this.breakHold(note, events);
-			} else if (
-				!note.isHit &&
-				!note.isMissed &&
-				timeMs > endTime + missWindow
-			) {
+			} else if (!note.isHit && !note.isMissed && timeMs > endTime + missWindow) {
 				this.applyMiss(note, events);
 			}
 		}
@@ -89,8 +79,8 @@ export class RhythmEngine {
 
 			const diff = note.time - timeMs;
 			const judgment = getJudgment(diff, this.config);
-			if (judgment === "IGNORE") continue;
-			if (judgment === "MISS") {
+			if (judgment === 'IGNORE') continue;
+			if (judgment === 'MISS') {
 				// too late, let update handle miss
 				continue;
 			}
@@ -103,11 +93,7 @@ export class RhythmEngine {
 
 	releaseInput(lane: number, timeMs: number): GameEvent | null {
 		const note = this.state.notes.find(
-			(n) =>
-				n.lane === lane &&
-				n.note_type === "hold" &&
-				n.isHolding &&
-				!n.holdSatisfied,
+			(n) => n.lane === lane && n.note_type === 'hold' && n.isHolding && !n.holdSatisfied
 		);
 		if (!note) return null;
 
@@ -116,7 +102,7 @@ export class RhythmEngine {
 		const diff = endTime - timeMs;
 		const judgment = getJudgment(diff, this.config);
 
-		if (judgment === "IGNORE" || judgment === "MISS") {
+		if (judgment === 'IGNORE' || judgment === 'MISS') {
 			return this.breakHold(note, []);
 		}
 
@@ -126,28 +112,28 @@ export class RhythmEngine {
 		this.addScore(score);
 
 		return {
-			type: "hit",
+			type: 'hit',
 			noteId: note.id,
 			judgment,
 			scoreDelta: score,
-			lane: note.lane,
+			lane: note.lane
 		};
 	}
 
 	private applyHit(note: EngineNote, judgment: Judgment): GameEvent {
 		note.isHit = true;
 		note.isMissed = false;
-		if (note.note_type === "hold") note.isHolding = true;
+		if (note.note_type === 'hold') note.isHolding = true;
 
 		const score = SCORING.tap[judgment];
 		this.addScore(score);
 
 		return {
-			type: "hit",
+			type: 'hit',
 			noteId: note.id,
 			judgment,
 			scoreDelta: score,
-			lane: note.lane,
+			lane: note.lane
 		};
 	}
 
@@ -157,7 +143,7 @@ export class RhythmEngine {
 		note.isHit = false;
 		note.isHolding = false;
 		this.state.combo = 0;
-		events.push({ type: "miss", noteId: note.id, lane: note.lane });
+		events.push({ type: 'miss', noteId: note.id, lane: note.lane });
 	}
 
 	private breakHold(note: EngineNote, events: GameEvent[]): GameEvent {
@@ -166,9 +152,9 @@ export class RhythmEngine {
 		note.isHolding = false;
 		this.state.combo = 0;
 		const event: GameEvent = {
-			type: "hold_broken",
+			type: 'hold_broken',
 			noteId: note.id,
-			lane: note.lane,
+			lane: note.lane
 		};
 		events.push(event);
 		return event;
@@ -177,7 +163,6 @@ export class RhythmEngine {
 	private addScore(amount: number) {
 		this.state.score += amount;
 		this.state.combo += 1;
-		if (this.state.combo > this.state.maxCombo)
-			this.state.maxCombo = this.state.combo;
+		if (this.state.combo > this.state.maxCombo) this.state.maxCombo = this.state.combo;
 	}
 }

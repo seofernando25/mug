@@ -1,14 +1,14 @@
-import { Colors } from "./constants";
-import { Container, Graphics } from "pixi.js";
-import { derived, get, type Readable } from "svelte/store";
-import type { getHighwayMetrics } from "./highway";
+import { Colors } from './constants';
+import { Container, Graphics } from 'pixi.js';
+import { derived, get, type Readable } from 'svelte/store';
+import type { getHighwayMetrics } from './highway';
 
 export const DEFAULT_NOTE_HEIGHT_PROPORTION = 0.03; // 3% of canvas height
 
 export function drawReceptor(
 	parentContainer: Container,
 	positions: Readable<{ x: number; y: number }[]>,
-	size: Readable<{ width: number; height: number }>,
+	size: Readable<{ width: number; height: number }>
 ) {
 	const receptorContainer = new Container();
 	parentContainer.addChild(receptorContainer);
@@ -22,7 +22,7 @@ export function drawReceptor(
 	const redraw = () => {
 		const currentPositions = get(positions);
 		const currentSize = get(size);
-		
+
 		individualReceptors.forEach((receptor, index) => {
 			const pos = currentPositions[index];
 			if (!pos) return;
@@ -34,11 +34,10 @@ export function drawReceptor(
 			const width = currentSize.width * 0.9;
 			const height = 30; // Match GameNote height approximately
 
-			const laneColor =
-				Colors.LANE_COLORS[index % Colors.LANE_COLORS.length];
+			const laneColor = Colors.LANE_COLORS[index % Colors.LANE_COLORS.length];
 
 			receptor.graphics.clear();
-			
+
 			// Receptor Frame
 			receptor.graphics
 				.rect(-width / 2, -height / 2, width, height)
@@ -60,7 +59,7 @@ export function drawReceptor(
 			const s = get(size);
 			const width = s.width * 0.9;
 			const height = 30;
-			
+
 			// Bright flash on hit
 			graphics
 				.clear()
@@ -124,23 +123,20 @@ export function drawReceptor(
 		container: receptorContainer,
 		receptors: individualReceptors,
 		redraw,
-		destroy,
+		destroy
 	};
 }
 
 // Get positions for each receptor
 export function getReceptorPositions(
-	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>,
+	highwayMetrics: Readable<ReturnType<typeof getHighwayMetrics>>
 ) {
 	return derived(highwayMetrics, (m) => {
 		const positions = [];
 		for (let i = 0; i < m.numLanes; i++) {
 			positions.push({
-				x:
-					m.x +
-					i * m.laneWidth +
-					m.laneWidth / 2, // Center of the lane
-				y: m.receptorYPosition,
+				x: m.x + i * m.laneWidth + m.laneWidth / 2, // Center of the lane
+				y: m.receptorYPosition
 			});
 		}
 		return positions;
@@ -151,7 +147,7 @@ export function getReceptorPositions(
 export function getReceptorSize(
 	canvasWidth: number,
 	canvasHeight: number,
-	numLanesIfKnown?: number,
+	numLanesIfKnown?: number
 ) {
 	const lanes = numLanesIfKnown ?? 4;
 	const highwayWidthProportion = lanes <= 4 ? 0.5 : lanes <= 6 ? 0.6 : 0.75;
@@ -160,6 +156,6 @@ export function getReceptorSize(
 
 	return {
 		width: typicalLaneWidth,
-		height: 30, 
+		height: 30
 	};
 }

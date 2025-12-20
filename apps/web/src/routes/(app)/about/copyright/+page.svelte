@@ -1,20 +1,20 @@
 <script lang="ts">
-import { fade, fly } from "svelte/transition";
-import { printElement } from "$lib/utils";
+	import { fade, fly } from 'svelte/transition';
+	import { printElement } from '$lib/utils';
 
-const GAME_NAME = "MUG";
-const COMPANY_NAME = "MUG Inc.";
-const WEBSITE_URL = "https://mug.rocks";
-const CONTACT_EMAIL = "contact@mug.rocks";
-const COPYRIGHT_EMAIL = "copyright@mug.rocks";
-const LAST_UPDATED = "May 18, 2025";
-const JURISDICTION = "Canada";
+	const GAME_NAME = 'MUG';
+	const COMPANY_NAME = 'MUG Inc.';
+	const WEBSITE_URL = 'https://mug.rocks';
+	const CONTACT_EMAIL = 'contact@mug.rocks';
+	const COPYRIGHT_EMAIL = 'copyright@mug.rocks';
+	const LAST_UPDATED = 'May 18, 2025';
+	const JURISDICTION = 'Canada';
 
-let copyrightContainer: HTMLDivElement | null = $state(null);
+	let copyrightContainer: HTMLDivElement | null = $state(null);
 
-function handlePrint() {
-	printElement(copyrightContainer, `${GAME_NAME} - Copyright Policy`);
-}
+	function handlePrint() {
+		printElement(copyrightContainer, `${GAME_NAME} - Copyright Policy`);
+	}
 </script>
 
 <svelte:head>
@@ -32,7 +32,7 @@ function handlePrint() {
 				Intellectual Property Protection
 			</p>
 		</div>
-		
+
 		<button
 			class="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-gray-400 hover:text-white transition-all mb-2"
 			onclick={handlePrint}
@@ -42,7 +42,7 @@ function handlePrint() {
 	</header>
 
 	<!-- Content Card -->
-	<div 
+	<div
 		class="p-10 bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl shadow-2xl prose prose-invert prose-yellow max-w-none text-gray-400"
 		in:fly={{ y: 20, delay: 100, duration: 400 }}
 	>
@@ -58,19 +58,29 @@ function handlePrint() {
 			</p>
 
 			<p class="mb-8 leading-relaxed">
-				{GAME_NAME} allows users to upload content including audio and images. It is essential that all user-submitted content respects the intellectual property rights of others.
+				{GAME_NAME} allows users to upload content including audio and images. It is essential that all
+				user-submitted content respects the intellectual property rights of others.
 			</p>
 
-			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2">Our Policy</h2>
+			<h2
+				class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2"
+			>
+				Our Policy
+			</h2>
 			<ul class="list-disc pl-6 space-y-2 mb-8">
 				<li>Address notices of claimed copyright infringement promptly.</li>
 				<li>Remove or disable access to infringing material.</li>
 				<li>Terminate accounts of repeat infringers.</li>
 			</ul>
 
-			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase text-yellow-500 border-b border-white/5 pb-2">Reporting Infringements</h2>
+			<h2
+				class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase text-yellow-500 border-b border-white/5 pb-2"
+			>
+				Reporting Infringements
+			</h2>
 			<p class="mb-4">
-				If you believe content on our Service infringes your copyright, please send a notice containing:
+				If you believe content on our Service infringes your copyright, please send a notice
+				containing:
 			</p>
 			<ol class="list-decimal pl-6 space-y-4">
 				<li>Identification of the copyrighted work(s).</li>
@@ -80,14 +90,26 @@ function handlePrint() {
 				<li>A statement under penalty of perjury that the info is accurate.</li>
 			</ol>
 
-			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2">Counter-Notices</h2>
+			<h2
+				class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2"
+			>
+				Counter-Notices
+			</h2>
 			<p class="mb-4 leading-relaxed italic border-l-2 border-yellow-500/30 pl-6 py-2">
-				If your content was removed by mistake, you may send a counter-notice including identification of the removed content and a statement of good faith belief that it was a mistake.
+				If your content was removed by mistake, you may send a counter-notice including
+				identification of the removed content and a statement of good faith belief that it was a
+				mistake.
 			</p>
 
-			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2">Contact Info</h2>
+			<h2
+				class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2"
+			>
+				Contact Info
+			</h2>
 			<p class="leading-relaxed">
-				Direct all IP-related inquiries to: <span class="text-yellow-500 font-bold">{COPYRIGHT_EMAIL}</span>
+				Direct all IP-related inquiries to: <span class="text-yellow-500 font-bold"
+					>{COPYRIGHT_EMAIL}</span
+				>
 			</p>
 		</div>
 	</div>

@@ -1,12 +1,12 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { authClient } from "$lib/auth-client";
-import BottomBar from "$lib/components/BottomBar.svelte";
+	import { goto } from '$app/navigation';
+	import { authClient } from '$lib/auth-client';
+	import BottomBar from '$lib/components/BottomBar.svelte';
 
-const { children } = $props();
+	const { children } = $props();
 
-const sessionData = authClient.useSession();
-const currentUser = $derived($sessionData.data?.user);
+	const sessionData = authClient.useSession();
+	const currentUser = $derived($sessionData.data?.user);
 </script>
 
 <div class="flex flex-col h-full min-h-screen relative bg-gray-900 text-gray-100">
@@ -19,13 +19,16 @@ const currentUser = $derived($sessionData.data?.user);
 	<BottomBar>
 		<!-- Left: Navigation -->
 		<div class="flex items-center gap-6">
-			<a 
-				href="/home" 
+			<a
+				href="/home"
 				class="text-2xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-purple-400 to-cyan-400 hover:scale-105 transition-transform"
 			>
 				MUG
 			</a>
-			<a href="/home" class="font-bold text-gray-400 hover:text-white transition uppercase tracking-widest text-sm">
+			<a
+				href="/home"
+				class="font-bold text-gray-400 hover:text-white transition uppercase tracking-widest text-sm"
+			>
 				Home
 			</a>
 		</div>
@@ -36,7 +39,9 @@ const currentUser = $derived($sessionData.data?.user);
 				<div class="flex items-center gap-3">
 					<div class="text-right hidden md:block">
 						<div class="text-xs text-gray-400 uppercase tracking-wider">Logged in as</div>
-						<div class="text-sm font-bold text-white">{currentUser.name || currentUser.username}</div>
+						<div class="text-sm font-bold text-white">
+							{currentUser.name || currentUser.username}
+						</div>
 					</div>
 					<button
 						onclick={async () => {

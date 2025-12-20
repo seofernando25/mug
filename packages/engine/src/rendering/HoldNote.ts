@@ -1,8 +1,8 @@
-import type { ChartHitObject } from "$lib/types";
-import { Colors, GameplaySizingConstants } from "./constants";
-import { type Container, Graphics } from "pixi.js";
-import { GameNote } from "./GameNote";
-import { getNoteYPosition, getEditorNoteYPosition } from "./noteUtils";
+import type { ChartHitObject } from '$lib/types';
+import { Colors, GameplaySizingConstants } from './constants';
+import { type Container, Graphics } from 'pixi.js';
+import { GameNote } from './GameNote';
+import { getNoteYPosition, getEditorNoteYPosition } from './noteUtils';
 
 export class HoldNote extends GameNote {
 	bodyGraphics: Graphics;
@@ -12,12 +12,12 @@ export class HoldNote extends GameNote {
 	constructor(noteData: ChartHitObject, laneWidth: number) {
 		super(noteData, laneWidth);
 		if (
-			noteData.note_type !== "hold" ||
-			typeof noteData.duration !== "number" ||
+			noteData.note_type !== 'hold' ||
+			typeof noteData.duration !== 'number' ||
 			noteData.duration <= 0
 		) {
 			console.warn(
-				`HoldNote created with invalid data: ID ${noteData.id}. Duration: ${noteData.duration}`,
+				`HoldNote created with invalid data: ID ${noteData.id}. Duration: ${noteData.duration}`
 			);
 			this.duration = 0;
 		} else {
@@ -33,8 +33,7 @@ export class HoldNote extends GameNote {
 
 	protected _createOrUpdateHoldPartsGraphics() {
 		const noteVisualWidth = this.laneWidth * 0.9;
-		let laneNoteColor =
-			Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
+		let laneNoteColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 
 		const shouldDesaturate = this.isBroken || this.isSatisfied;
 
@@ -47,7 +46,7 @@ export class HoldNote extends GameNote {
 		const bodyWidth = noteVisualWidth * 0.8;
 		this.bodyGraphics
 			.rect(-bodyWidth / 2, 0, bodyWidth, 1)
-			.fill({ color: laneNoteColor, alpha: shouldDesaturate ? 0.4 : 0.8 }); 
+			.fill({ color: laneNoteColor, alpha: shouldDesaturate ? 0.4 : 0.8 });
 
 		this.tailGraphics.clear();
 		const tailHeight = 30; // Match head height
@@ -72,10 +71,8 @@ export class HoldNote extends GameNote {
 
 	removeFromStage() {
 		super.removeFromStage();
-		if (this.bodyGraphics.parent)
-			this.bodyGraphics.parent.removeChild(this.bodyGraphics);
-		if (this.tailGraphics.parent)
-			this.tailGraphics.parent.removeChild(this.tailGraphics);
+		if (this.bodyGraphics.parent) this.bodyGraphics.parent.removeChild(this.bodyGraphics);
+		if (this.tailGraphics.parent) this.tailGraphics.parent.removeChild(this.tailGraphics);
 	}
 
 	show() {
@@ -93,12 +90,12 @@ export class HoldNote extends GameNote {
 	reset(newNoteData: ChartHitObject, newLaneWidth: number) {
 		super.reset(newNoteData, newLaneWidth);
 		if (
-			newNoteData.note_type !== "hold" ||
-			typeof newNoteData.duration !== "number" ||
+			newNoteData.note_type !== 'hold' ||
+			typeof newNoteData.duration !== 'number' ||
 			newNoteData.duration <= 0
 		) {
 			console.warn(
-				`HoldNote reset with invalid data: ID ${newNoteData.id}. Duration: ${newNoteData.duration}`,
+				`HoldNote reset with invalid data: ID ${newNoteData.id}. Duration: ${newNoteData.duration}`
 			);
 			this.duration = 0;
 		} else {
@@ -118,7 +115,7 @@ export class HoldNote extends GameNote {
 		canvasHeight: number,
 		isEditorMode: boolean, // New: Editor mode flag
 		editorViewCenterTimeMs: number, // New: Editor viewport center time
-		editorPixelsPerSecond: number, // New: Editor zoom level
+		editorPixelsPerSecond: number // New: Editor zoom level
 	) {
 		// If satisfied (perfect finish), hide it as if it were a properly hit tap note.
 		if (this.isSatisfied && !isEditorMode) {
@@ -135,11 +132,10 @@ export class HoldNote extends GameNote {
 			canvasHeight,
 			isEditorMode,
 			editorViewCenterTimeMs,
-			editorPixelsPerSecond,
+			editorPixelsPerSecond
 		);
 
-		const laneCenterX =
-			highwayX + this.lane * this.laneWidth + this.laneWidth / 2;
+		const laneCenterX = highwayX + this.lane * this.laneWidth + this.laneWidth / 2;
 		const noteEndTime = this.originalTime + this.duration;
 
 		let currentHeadY = this.headGraphics.y;
@@ -150,7 +146,7 @@ export class HoldNote extends GameNote {
 				noteEndTime,
 				editorViewCenterTimeMs,
 				editorPixelsPerSecond,
-				canvasHeight,
+				canvasHeight
 			);
 		} else {
 			currentTailY = getNoteYPosition(
@@ -158,7 +154,7 @@ export class HoldNote extends GameNote {
 				songTimeMs,
 				receptorYPosition,
 				scrollSpeed,
-				canvasHeight,
+				canvasHeight
 			);
 		}
 
@@ -171,7 +167,7 @@ export class HoldNote extends GameNote {
 		const shouldDesaturate = this.isBroken;
 		let laneNoteColor = Colors.LANE_COLORS[this.lane % Colors.LANE_COLORS.length];
 		const desaturatedColor = 0x666666;
-		
+
 		if (shouldDesaturate) {
 			laneNoteColor = desaturatedColor;
 		}
@@ -202,12 +198,10 @@ export class HoldNote extends GameNote {
 		this.bodyGraphics.clear();
 		if (visualBodyHeight > 0 && this.duration > 0) {
 			const bodyWidth = noteVisualWidth * 0.8;
-			this.bodyGraphics
-				.rect(-bodyWidth / 2, 0, bodyWidth, visualBodyHeight)
-				.fill({
-					color: laneNoteColor,
-					alpha: shouldDesaturate ? 0.4 : 0.8,
-				});
+			this.bodyGraphics.rect(-bodyWidth / 2, 0, bodyWidth, visualBodyHeight).fill({
+				color: laneNoteColor,
+				alpha: shouldDesaturate ? 0.4 : 0.8
+			});
 		}
 	}
 
@@ -221,7 +215,7 @@ export class HoldNote extends GameNote {
 		canvasHeight: number,
 		isEditorMode: boolean,
 		editorViewCenterTimeMs: number,
-		editorPixelsPerSecond: number,
+		editorPixelsPerSecond: number
 	) {
 		this.laneWidth = newLaneWidth;
 		this._createOrUpdateHeadGraphics();
@@ -235,7 +229,7 @@ export class HoldNote extends GameNote {
 			canvasHeight,
 			isEditorMode,
 			editorViewCenterTimeMs,
-			editorPixelsPerSecond,
+			editorPixelsPerSecond
 		);
 	}
 
@@ -246,7 +240,7 @@ export class HoldNote extends GameNote {
 		scrollSpeed: number,
 		isEditorMode: boolean,
 		editorViewCenterTimeMs: number,
-		editorPixelsPerSecond: number,
+		editorPixelsPerSecond: number
 	): boolean {
 		if (this.duration <= 0) {
 			return super.isOffscreen(
@@ -256,7 +250,7 @@ export class HoldNote extends GameNote {
 				scrollSpeed,
 				isEditorMode,
 				editorViewCenterTimeMs,
-				editorPixelsPerSecond,
+				editorPixelsPerSecond
 			);
 		}
 		const noteEndTime = this.originalTime + this.duration;
@@ -267,18 +261,17 @@ export class HoldNote extends GameNote {
 				noteEndTime,
 				editorViewCenterTimeMs,
 				editorPixelsPerSecond,
-				canvasHeight,
+				canvasHeight
 			);
 			// In editor mode, consider offscreen if both head and tail are significantly outside view
 			const headY = getEditorNoteYPosition(
 				this.originalTime,
 				editorViewCenterTimeMs,
 				editorPixelsPerSecond,
-				canvasHeight,
+				canvasHeight
 			);
 			return (
-				(headY < -100 && tailY < -100) ||
-				(headY > canvasHeight + 100 && tailY > canvasHeight + 100)
+				(headY < -100 && tailY < -100) || (headY > canvasHeight + 100 && tailY > canvasHeight + 100)
 			);
 		} else {
 			tailY = getNoteYPosition(
@@ -286,7 +279,7 @@ export class HoldNote extends GameNote {
 				songTimeMs,
 				receptorYPosition,
 				scrollSpeed,
-				canvasHeight,
+				canvasHeight
 			);
 			return tailY > canvasHeight;
 		}

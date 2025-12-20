@@ -1,13 +1,13 @@
-import { writable } from "svelte/store";
-import { type } from "arktype";
+import { writable } from 'svelte/store';
+import { type } from 'arktype';
 import {
 	type ClientPacketSchema,
 	ServerPacketSchema,
 	type ClientPacketOp,
 	type ClientPacketData,
-	type RoomSummary,
-} from "@mug/contract";
-import { PUBLIC_WS_URL } from "$env/static/public";
+	type RoomSummary
+} from '@mug/contract';
+import { PUBLIC_WS_URL } from '$env/static/public';
 
 // Type alias for room state data from room_state packet
 export type RoomState = {
@@ -37,9 +37,7 @@ export type RoomState = {
 type ClientPacket = typeof ClientPacketSchema.infer;
 type ServerPacket = typeof ServerPacketSchema.infer;
 
-export const socketStatus = writable<
-	"disconnected" | "connecting" | "connected"
->("disconnected");
+export const socketStatus = writable<'disconnected' | 'connecting' | 'connected'>('disconnected');
 export const lobbyRooms = writable<RoomSummary[]>([]);
 export const currentRoomState = writable<RoomState | null>(null);
 
@@ -67,7 +65,9 @@ class GameSocket {
 	private url: string;
 	private packetWaiters: Array<(packet: ServerPacket) => boolean> = [];
 	private messageQueue: ClientPacket[] = [];
-	private pongCallback: ((data: { message?: string; serverTime?: number; t1?: number }) => void) | null = null;
+	private pongCallback:
+		| ((data: { message?: string; serverTime?: number; t1?: number }) => void)
+		| null = null;
 
 	constructor(url: string) {
 		this.url = url;
@@ -76,36 +76,35 @@ class GameSocket {
 	connect() {
 		if (
 			this.ws &&
-			(this.ws.readyState === WebSocket.OPEN ||
-				this.ws.readyState === WebSocket.CONNECTING)
+			(this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
 		) {
 			return;
 		}
-		socketStatus.set("connecting");
-		console.log("[ws] connecting to", this.url);
+		socketStatus.set('connecting');
+		console.log('[ws] connecting to', this.url);
 		this.ws = new WebSocket(this.url);
 
 		this.ws.onopen = () => {
-			console.log("[ws] connected successfully");
-			socketStatus.set("connected");
+			console.log('[ws] connected successfully');
+			socketStatus.set('connected');
 			// Send any queued messages now that we're connected
 			while (this.messageQueue.length > 0) {
 				const packet = this.messageQueue.shift();
 				if (packet) {
 					this.ws?.send(JSON.stringify(packet));
-					console.log("[ws] sent queued packet", packet);
+					console.log('[ws] sent queued packet', packet);
 				}
 			}
 		};
 
 		this.ws.onerror = (error) => {
-			console.error("[ws] connection error:", error);
-			console.error("[ws] URL was:", this.url);
+			console.error('[ws] connection error:', error);
+			console.error('[ws] URL was:', this.url);
 		};
 
 		this.ws.onclose = (event) => {
-			console.log("[ws] connection closed", event);
-			socketStatus.set("disconnected");
+			console.log('[ws] connection closed', event);
+			socketStatus.set('disconnected');
 			// Clear message queue on disconnect to avoid sending stale messages
 			this.messageQueue.length = 0;
 			if (this.shouldReconnect) {
@@ -115,14 +114,14 @@ class GameSocket {
 
 		this.ws.onmessage = (event) => {
 			try {
-				console.log("[ws] raw message", event.data);
+				console.log('[ws] raw message', event.data);
 				const raw = JSON.parse(event.data);
 
 				// 1. Validate with ArkType
 				const result = ServerPacketSchema(raw);
 
 				if (result instanceof type.errors) {
-					console.warn("Ignoring invalid packet:", result.summary, raw);
+					console.warn('Ignoring invalid packet:', result.summary, raw);
 					return;
 				}
 
@@ -135,7 +134,7 @@ class GameSocket {
 				// 3. Handle packet waiters - call for ALL validated packets
 				this.packetWaiters = this.packetWaiters.filter((fn) => !fn(packet));
 			} catch (err) {
-				console.error("[ws] message processing error", err);
+				console.error('[ws] message processing error', err);
 			}
 		};
 	}
@@ -145,10 +144,10 @@ class GameSocket {
 		const packet = { op, data };
 
 		if (this.ws?.readyState === WebSocket.OPEN) {
-			console.log("[ws] sending packet", packet);
+			console.log('[ws] sending packet', packet);
 			this.ws.send(JSON.stringify(packet));
 		} else {
-			console.log("[ws] queueing packet (socket not ready)", packet);
+			console.log('[ws] queueing packet (socket not ready)', packet);
 			this.messageQueue.push(packet as ClientPacket);
 		}
 	}
@@ -158,18 +157,20 @@ class GameSocket {
 		this.ws?.close();
 	}
 
-	setPongCallback(callback: (data: { message?: string; serverTime?: number; t1?: number }) => void) {
+	setPongCallback(
+		callback: (data: { message?: string; serverTime?: number; t1?: number }) => void
+	) {
 		this.pongCallback = callback;
 	}
 
 	waitForPacket<T = unknown>(
 		predicate: (packet: ServerPacket) => T | null | false,
-		timeoutMs = 2000,
+		timeoutMs = 2000
 	) {
 		return new Promise<T>((resolve, reject) => {
 			const timer = setTimeout(() => {
 				this.packetWaiters = this.packetWaiters.filter((fn) => fn !== handler);
-				reject(new Error("Packet timeout"));
+				reject(new Error('Packet timeout'));
 			}, timeoutMs);
 			const handler = (packet: ServerPacket) => {
 				try {
@@ -180,7 +181,7 @@ class GameSocket {
 						return true;
 					}
 				} catch (err) {
-					console.error("Packet handler error", err);
+					console.error('Packet handler error', err);
 				}
 				return false;
 			};
@@ -190,18 +191,18 @@ class GameSocket {
 
 	handleValidatedPacket(packet: ServerPacket) {
 		switch (packet.op) {
-			case "ack": {
+			case 'ack': {
 				const lobby = (packet.data as { lobby?: unknown })?.lobby;
 				if (Array.isArray(lobby)) {
 					lobbyRooms.set(lobby as RoomSummary[]);
 				}
 				break;
 			}
-			case "room_event": {
+			case 'room_event': {
 				const ev = packet.data;
-				if (ev.type === "leave" && ev.payload?.userId) {
+				if (ev.type === 'leave' && ev.payload?.userId) {
 					const leftUserId = ev.payload.userId;
-					matchState.update(s => {
+					matchState.update((s) => {
 						const next = { ...s };
 						delete next[leftUserId];
 						return next;
@@ -211,7 +212,7 @@ class GameSocket {
 				lobbyRooms.update((rooms) => {
 					if (!ev || !ev.type) return rooms;
 					switch (ev.type) {
-						case "add": {
+						case 'add': {
 							const next = rooms.filter((r) => r.id !== ev.room?.id);
 							if (ev.room?.id)
 								next.push({
@@ -220,14 +221,14 @@ class GameSocket {
 									playerCount: ev.room.playerCount,
 									status: ev.room.status,
 									hostId: ev.room.hostId || undefined,
-									hostName: ev.room.hostName || undefined,
+									hostName: ev.room.hostName || undefined
 								});
 							return next;
 						}
-						case "remove": {
+						case 'remove': {
 							return rooms.filter((r) => r.id !== ev.room?.id);
 						}
-						case "update": {
+						case 'update': {
 							// server only sends id; trigger refetch on next ack or leave as-is
 							return rooms;
 						}
@@ -237,20 +238,19 @@ class GameSocket {
 				});
 				break;
 			}
-			case "room_list": {
+			case 'room_list': {
 				const list = packet.data;
 				if (Array.isArray(list)) {
 					lobbyRooms.set(list as RoomSummary[]);
 				}
 				break;
 			}
-			case "room_state": {
+			case 'room_state': {
 				currentRoomState.set(packet.data as RoomState);
 				break;
 			}
-			case "peer_score_update": {
-				const { userId, username, score, combo, maxCombo, health } =
-					packet.data;
+			case 'peer_score_update': {
+				const { userId, username, score, combo, maxCombo, health } = packet.data;
 				matchState.update((state) => ({
 					...state,
 					[userId]: {
@@ -261,12 +261,12 @@ class GameSocket {
 						combo: combo ?? state[userId]?.combo ?? 0,
 						maxCombo: maxCombo ?? state[userId]?.maxCombo,
 						health: health ?? state[userId]?.health,
-						finished: false,
-					},
+						finished: false
+					}
 				}));
 				break;
 			}
-			case "peer_match_finished": {
+			case 'peer_match_finished': {
 				const { userId, finalScore, maxCombo } = packet.data;
 				matchState.update((state) => ({
 					...state,
@@ -275,12 +275,12 @@ class GameSocket {
 						userId,
 						score: finalScore,
 						maxCombo: maxCombo ?? state[userId]?.maxCombo,
-						finished: true,
-					},
+						finished: true
+					}
 				}));
 				break;
 			}
-			case "pong":
+			case 'pong':
 				if (this.pongCallback && packet.data) {
 					this.pongCallback(packet.data);
 				}
@@ -293,9 +293,9 @@ class GameSocket {
 
 // Normalize URL: remove trailing slash and ensure it's a valid WebSocket URL
 const getBanchoUrl = () => {
-	const url = PUBLIC_WS_URL || "ws://localhost:3000";
+	const url = PUBLIC_WS_URL || 'ws://localhost:3000';
 	// Remove trailing slash if present
-	return url.replace(/\/$/, "");
+	return url.replace(/\/$/, '');
 };
 
 const BANCHO_URL = getBanchoUrl();

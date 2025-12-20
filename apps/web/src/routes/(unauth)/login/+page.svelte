@@ -1,55 +1,54 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { page } from "$app/state";
-import { onMount } from "svelte";
-import { authClient } from "$lib/auth-client";
-import { fade, fly } from "svelte/transition";
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { onMount } from 'svelte';
+	import { authClient } from '$lib/auth-client';
+	import { fade, fly } from 'svelte/transition';
 
-let username = $state("");
-let password = $state("");
-let isLoading = $state(false);
-let error = $state<string | null>(null);
+	let username = $state('');
+	let password = $state('');
+	let isLoading = $state(false);
+	let error = $state<string | null>(null);
 
-// References to DOM elements
-let usernameInputElement = $state<HTMLInputElement | undefined>();
-let passwordInputElement = $state<HTMLInputElement | undefined>();
+	// References to DOM elements
+	let usernameInputElement = $state<HTMLInputElement | undefined>();
+	let passwordInputElement = $state<HTMLInputElement | undefined>();
 
-onMount(() => {
-	const urlUsername = page.url.searchParams.get("username");
-	if (urlUsername) {
-		username = urlUsername;
-		// Focus on password field if username is provided
-		passwordInputElement?.focus();
-	} else {
-		// Focus on username field if no username is provided
-		usernameInputElement?.focus();
-	}
-});
-
-async function handleLogin(event: Event) {
-	event.preventDefault();
-	if (!username || !password) {
-		error = "Username and password are required.";
-		return;
-	}
-	isLoading = true;
-	error = null;
-
-	const { data, error: loginError } = await authClient.signIn.username({
-		username,
-		password,
+	onMount(() => {
+		const urlUsername = page.url.searchParams.get('username');
+		if (urlUsername) {
+			username = urlUsername;
+			// Focus on password field if username is provided
+			passwordInputElement?.focus();
+		} else {
+			// Focus on username field if no username is provided
+			usernameInputElement?.focus();
+		}
 	});
 
-	if (loginError) {
-		error =
-			loginError.message || "Login failed. Please check your credentials.";
-	} else if (data?.user) {
-		goto("/home");
-	} else {
-		error = "Login failed. Please try again.";
+	async function handleLogin(event: Event) {
+		event.preventDefault();
+		if (!username || !password) {
+			error = 'Username and password are required.';
+			return;
+		}
+		isLoading = true;
+		error = null;
+
+		const { data, error: loginError } = await authClient.signIn.username({
+			username,
+			password
+		});
+
+		if (loginError) {
+			error = loginError.message || 'Login failed. Please check your credentials.';
+		} else if (data?.user) {
+			goto('/home');
+		} else {
+			error = 'Login failed. Please try again.';
+		}
+		isLoading = false;
 	}
-	isLoading = false;
-}
 </script>
 
 <svelte:head>
@@ -59,12 +58,11 @@ async function handleLogin(event: Event) {
 <div class="min-h-screen flex items-center justify-center bg-gray-900 p-6 overflow-hidden relative">
 	<!-- Ambient Background Glow -->
 	<div class="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 blur-[120px] rounded-full"></div>
-	<div class="absolute bottom-1/4 left-1/4 w-96 h-96 bg-purple-600/10 blur-[120px] rounded-full"></div>
+	<div
+		class="absolute bottom-1/4 left-1/4 w-96 h-96 bg-purple-600/10 blur-[120px] rounded-full"
+	></div>
 
-	<div 
-		class="w-full max-w-md space-y-10 relative z-10"
-		in:fade={{ duration: 400 }}
-	>
+	<div class="w-full max-w-md space-y-10 relative z-10" in:fade={{ duration: 400 }}>
 		<!-- Header -->
 		<header class="text-center space-y-2">
 			<h1 class="text-7xl font-black italic tracking-tighter text-white drop-shadow-2xl">
@@ -76,7 +74,7 @@ async function handleLogin(event: Event) {
 		</header>
 
 		<!-- Form Card -->
-		<div 
+		<div
 			class="p-10 bg-black/40 backdrop-blur-xl border border-white/5 rounded-[40px] shadow-2xl space-y-8"
 			in:fly={{ y: 40, delay: 100, duration: 600 }}
 		>
@@ -91,7 +89,11 @@ async function handleLogin(event: Event) {
 			<form onsubmit={handleLogin} class="space-y-6">
 				<!-- Username -->
 				<div class="space-y-2">
-					<label for="username" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Username</label>
+					<label
+						for="username"
+						class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1"
+						>Username</label
+					>
 					<input
 						type="text"
 						id="username"
@@ -106,7 +108,11 @@ async function handleLogin(event: Event) {
 
 				<!-- Password -->
 				<div class="space-y-2">
-					<label for="password" class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Password</label>
+					<label
+						for="password"
+						class="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1"
+						>Password</label
+					>
 					<input
 						type="password"
 						id="password"
@@ -120,7 +126,9 @@ async function handleLogin(event: Event) {
 				</div>
 
 				{#if error}
-					<p class="text-red-400 text-[10px] font-black uppercase text-center tracking-widest leading-relaxed">
+					<p
+						class="text-red-400 text-[10px] font-black uppercase text-center tracking-widest leading-relaxed"
+					>
 						{error}
 					</p>
 				{/if}
@@ -137,7 +145,11 @@ async function handleLogin(event: Event) {
 			<footer class="space-y-4 text-center">
 				<p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
 					New to the rhythm?
-					<a href="/register" class="text-cyan-400 hover:text-cyan-300 transition-colors ml-1 underline decoration-2 underline-offset-4">REGISTER</a>
+					<a
+						href="/register"
+						class="text-cyan-400 hover:text-cyan-300 transition-colors ml-1 underline decoration-2 underline-offset-4"
+						>REGISTER</a
+					>
 				</p>
 			</footer>
 		</div>

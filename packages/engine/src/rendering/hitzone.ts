@@ -1,18 +1,17 @@
-import { Colors, GameplaySizingConstants } from "./constants";
-import type { Graphics } from "pixi.js";
+import { Colors, GameplaySizingConstants } from './constants';
+import type { Graphics } from 'pixi.js';
 
 export function drawHitZone(
 	hitZoneGraphics: Graphics,
 	stageHeight: number,
 	highwayX: number,
 	lanes: number,
-	laneWidth: number,
+	laneWidth: number
 ) {
 	hitZoneGraphics.clear();
 	const hitZoneYCenter = stageHeight * GameplaySizingConstants.HIT_ZONE_Y_RATIO;
 
-	const hitCircleVisualWidth =
-		laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
+	const hitCircleVisualWidth = laneWidth * (GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5);
 	const hitCircleRadius = hitCircleVisualWidth / 2;
 	for (let i = 0; i < lanes; i++) {
 		const laneCenterX = highwayX + i * laneWidth + laneWidth / 2;

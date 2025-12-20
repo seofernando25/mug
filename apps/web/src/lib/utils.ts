@@ -6,9 +6,9 @@
 export function printElement(element: HTMLElement | null, title: string) {
 	if (!element) return;
 
-	const printWindow = window.open("", "_blank");
+	const printWindow = window.open('', '_blank');
 	if (!printWindow) {
-		alert("Please allow popups to print this document.");
+		alert('Please allow popups to print this document.');
 		return;
 	}
 

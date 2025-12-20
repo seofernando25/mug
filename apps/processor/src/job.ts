@@ -1,6 +1,6 @@
-import { db, s3, schema } from "@mug/db";
-import { processFileAndExtractData } from "@mug/game-logic";
-import mime from "mime-types";
+import { db, s3, schema } from '@mug/db';
+import { processFileAndExtractData } from '@mug/game-logic';
+import mime from 'mime-types';
 
 export interface UploadJob {
 	jobId: string;
@@ -16,9 +16,9 @@ export async function processJob(job: UploadJob) {
 	const arrayBuffer = await file.arrayBuffer();
 
 	// 2. Create a File object with proper filename for parsing
-	const filename = job.s3Key.split("/").pop() || "uploaded.osz";
+	const filename = job.s3Key.split('/').pop() || 'uploaded.osz';
 	const fileBlob = new File([arrayBuffer], filename, {
-		type: "application/octet-stream",
+		type: 'application/octet-stream'
 	});
 
 	// 3. Parse (reuse shared game-logic parser)
@@ -27,17 +27,14 @@ export async function processJob(job: UploadJob) {
 	// 3. Upload assets
 	const audioKey = `songs/${job.jobId}/audio/${parsed.metadata.audioFilename}`;
 	await s3.write(audioKey, parsed.audioContent, {
-		type:
-			mime.lookup(parsed.metadata.audioFilename) || "application/octet-stream",
+		type: mime.lookup(parsed.metadata.audioFilename) || 'application/octet-stream'
 	});
 
 	let imageKey: string | null = null;
 	if (parsed.imageContent && parsed.metadata.imageFilename) {
 		imageKey = `songs/${job.jobId}/image/${parsed.metadata.imageFilename}`;
 		await s3.write(imageKey, parsed.imageContent, {
-			type:
-				mime.lookup(parsed.metadata.imageFilename) ||
-				"application/octet-stream",
+			type: mime.lookup(parsed.metadata.imageFilename) || 'application/octet-stream'
 		});
 	}
 
@@ -54,7 +51,7 @@ export async function processJob(job: UploadJob) {
 				audioS3Key: audioKey,
 				imageS3Key: imageKey,
 				uploaderId: job.userId,
-				previewStartTime: parsed.metadata.previewStartTime ?? 0,
+				previewStartTime: parsed.metadata.previewStartTime ?? 0
 			})
 			.returning({ id: schema.song.id });
 
@@ -65,10 +62,10 @@ export async function processJob(job: UploadJob) {
 				.insert(schema.chart)
 				.values({
 					songId: songRow.id,
-					difficultyName: chartData.difficultyName || "Normal",
+					difficultyName: chartData.difficultyName || 'Normal',
 					lanes: chartData.lanes || 4,
 					noteScrollSpeed: chartData.noteScrollSpeed ?? 1.0,
-					lyrics: chartData.lyrics ?? null,
+					lyrics: chartData.lyrics ?? null
 				})
 				.returning({ id: schema.chart.id });
 
@@ -79,8 +76,8 @@ export async function processJob(job: UploadJob) {
 						time: ho.time,
 						lane: ho.lane,
 						note_type: ho.type,
-						duration: ho.duration ?? null,
-					})),
+						duration: ho.duration ?? null
+					}))
 				);
 			}
 		}

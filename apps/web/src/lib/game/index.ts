@@ -1,2 +1,2 @@
 // Exports for game module
-export * from "$lib/types";
+export * from '$lib/types';

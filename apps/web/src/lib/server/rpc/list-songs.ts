@@ -1,6 +1,6 @@
-import { db, s3 } from "@mug/db";
-import { type } from "arktype";
-import { routerBaseContext } from "./context";
+import { db, s3 } from '@mug/db';
+import { type } from 'arktype';
+import { routerBaseContext } from './context';
 
 export const ListSongsInput = type({});
 
@@ -12,10 +12,10 @@ export const listSongsProcedure = routerBaseContext
 				with: {
 					charts: {
 						columns: {
-							difficultyName: true,
-						},
-					},
-				},
+							difficultyName: true
+						}
+					}
+				}
 			});
 
 			const items = songsWithCharts.map((s) => {
@@ -24,7 +24,7 @@ export const listSongsProcedure = routerBaseContext
 
 				return {
 					...s,
-					difficulties: uniqueDifficulties,
+					difficulties: uniqueDifficulties
 				};
 			});
 
@@ -35,31 +35,27 @@ export const listSongsProcedure = routerBaseContext
 
 					if (item.imageS3Key) {
 						imageUrl = s3.presign(item.imageS3Key, {
-							acl: "public-read",
+							acl: 'public-read'
 						});
 					}
 
 					if (item.audioS3Key) {
 						audioUrl = s3.presign(item.audioS3Key, {
-							acl: "public-read",
+							acl: 'public-read'
 						});
 					}
 
 					return {
 						...item,
 						imageUrl,
-						audioUrl,
+						audioUrl
 					};
-				}),
+				})
 			);
 
 			return { items: itemsWithSignedUrls };
 		} catch (e: unknown) {
-			console.error("Error listing songs:", e);
-			throw new Error(
-				e instanceof Error
-					? e.message
-					: "An error occurred while listing songs.",
-			);
+			console.error('Error listing songs:', e);
+			throw new Error(e instanceof Error ? e.message : 'An error occurred while listing songs.');
 		}
 	});

@@ -1,4 +1,4 @@
-import { authClient } from "$lib/auth-client";
+import { authClient } from '$lib/auth-client';
 
 export const ssr = false;
 
@@ -8,4 +8,3 @@ export const load = async () => {
 		session: session.data
 	};
 };
-

@@ -1,81 +1,79 @@
-import { describe, expect, it, mock } from "bun:test";
-import { RoomManager, type PlayerData } from "./state";
-import type { ServerWebSocket } from "bun";
+import { describe, expect, it, mock } from 'bun:test';
+import { RoomManager, type PlayerData } from './state';
+import type { ServerWebSocket } from 'bun';
 
 const createMockPlayer = (id: string, username: string) => {
 	return {
 		data: { user: { id, username }, roomId: undefined },
-		send: mock(() => {}),
+		send: mock(() => {})
 	} as unknown as ServerWebSocket<PlayerData>;
 };
 
-describe("RoomManager Logic", () => {
-	it("creates a room and triggers notifier", () => {
+describe('RoomManager Logic', () => {
+	it('creates a room and triggers notifier', () => {
 		const notifier = mock(() => {});
 		const manager = new RoomManager(notifier);
-		const host = createMockPlayer("u1", "peppy");
-		const room = manager.createRoom(host, "Test Room");
+		const host = createMockPlayer('u1', 'peppy');
+		const room = manager.createRoom(host, 'Test Room');
 
-		expect(room.name).toBe("Test Room");
+		expect(room.name).toBe('Test Room');
 		expect(room.players.has(host)).toBe(true);
 		expect(host.data.roomId).toBe(room.id);
 		expect(notifier).toHaveBeenCalled();
 		const event = notifier.mock.calls[0][0] as Parameters<typeof notifier>[0];
-		expect(event.type).toBe("add");
+		expect(event.type).toBe('add');
 		expect(event.room.id).toBe(room.id);
 	});
 
-	it("broadcasts to host when a second player joins", () => {
+	it('broadcasts to host when a second player joins', () => {
 		const manager = new RoomManager();
-		const host = createMockPlayer("u1", "host");
-		const p2 = createMockPlayer("u2", "joiner");
-		const room = manager.createRoom(host, "Multiplayer");
+		const host = createMockPlayer('u1', 'host');
+		const p2 = createMockPlayer('u2', 'joiner');
+		const room = manager.createRoom(host, 'Multiplayer');
 		manager.joinRoom(p2, room.id);
 		expect(room.players.size).toBe(2);
 		expect(host.send.mock.calls.length).toBeGreaterThan(0);
 		const sent = JSON.parse(host.send.mock.calls[0][0]);
-		expect(sent.op).toBe("room_event");
+		expect(sent.op).toBe('room_event');
 	});
 
-	it("removes room when last player leaves", () => {
+	it('removes room when last player leaves', () => {
 		const notifier = mock(() => {});
 		const manager = new RoomManager(notifier);
-		const host = createMockPlayer("u1", "host");
-		const room = manager.createRoom(host, "Temp");
+		const host = createMockPlayer('u1', 'host');
+		const room = manager.createRoom(host, 'Temp');
 		manager.leaveRoom(host);
-		expect(
-			manager.getLobbyList().find((r) => r.id === room.id),
-		).toBeUndefined();
+		expect(manager.getLobbyList().find((r) => r.id === room.id)).toBeUndefined();
 		expect(notifier).toHaveBeenCalledTimes(2); // add + remove
 	});
 
-	it("includes hostName and hostId in lobby list and room state", () => {
+	it('includes hostName and hostId in lobby list and room state', () => {
 		const manager = new RoomManager();
-		const host = createMockPlayer("u1", "peppy");
-		const room = manager.createRoom(host, "Lobby");
+		const host = createMockPlayer('u1', 'peppy');
+		const room = manager.createRoom(host, 'Lobby');
 		const lobby = manager.getLobbyList()[0];
-		expect(lobby.hostId).toBe("u1");
-		expect(lobby.hostName).toBe("peppy");
+		expect(lobby.hostId).toBe('u1');
+		expect(lobby.hostName).toBe('peppy');
 
 		const state = manager.getRoomState(room.id);
-		expect(state?.hostId).toBe("u1");
-		expect(state?.hostName).toBe("peppy");
-		expect(state?.players.find((p) => p.userId === "u1")).toBeDefined();
+		expect(state?.hostId).toBe('u1');
+		expect(state?.hostName).toBe('peppy');
+		expect(state?.players.find((p) => p.userId === 'u1')).toBeDefined();
 	});
 
-	it("reassigns host and updates hostName when original host leaves", () => {
+	it('reassigns host and updates hostName when original host leaves', () => {
 		const manager = new RoomManager();
-		const host = createMockPlayer("u1", "first");
-		const p2 = createMockPlayer("u2", "second");
-		const room = manager.createRoom(host, "Lobby");
+		const host = createMockPlayer('u1', 'first');
+		const p2 = createMockPlayer('u2', 'second');
+		const room = manager.createRoom(host, 'Lobby');
 		manager.joinRoom(p2, room.id);
 		manager.leaveRoom(host);
 		const state = manager.getRoomState(room.id);
-		expect(state?.hostId).toBe("u2");
-		expect(state?.hostName).toBe("second");
+		expect(state?.hostId).toBe('u2');
+		expect(state?.hostName).toBe('second');
 	});
 
-	it("allows reconnection within 5-second grace period", () => {
+	it('allows reconnection within 5-second grace period', () => {
 		// Create mock timer functions
 		let timeoutCallback: (() => void) | null = null;
 		let timeoutId = 1;
@@ -92,8 +90,8 @@ describe("RoomManager Logic", () => {
 		};
 
 		const manager = new RoomManager(() => {}, mockSetTimeout, mockClearTimeout);
-		const player = createMockPlayer("u1", "test");
-		const room = manager.createRoom(player, "Test Room");
+		const player = createMockPlayer('u1', 'test');
+		const room = manager.createRoom(player, 'Test Room');
 
 		// Simulate disconnect
 		manager.handleDisconnect(player);
@@ -106,7 +104,7 @@ describe("RoomManager Logic", () => {
 		expect(timeoutCallback).toBeTruthy();
 
 		// Create new socket for reconnection (simulating page refresh) BEFORE timer fires
-		const newSocket = createMockPlayer("u1", "test");
+		const newSocket = createMockPlayer('u1', 'test');
 
 		// Reconnect should succeed and cancel the disconnect timer
 		expect(() => manager.joinRoom(newSocket, room.id)).not.toThrow();
@@ -123,7 +121,7 @@ describe("RoomManager Logic", () => {
 		expect(timeoutCallback).toBeNull();
 	});
 
-	it("actually disconnects after 5-second grace period", () => {
+	it('actually disconnects after 5-second grace period', () => {
 		// Create mock timer functions
 		let timeoutCallback: (() => void) | null = null;
 		let timeoutId = 1;
@@ -139,8 +137,8 @@ describe("RoomManager Logic", () => {
 
 		const notifier = mock(() => {});
 		const manager = new RoomManager(notifier, mockSetTimeout, mockClearTimeout);
-		const player = createMockPlayer("u1", "test");
-		const room = manager.createRoom(player, "Test Room");
+		const player = createMockPlayer('u1', 'test');
+		const room = manager.createRoom(player, 'Test Room');
 
 		// Simulate disconnect
 		manager.handleDisconnect(player);
@@ -153,15 +151,11 @@ describe("RoomManager Logic", () => {
 		timeoutCallback?.(); // Fire the disconnect timer
 
 		// Room should be deleted automatically
-		expect(
-			manager.getLobbyList().find((r) => r.id === room.id),
-		).toBeUndefined();
+		expect(manager.getLobbyList().find((r) => r.id === room.id)).toBeUndefined();
 		expect(notifier).toHaveBeenCalledTimes(2); // add + remove
 
 		// Trying to join should fail
-		const newSocket = createMockPlayer("u1", "test");
-		expect(() => manager.joinRoom(newSocket, room.id)).toThrow(
-			"Room not found",
-		);
+		const newSocket = createMockPlayer('u1', 'test');
+		expect(() => manager.joinRoom(newSocket, room.id)).toThrow('Room not found');
 	});
 });

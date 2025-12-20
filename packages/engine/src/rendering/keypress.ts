@@ -1,5 +1,5 @@
-import { Graphics, Container } from "pixi.js";
-import { GameplaySizingConstants } from "./constants";
+import { Graphics, Container } from 'pixi.js';
+import { GameplaySizingConstants } from './constants';
 
 export function updateKeyPressVisuals(
 	graphics: Graphics,
@@ -15,7 +15,7 @@ export function updateKeyPressVisuals(
 	deltaSeconds: number,
 	noteColor: number, // Should come from Colors constants
 	baseRadiusRatio: number = 0.7,
-	pulseRatio: number = 0.2,
+	pulseRatio: number = 0.2
 ) {
 	graphics.clear();
 	const FADE_OUT_SPEED = 3.5;
@@ -35,12 +35,8 @@ export function updateKeyPressVisuals(
 			const laneCenterX = highwayX + i * laneWidth + laneWidth / 2;
 
 			const effectBaseRadius =
-				laneWidth *
-				GameplaySizingConstants.NOTE_WIDTH_RATIO *
-				0.5 *
-				baseRadiusRatio;
-			const animatedRadius =
-				effectBaseRadius * (1 + visual.currentAlpha * pulseRatio);
+				laneWidth * GameplaySizingConstants.NOTE_WIDTH_RATIO * 0.5 * baseRadiusRatio;
+			const animatedRadius = effectBaseRadius * (1 + visual.currentAlpha * pulseRatio);
 
 			graphics
 				.circle(laneCenterX, hitZoneY, animatedRadius)
@@ -49,10 +45,7 @@ export function updateKeyPressVisuals(
 	}
 }
 
-export function drawKeyPressEffects(
-	parentContainer: Container,
-	numLanes: number,
-) {
+export function drawKeyPressEffects(parentContainer: Container, numLanes: number) {
 	const effectsContainer = new Container();
 	parentContainer.addChild(effectsContainer);
 	const pressGraphics = new Graphics();
@@ -72,6 +65,6 @@ export function drawKeyPressEffects(
 		destroy: () => {
 			parentContainer.removeChild(effectsContainer);
 			effectsContainer.destroy({ children: true, texture: true });
-		},
+		}
 	};
 }

@@ -1,202 +1,146 @@
 <script lang="ts">
-import { onMount, onDestroy } from "svelte";
-import { browser } from "$app/environment";
+	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 
-// Import types, but not the actual implementation that might rely on browser APIs during SSR
+	// Import types, but not the actual implementation that might rely on browser APIs during SSR
 
-import type { GamePhase } from "$lib/game/game.client";
+	import type { GamePhase } from '$lib/game/game.client';
 
-// Corrected import path and aliased types
+	// Corrected import path and aliased types
 
-import type {
+	import type { ClientSong as SongData, ChartHitObject as Note } from '$lib/types';
 
-	ClientSong as SongData,
+	import type { GameChart as ChartData } from '$lib/types/game';
 
-	ChartHitObject as Note,
+	// Assume we will get song and chart data as props
 
-} from "$lib/types";
+	// You will need to pass these down from the parent page.
 
-import type { GameChart as ChartData } from "$lib/types/game";
-
-
-
-// Assume we will get song and chart data as props
-
-// You will need to pass these down from the parent page.
-
-const { containerWidth, containerHeight, songData, chartData }: { 
-    containerWidth: number; 
-    containerHeight: number; 
-    songData: SongData; 
-    chartData: ChartData 
-} = $props();
-
-
-
-let containerElement: HTMLDivElement;
-
-
-
-// Infer the type of gameInstance from the resolved value of createGame
-
-let gameInstance: Awaited<
-
-	ReturnType<typeof import("$lib/game/game.client").createGame>
-
-> | null = null;
-
-
-
-// Define the async initialization function
-
-async function initializeGame() {
-
-	if (!browser || !songData || !chartData || !containerElement) return;
-
-
-
-	// Dynamically import the game creation logic from the client-side file
-
-	const { createGame } = await import("$lib/game/game.client");
-
-
-
-	// Define the callbacks needed for createGame, explicitly typing them
-
-	const gameCallbacks = {
-
-		onPhaseChange: (phase: GamePhase) => {
-
-			console.log("Phase Change:", phase);
-
-		},
-
-		onCountdownUpdate: (value: number) => {
-
-			console.log("Countdown:", value);
-
-		},
-
-		onSongEnd: () => {
-
-			console.log("Song End");
-
-		},
-
-		onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
-
-			console.log("Score:", score, "Combo:", combo, "Max Combo:", maxCombo);
-
-		},
-
-		onNoteHit: (note: { id: string | number; lane: number }, judgment: string) => {
-
-			console.log("Note Hit:", judgment);
-
-		},
-
-		onNoteMiss: (note: { id: string | number; lane: number }) => {
-
-			console.log("Note Miss:");
-
-		},
-
-		getGamePhase: (): GamePhase => "playing", // Correctly typed placeholder
-
-		getIsPaused: (): boolean => false, // Correctly typed placeholder
-
-		getCountdownValue: (): number => 0, // Correctly typed placeholder
-
-		onTimeUpdate: (currentTimeMs: number) => {
-
-			/* console.log('Time:', currentTimeMs); */
-
-		}, // Correctly typed placeholder
-
-	};
-
-
-
-	// Create the game instance (awaiting the promise)
-
-	const instance = await createGame(
-
+	const {
+		containerWidth,
+		containerHeight,
 		songData,
+		chartData
+	}: {
+		containerWidth: number;
+		containerHeight: number;
+		songData: SongData;
+		chartData: ChartData;
+	} = $props();
 
-		chartData,
+	let containerElement: HTMLDivElement;
 
-		containerElement,
+	// Infer the type of gameInstance from the resolved value of createGame
 
-		gameCallbacks,
+	let gameInstance: Awaited<ReturnType<typeof import('$lib/game/game.client').createGame>> | null =
+		null;
 
-	); // Passed containerElement and awaited
+	// Define the async initialization function
 
-	gameInstance = instance; // Assign the resolved instance
+	async function initializeGame() {
+		if (!browser || !songData || !chartData || !containerElement) return;
 
-}
+		// Dynamically import the game creation logic from the client-side file
 
+		const { createGame } = await import('$lib/game/game.client');
 
+		// Define the callbacks needed for createGame, explicitly typing them
 
-// Use an effect to call the async function when dependencies are ready
+		const gameCallbacks = {
+			onPhaseChange: (phase: GamePhase) => {
+				console.log('Phase Change:', phase);
+			},
 
-$effect(() => {
+			onCountdownUpdate: (value: number) => {
+				console.log('Countdown:', value);
+			},
 
-	console.log(
+			onSongEnd: () => {
+				console.log('Song End');
+			},
 
-		"Effect triggered. songData:",
+			onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
+				console.log('Score:', score, 'Combo:', combo, 'Max Combo:', maxCombo);
+			},
 
-		!!songData,
+			onNoteHit: (note: { id: string | number; lane: number }, judgment: string) => {
+				console.log('Note Hit:', judgment);
+			},
 
-		"chartData:",
+			onNoteMiss: (note: { id: string | number; lane: number }) => {
+				console.log('Note Miss:');
+			},
 
-		!!chartData,
+			getGamePhase: (): GamePhase => 'playing', // Correctly typed placeholder
 
-		"containerElement:",
+			getIsPaused: (): boolean => false, // Correctly typed placeholder
 
-		!!containerElement,
+			getCountdownValue: (): number => 0, // Correctly typed placeholder
 
-	);
+			onTimeUpdate: (currentTimeMs: number) => {
+				/* console.log('Time:', currentTimeMs); */
+			} // Correctly typed placeholder
+		};
 
-	if (browser && songData && chartData && containerElement) {
+		// Create the game instance (awaiting the promise)
 
-		console.log("Dependencies met, initializing game...");
+		const instance = await createGame(
+			songData,
 
-		initializeGame();
+			chartData,
 
+			containerElement,
+
+			gameCallbacks
+		); // Passed containerElement and awaited
+
+		gameInstance = instance; // Assign the resolved instance
 	}
 
-});
+	// Use an effect to call the async function when dependencies are ready
 
+	$effect(() => {
+		console.log(
+			'Effect triggered. songData:',
 
+			!!songData,
 
-onDestroy(() => {
+			'chartData:',
 
-	if (gameInstance) {
+			!!chartData,
 
-		gameInstance.cleanup();
+			'containerElement:',
 
-		gameInstance = null;
+			!!containerElement
+		);
 
-	}
+		if (browser && songData && chartData && containerElement) {
+			console.log('Dependencies met, initializing game...');
 
-});
+			initializeGame();
+		}
+	});
 
+	onDestroy(() => {
+		if (gameInstance) {
+			gameInstance.cleanup();
 
+			gameInstance = null;
+		}
+	});
 
-// You might need to expose some game instance methods or state if the parent needs to interact with the game
+	// You might need to expose some game instance methods or state if the parent needs to interact with the game
 
-// For example:
+	// For example:
 
-// export function handleKeyPress(key: string, event: KeyboardEvent) { gameInstance?.handleKeyPress(key, event); }
+	// export function handleKeyPress(key: string, event: KeyboardEvent) { gameInstance?.handleKeyPress(key, event); }
 
-// export function handleKeyRelease(key: string, event: KeyboardEvent) { gameInstance?.handleKeyRelease(key, event); }
-
+	// export function handleKeyRelease(key: string, event: KeyboardEvent) { gameInstance?.handleKeyRelease(key, event); }
 </script>
-
-
 
 <!-- The container element that PixiJS will render into -->
 
-<div bind:this={containerElement} style="width: {containerWidth}px; height: {containerHeight}px;"></div>
-
- 
+<div
+	bind:this={containerElement}
+	style="width: {containerWidth}px; height: {containerHeight}px;"
+></div>

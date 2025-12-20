@@ -1,13 +1,13 @@
-import { handler } from "$lib/server/rpc/router";
-import type { RequestHandler } from "@sveltejs/kit";
+import { handler } from '$lib/server/rpc/router';
+import type { RequestHandler } from '@sveltejs/kit';
 
 const handle: RequestHandler = async ({ request }) => {
 	const { response } = await handler.handle(request, {
-		prefix: "/rpc",
-		context: { headers: request.headers },
+		prefix: '/rpc',
+		context: { headers: request.headers }
 	});
 
-	return response ?? new Response("Not Found", { status: 404 });
+	return response ?? new Response('Not Found', { status: 404 });
 };
 
 export const GET = handle;

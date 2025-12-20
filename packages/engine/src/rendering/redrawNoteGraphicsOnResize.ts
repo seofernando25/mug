@@ -1,4 +1,4 @@
-import type { NotePool } from "./NotePool";
+import type { NotePool } from './NotePool';
 
 export function redrawNoteGraphicsOnResize(
 	notePool: NotePool,
@@ -11,7 +11,7 @@ export function redrawNoteGraphicsOnResize(
 	canvasHeight: number,
 	isEditorMode: boolean,
 	editorViewCenterTimeMs: number,
-	editorPixelsPerSecond: number,
+	editorPixelsPerSecond: number
 ) {
 	notePool.updateGraphicsOnResize(
 		laneWidth,
@@ -23,6 +23,6 @@ export function redrawNoteGraphicsOnResize(
 		canvasHeight,
 		isEditorMode,
 		editorViewCenterTimeMs,
-		editorPixelsPerSecond,
+		editorPixelsPerSecond
 	);
 }

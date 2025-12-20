@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Placeholder for chat functionality
-	let message = $state("");
+	let message = $state('');
 </script>
 
 <div class="h-full flex flex-col bg-gray-900/50 border-l border-white/5 backdrop-blur-sm">
@@ -11,9 +11,7 @@
 
 	<!-- Messages Area -->
 	<div class="flex-1 p-4 overflow-y-auto space-y-2">
-		<div class="text-xs text-gray-500 italic text-center mt-4">
-			Welcome to the chat!
-		</div>
+		<div class="text-xs text-gray-500 italic text-center mt-4">Welcome to the chat!</div>
 		<!-- Mock Messages -->
 		<!-- <div class="text-xs">
 			<span class="font-bold text-cyan-400">User:</span>

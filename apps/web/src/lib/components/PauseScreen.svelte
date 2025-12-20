@@ -1,36 +1,38 @@
 <script lang="ts">
-import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
-import { fade, fly, scale } from "svelte/transition";
+	import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
+	import { fade, fly, scale } from 'svelte/transition';
 
-const {
-	onResume = () => {},
-	onRetry = () => {},
-	onExit = () => {},
-}: {
-	onResume?: () => void;
-	onRetry?: () => void;
-	onExit?: () => void;
-} = $props();
+	const {
+		onResume = () => {},
+		onRetry = () => {},
+		onExit = () => {}
+	}: {
+		onResume?: () => void;
+		onRetry?: () => void;
+		onExit?: () => void;
+	} = $props();
 </script>
 
-<div 
+<div
 	class="fixed inset-0 z-[1000] flex items-center justify-center bg-gray-900/90 backdrop-blur-md text-white font-sans"
 	transition:fade={{ duration: 200 }}
 >
-	<div 
+	<div
 		class="w-[500px] max-w-[95vw] flex flex-col gap-8"
 		transition:scale={{ start: 0.95, duration: 200 }}
 	>
 		<!-- Header -->
 		<div class="text-center">
-			<h1 class="text-6xl font-black italic tracking-tighter text-white drop-shadow-xl mb-2">PAUSED</h1>
+			<h1 class="text-6xl font-black italic tracking-tighter text-white drop-shadow-xl mb-2">
+				PAUSED
+			</h1>
 			<div class="h-1 w-24 bg-gradient-to-r from-purple-500 to-cyan-500 mx-auto rounded-full"></div>
 		</div>
 
 		<!-- Audio Settings -->
 		<div class="bg-black/40 border border-white/10 rounded-2xl p-6 space-y-6 backdrop-blur-sm">
 			<h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Audio Settings</h3>
-			
+
 			<div class="space-y-4">
 				<div class="space-y-2">
 					<div class="flex justify-between items-center text-sm font-bold">
@@ -80,7 +82,7 @@ const {
 				>
 					Retry
 				</button>
-				
+
 				<button
 					onclick={onExit}
 					class="py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl font-bold uppercase tracking-widest transition hover:scale-[1.02]"

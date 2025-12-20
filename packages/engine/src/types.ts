@@ -1,8 +1,8 @@
-import type { ChartHitObject as DbChartHitObject } from "@mug/db";
+import type { ChartHitObject as DbChartHitObject } from '@mug/db';
 
 export type ChartHitObject = DbChartHitObject;
 
-export type Judgment = "PERFECT" | "EXCELLENT" | "GOOD" | "MEH" | "MISS";
+export type Judgment = 'PERFECT' | 'EXCELLENT' | 'GOOD' | 'MEH' | 'MISS';
 
 export interface GameConfig {
 	timingWindows: {
@@ -14,7 +14,7 @@ export interface GameConfig {
 	scrollSpeed?: number;
 }
 
-export interface EngineNote extends Omit<ChartHitObject, "id"> {
+export interface EngineNote extends Omit<ChartHitObject, 'id'> {
 	id: string | number;
 	isHit: boolean;
 	isMissed: boolean;
@@ -31,7 +31,7 @@ export interface GameState {
 }
 
 export interface GameEvent {
-	type: "hit" | "miss" | "hold_broken";
+	type: 'hit' | 'miss' | 'hold_broken';
 	noteId: string | number;
 	judgment?: Judgment;
 	scoreDelta?: number;

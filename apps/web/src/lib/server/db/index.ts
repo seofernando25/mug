@@ -1,2 +1,2 @@
-export * from "@mug/db";
-export { db } from "@mug/db";
+export * from '@mug/db';
+export { db } from '@mug/db';

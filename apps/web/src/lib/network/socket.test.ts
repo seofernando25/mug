@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, beforeAll, mock } from "bun:test";
+import { describe, it, expect, beforeEach, beforeAll, mock } from 'bun:test';
 
 // Dynamic imports after mocks are set up
 let gameSocket: any;
@@ -6,10 +6,10 @@ let lobbyRooms: any;
 let currentRoomState: any;
 let matchState: any;
 
-describe("gameSocket handler", () => {
+describe('gameSocket handler', () => {
 	beforeAll(async () => {
 		// Mock svelte/store before importing socket
-		mock.module("svelte/store", () => ({
+		mock.module('svelte/store', () => ({
 			writable: mock((initial: any) => {
 				let value = initial;
 				const subscribers = new Set<Function>();
@@ -27,7 +27,7 @@ describe("gameSocket handler", () => {
 					update: mock((updater: Function) => {
 						value = updater(value);
 						subscribers.forEach((fn) => fn(value));
-					}),
+					})
 				};
 			}),
 			get: mock((store: any) => {
@@ -35,11 +35,11 @@ describe("gameSocket handler", () => {
 				const unsub = store.subscribe((v: any) => (value = v));
 				unsub();
 				return value;
-			}),
+			})
 		}));
 
 		// Import after mocking
-		const socket = await import("./socket");
+		const socket = await import('./socket');
 		gameSocket = socket.gameSocket;
 		lobbyRooms = socket.lobbyRooms;
 		currentRoomState = socket.currentRoomState;
@@ -56,61 +56,61 @@ describe("gameSocket handler", () => {
 		clearStores();
 	});
 
-	it("updates lobbyRooms from room_list", () => {
+	it('updates lobbyRooms from room_list', () => {
 		gameSocket.handleValidatedPacket({
-			op: "room_list",
-			data: [{ id: "r1", name: "Test", hostName: "host", playerCount: 1 }],
+			op: 'room_list',
+			data: [{ id: 'r1', name: 'Test', hostName: 'host', playerCount: 1 }]
 		});
 		let rooms: any[] = [];
 		const unsub = lobbyRooms.subscribe((v: any) => (rooms = v));
 		unsub();
 		expect(rooms.length).toBe(1);
-		expect(rooms[0].name).toBe("Test");
-		expect(rooms[0].hostName).toBe("host");
+		expect(rooms[0].name).toBe('Test');
+		expect(rooms[0].hostName).toBe('host');
 	});
 
-	it("applies room_event add/remove", () => {
-		lobbyRooms.set([{ id: "r1", name: "Old" } as any]);
+	it('applies room_event add/remove', () => {
+		lobbyRooms.set([{ id: 'r1', name: 'Old' } as any]);
 		gameSocket.handleValidatedPacket({
-			op: "room_event",
-			data: { type: "add", room: { id: "r2", name: "New", hostName: "h" } },
+			op: 'room_event',
+			data: { type: 'add', room: { id: 'r2', name: 'New', hostName: 'h' } }
 		});
 		let rooms: any[] = [];
 		const unsub = lobbyRooms.subscribe((v: any) => (rooms = v));
 		unsub();
-		expect(rooms.find((r) => r.id === "r2")?.name).toBe("New");
+		expect(rooms.find((r) => r.id === 'r2')?.name).toBe('New');
 
 		(gameSocket as any).handleValidatedPacket({
-			op: "room_event",
-			data: { type: "remove", room: { id: "r1" } },
+			op: 'room_event',
+			data: { type: 'remove', room: { id: 'r1' } }
 		});
 		const unsub2 = lobbyRooms.subscribe((v: any) => (rooms = v));
 		unsub2();
-		expect(rooms.find((r) => r.id === "r1")).toBeUndefined();
+		expect(rooms.find((r) => r.id === 'r1')).toBeUndefined();
 	});
 
-	it("updates currentRoomState from room_state", () => {
+	it('updates currentRoomState from room_state', () => {
 		gameSocket.handleValidatedPacket({
-			op: "room_state",
+			op: 'room_state',
 			data: {
-				id: "r1",
-				name: "Room",
-				hostId: "u1",
-				players: [{ userId: "u1", username: "host" }],
-			},
+				id: 'r1',
+				name: 'Room',
+				hostId: 'u1',
+				players: [{ userId: 'u1', username: 'host' }]
+			}
 		});
 		let state: any = null;
 		const unsub = currentRoomState.subscribe((v: any) => (state = v));
 		unsub();
-		expect(state?.id).toBe("r1");
-		expect(state?.players[0].username).toBe("host");
+		expect(state?.id).toBe('r1');
+		expect(state?.players[0].username).toBe('host');
 	});
 
-	it("handles valid peer_score_update", () => {
+	it('handles valid peer_score_update', () => {
 		matchState.set({});
 		gameSocket.handleValidatedPacket({
-			op: "peer_score_update",
-			data: { userId: "user123", score: 1000, combo: 5 },
+			op: 'peer_score_update',
+			data: { userId: 'user123', score: 1000, combo: 5 }
 		});
 		let state: any = null;
 		const unsub = matchState.subscribe((v: any) => (state = v));
@@ -120,13 +120,13 @@ describe("gameSocket handler", () => {
 		expect(state.user123.combo).toBe(5);
 	});
 
-	it("queues messages when socket not connected", () => {
+	it('queues messages when socket not connected', () => {
 		// Create a mock socket that's not connected
 		const mockSocket = {
 			readyState: WebSocket.CONNECTING,
 			send: (() => {
-				throw new Error("Should not be called");
-			}) as any,
+				throw new Error('Should not be called');
+			}) as any
 		} as any;
 
 		// Temporarily replace the internal ws
@@ -135,11 +135,11 @@ describe("gameSocket handler", () => {
 
 		try {
 			// Send a message while "connecting"
-			gameSocket.send("ping");
+			gameSocket.send('ping');
 
 			// Check that the message was queued
 			expect((gameSocket as any).messageQueue.length).toBe(1);
-			expect((gameSocket as any).messageQueue[0].op).toBe("ping");
+			expect((gameSocket as any).messageQueue[0].op).toBe('ping');
 
 			// Verify send was not called on the socket
 			// (message should be queued instead)

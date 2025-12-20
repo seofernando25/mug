@@ -1,10 +1,10 @@
-import { db, user as userSchema } from "@mug/db";
-import { type } from "arktype";
-import { eq } from "drizzle-orm";
-import { routerBaseContext } from "./context";
+import { db, user as userSchema } from '@mug/db';
+import { type } from 'arktype';
+import { eq } from 'drizzle-orm';
+import { routerBaseContext } from './context';
 
 export const CheckUsernameInput = type({
-	username: "string>0", // Non-empty string
+	username: 'string>0' // Non-empty string
 });
 
 export const checkUsernameProcedure = routerBaseContext
@@ -19,15 +19,13 @@ export const checkUsernameProcedure = routerBaseContext
 				.execute();
 
 			if (users[0]) {
-				return { available: false, message: "Username is already taken." };
+				return { available: false, message: 'Username is already taken.' };
 			}
-			return { available: true, message: "Username is available." };
+			return { available: true, message: 'Username is available.' };
 		} catch (e: unknown) {
-			console.error("Error checking username:", e);
+			console.error('Error checking username:', e);
 			throw new Error(
-				e instanceof Error
-					? e.message
-					: "An error occurred while checking username availability.",
+				e instanceof Error ? e.message : 'An error occurred while checking username availability.'
 			);
 		}
 	});

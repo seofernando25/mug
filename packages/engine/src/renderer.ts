@@ -1,23 +1,13 @@
-import { drawHighway, getHighwayMetrics } from "./rendering/highway";
-import { drawJudgmentText } from "./rendering/judgment";
-import {
-	drawReceptor,
-	getReceptorPositions,
-	getReceptorSize,
-} from "./rendering/receptor";
-import { NotePool } from "./rendering/NotePool";
-import { updateNotes } from "./rendering/updateNotes";
-import { redrawNoteGraphicsOnResize } from "./rendering/redrawNoteGraphicsOnResize";
-import type { GameState } from "./types";
-import type { ChartHitObject } from "./types";
-import { Application, Container } from "pixi.js";
-import {
-	derived,
-	get,
-	writable,
-	type Readable,
-	type Writable,
-} from "svelte/store";
+import { drawHighway, getHighwayMetrics } from './rendering/highway';
+import { drawJudgmentText } from './rendering/judgment';
+import { drawReceptor, getReceptorPositions, getReceptorSize } from './rendering/receptor';
+import { NotePool } from './rendering/NotePool';
+import { updateNotes } from './rendering/updateNotes';
+import { redrawNoteGraphicsOnResize } from './rendering/redrawNoteGraphicsOnResize';
+import type { GameState } from './types';
+import type { ChartHitObject } from './types';
+import { Application, Container } from 'pixi.js';
+import { derived, get, writable, type Readable, type Writable } from 'svelte/store';
 
 interface RendererOptions {
 	container: HTMLElement;
@@ -67,7 +57,7 @@ export class GameRenderer {
 			resolution: window.devicePixelRatio || 1,
 			autoDensity: true,
 			backgroundColor: 0x000000,
-			backgroundAlpha: 0.0,
+			backgroundAlpha: 0.0
 		});
 
 		container.appendChild(this.app.canvas);
@@ -76,28 +66,19 @@ export class GameRenderer {
 		this.appHeight = writable(this.app.screen.height);
 		this.highwayMetricsStore = derived(
 			[this.appHeight, this.appWidth],
-			([height, width]: [number, number]) =>
-				getHighwayMetrics(this.lanes, width, height),
+			([height, width]: [number, number]) => getHighwayMetrics(this.lanes, width, height)
 		);
 		const initialMetrics = get(this.highwayMetricsStore);
 		this.notePool = new NotePool(this.mainContainer, initialMetrics.laneWidth);
 		this.receptorPositions = getReceptorPositions(this.highwayMetricsStore);
 		this.receptorSize = derived(
 			[this.appHeight, this.appWidth],
-			([height, width]: [number, number]) => getReceptorSize(width, height),
+			([height, width]: [number, number]) => getReceptorSize(width, height)
 		);
 
 		this.app.stage.addChild(this.mainContainer);
-		this.highway = drawHighway(
-			this.app,
-			this.mainContainer,
-			this.highwayMetricsStore,
-		);
-		this.receptors = drawReceptor(
-			this.mainContainer,
-			this.receptorPositions,
-			this.receptorSize,
-		);
+		this.highway = drawHighway(this.app, this.mainContainer, this.highwayMetricsStore);
+		this.receptors = drawReceptor(this.mainContainer, this.receptorPositions, this.receptorSize);
 		this.initialized = true;
 	}
 
@@ -113,9 +94,7 @@ export class GameRenderer {
 	render(state: GameState, timeMs: number) {
 		if (!this.initialized || !this.notePool) return;
 		const deltaMs =
-			this.lastRenderTimeMs === null
-				? 0
-				: Math.max(0, timeMs - this.lastRenderTimeMs);
+			this.lastRenderTimeMs === null ? 0 : Math.max(0, timeMs - this.lastRenderTimeMs);
 		this.lastRenderTimeMs = timeMs;
 
 		const metrics = get(this.highwayMetricsStore);
@@ -126,11 +105,11 @@ export class GameRenderer {
 				...n,
 				isActivelyHeld: n.isHolding,
 				holdBroken: n.holdBroken,
-				holdSatisfied: n.holdSatisfied,
-			} as ChartHitObject & { 
-				isActivelyHeld?: boolean; 
-				holdBroken?: boolean; 
-				holdSatisfied?: boolean 
+				holdSatisfied: n.holdSatisfied
+			} as ChartHitObject & {
+				isActivelyHeld?: boolean;
+				holdBroken?: boolean;
+				holdSatisfied?: boolean;
 			};
 		});
 
@@ -147,7 +126,7 @@ export class GameRenderer {
 			judged,
 			this.editorMode, // Pass editor mode flag
 			this.editorViewCenterTimeMs, // Pass editor viewport center time
-			this.editorPixelsPerSecond, // Pass editor pixels per second (zoom)
+			this.editorPixelsPerSecond // Pass editor pixels per second (zoom)
 		);
 
 		// Animate and clean up single judgment text
@@ -170,7 +149,7 @@ export class GameRenderer {
 
 	showJudgment(lane: number, judgment: string, _color?: number) {
 		const metrics = get(this.highwayMetricsStore);
-		
+
 		// Destroy previous judgment if it exists to override
 		if (this.activeJudgment) {
 			this.activeJudgment.parent?.removeChild(this.activeJudgment);
@@ -182,13 +161,7 @@ export class GameRenderer {
 		const centerX = metrics.x + metrics.width / 2;
 		const yPos = metrics.receptorYPosition - metrics.height * 0.1; // 10% up from receptors
 
-		this.activeJudgment = drawJudgmentText(
-			this.app,
-			this.mainContainer,
-			judgment,
-			centerX,
-			yPos,
-		);
+		this.activeJudgment = drawJudgmentText(this.app, this.mainContainer, judgment, centerX, yPos);
 	}
 
 	handleResize(songTimeMs?: number) {
@@ -219,7 +192,7 @@ export class GameRenderer {
 				metrics.height,
 				this.editorMode, // Pass editor mode flag
 				this.editorViewCenterTimeMs, // Pass editor viewport center time
-				this.editorPixelsPerSecond, // Pass editor pixels per second (zoom)
+				this.editorPixelsPerSecond // Pass editor pixels per second (zoom)
 			);
 		}
 

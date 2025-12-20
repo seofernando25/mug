@@ -1,20 +1,15 @@
-import { gameSocket } from "$lib/network/socket";
-import { Preferences } from "@mug/common";
-import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
-import type { ClientSong } from "$lib/types";
-import type { GameChart } from "$lib/types/game";
-import { get } from "svelte/store";
-import { RhythmEngine, type ChartHitObject } from "@mug/engine";
-import { AudioClock } from "@mug/engine";
-import { GameRenderer } from "@mug/engine";
-import { sound, Sound } from "@pixi/sound";
+import { gameSocket } from '$lib/network/socket';
+import { Preferences } from '@mug/common';
+import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
+import type { ClientSong } from '$lib/types';
+import type { GameChart } from '$lib/types/game';
+import { get } from 'svelte/store';
+import { RhythmEngine, type ChartHitObject } from '@mug/engine';
+import { AudioClock } from '@mug/engine';
+import { GameRenderer } from '@mug/engine';
+import { sound, Sound } from '@pixi/sound';
 
-export type GamePhase =
-	| "loading"
-	| "countdown"
-	| "playing"
-	| "finished"
-	| "summary";
+export type GamePhase = 'loading' | 'countdown' | 'playing' | 'finished' | 'summary';
 
 export interface GameOptions {
 	/**
@@ -42,26 +37,25 @@ export async function createGame(
 		onTimeUpdate?: (time: number) => void;
 		onAudioLoaded?: (durationMs: number) => void;
 	},
-	options: GameOptions = {},
+	options: GameOptions = {}
 ) {
 	// Attempt to resume AudioContext if suspended (common in multiplayer/autoplay scenarios)
-	if (sound.context?.audioContext?.state === "suspended") {
-		sound.context.audioContext.resume().catch((e: unknown) =>
-			console.warn("[MUG] Failed to resume AudioContext:", e),
-		);
+	if (sound.context?.audioContext?.state === 'suspended') {
+		sound.context.audioContext
+			.resume()
+			.catch((e: unknown) => console.warn('[MUG] Failed to resume AudioContext:', e));
 	}
 
-	if (chartData.hitObjects.length === 0)
-		console.warn("[MUG] ⚠️ WARNING: Chart has 0 notes!");
+	if (chartData.hitObjects.length === 0) console.warn('[MUG] ⚠️ WARNING: Chart has 0 notes!');
 	// 1) Initialize modules
 	const engine = new RhythmEngine(chartData.hitObjects, {
 		timingWindows: {
 			perfect: Preferences.prefs.gameplay.perfectWindowMs ?? 30,
 			excellent: Preferences.prefs.gameplay.excellentWindowMs ?? 60,
 			good: Preferences.prefs.gameplay.goodWindowMs ?? 90,
-			meh: Preferences.prefs.gameplay.mehWindowMs ?? 150,
+			meh: Preferences.prefs.gameplay.mehWindowMs ?? 150
 		},
-		scrollSpeed: chartData.noteScrollSpeed ?? 1.0,
+		scrollSpeed: chartData.noteScrollSpeed ?? 1.0
 	});
 
 	let soundInstance: Sound | null = null;
@@ -73,7 +67,7 @@ export async function createGame(
 			if (isResolved) return;
 			isResolved = true;
 			if (err) {
-				console.error("[MUG] ❌ Audio Failed to Load:", err);
+				console.error('[MUG] ❌ Audio Failed to Load:', err);
 			}
 			resolve();
 		};
@@ -81,7 +75,7 @@ export async function createGame(
 		soundInstance = Sound.from({
 			url: songData.audioUrl,
 			preload: true,
-			loaded: (err: Error | null) => finish(err),
+			loaded: (err: Error | null) => finish(err)
 		});
 
 		if (soundInstance.isLoaded) {
@@ -96,12 +90,12 @@ export async function createGame(
 			}
 		}, 3000);
 	});
-	
+
 	// Ensure we have a concrete sound instance for the rest of the flow
 	if (!soundInstance) {
 		soundInstance = Sound.from({ url: songData.audioUrl, preload: true });
 	}
-	
+
 	soundInstance.volume = get(masterVolume) * get(musicVolume);
 
 	// Subscribe to volume changes and update audio in real-time
@@ -116,7 +110,7 @@ export async function createGame(
 	const renderer = new GameRenderer({
 		container: container,
 		lanes: chartData.lanes ?? 4,
-		scrollSpeed: chartData.noteScrollSpeed ?? 1,
+		scrollSpeed: chartData.noteScrollSpeed ?? 1
 	});
 	await renderer.init();
 
@@ -125,17 +119,14 @@ export async function createGame(
 	if (chartData.hitObjects?.length) {
 		const validStartTimes = chartData.hitObjects
 			.map((ho) => ho.time)
-			.filter(
-							(startTime) =>
-								typeof startTime === "number" && !Number.isNaN(startTime),
-							);
+			.filter((startTime) => typeof startTime === 'number' && !Number.isNaN(startTime));
 
 		if (validStartTimes.length > 0) {
 			lastNoteTime = Math.max(...validStartTimes);
 		}
 	}
 	// 2) State
-	let phase: GamePhase = "loading";
+	let phase: GamePhase = 'loading';
 	let isPaused = false;
 	let countdownTimer: ReturnType<typeof setInterval> | null = null;
 	let countdownCount = 3;
@@ -156,7 +147,7 @@ export async function createGame(
 			return;
 		}
 
-		if (phase === "countdown") {
+		if (phase === 'countdown') {
 			const now = performance.now();
 			const timeRemaining = leadInEndTime - now;
 			const time = -timeRemaining; // Negative time relative to start (0)
@@ -173,41 +164,37 @@ export async function createGame(
 
 			// Check if lead-in is finished
 			if (timeRemaining <= 0) {
-				setPhase("playing");
+				setPhase('playing');
 				// Start Audio
 				clock.play(() => {
 					audioFinished = true;
 				});
 			}
-		} else if (phase === "playing") {
+		} else if (phase === 'playing') {
 			const time = clock.currentTimeMs;
 			const events = engine.update(time);
 
 			for (const e of events) {
-				if (e.type === "hit" && e.judgment) {
+				if (e.type === 'hit' && e.judgment) {
 					const note = { id: e.noteId, lane: e.lane };
 					callbacks.onNoteHit(note, e.judgment);
 					renderer.showJudgment(e.lane, e.judgment);
 					renderer.flashLane(e.lane);
-				} else if (e.type === "miss" || e.type === "hold_broken") {
+				} else if (e.type === 'miss' || e.type === 'hold_broken') {
 					const note = { id: e.noteId, lane: e.lane };
 					callbacks.onNoteMiss(note);
-					renderer.showJudgment(e.lane, "Miss");
+					renderer.showJudgment(e.lane, 'Miss');
 				}
 
 				// score sync + WS
-				callbacks.onScoreUpdate(
-					engine.state.score,
-					engine.state.combo,
-					engine.state.maxCombo,
-				);
+				callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
 				if (gameSocket) {
-					gameSocket.send("score_update", {
+					gameSocket.send('score_update', {
 						score: engine.state.score,
 						combo: engine.state.combo,
 						maxCombo: engine.state.maxCombo,
 						noteId: e.noteId,
-						judgment: e.judgment || "Miss",
+						judgment: e.judgment || 'Miss'
 					});
 				}
 			}
@@ -222,10 +209,7 @@ export async function createGame(
 
 			const audioDurationMs = (soundInstance?.duration ?? 0) * 1000;
 			const maxChartTime = lastNoteTime + 3000;
-			const safetyFallbackTime = Math.max(
-				audioDurationMs + 1000,
-				maxChartTime + 5000,
-			);
+			const safetyFallbackTime = Math.max(audioDurationMs + 1000, maxChartTime + 5000);
 
 			if (time > safetyFallbackTime) {
 				endGame();
@@ -237,39 +221,31 @@ export async function createGame(
 
 	// 4) Input
 	function handleKeyPress(key: string) {
-		if (isPaused || phase !== "playing") return;
-		const lane = Preferences.prefs.gameplay.keybindings.indexOf(
-			key.toLowerCase(),
-		);
+		if (isPaused || phase !== 'playing') return;
+		const lane = Preferences.prefs.gameplay.keybindings.indexOf(key.toLowerCase());
 		if (lane === -1) return;
 
 		renderer.flashLane(lane);
 		const result = engine.submitInput(lane, clock.currentTimeMs);
-		if (result && result.type === "hit" && result.judgment) {
+		if (result && result.type === 'hit' && result.judgment) {
 			callbacks.onNoteHit({ id: result.noteId, lane }, result.judgment);
 			renderer.showJudgment(lane, result.judgment);
-			callbacks.onScoreUpdate(
-				engine.state.score,
-				engine.state.combo,
-				engine.state.maxCombo,
-			);
+			callbacks.onScoreUpdate(engine.state.score, engine.state.combo, engine.state.maxCombo);
 			if (gameSocket) {
-				gameSocket.send("score_update", {
+				gameSocket.send('score_update', {
 					score: engine.state.score,
 					combo: engine.state.combo,
 					maxCombo: engine.state.maxCombo,
 					noteId: result.noteId,
-					judgment: result.judgment || "Miss",
+					judgment: result.judgment || 'Miss'
 				});
 			}
 		}
 	}
 
 	function handleKeyRelease(key: string) {
-		if (phase !== "playing") return;
-		const lane = Preferences.prefs.gameplay.keybindings.indexOf(
-			key.toLowerCase(),
-		);
+		if (phase !== 'playing') return;
+		const lane = Preferences.prefs.gameplay.keybindings.indexOf(key.toLowerCase());
 		if (lane !== -1) {
 			engine.releaseInput(lane, clock.currentTimeMs);
 		}
@@ -279,30 +255,30 @@ export async function createGame(
 	function startSequence() {
 		if (started) return;
 		started = true;
-		setPhase("countdown");
+		setPhase('countdown');
 		// 3 seconds lead-in
 		leadInEndTime = performance.now() + 3000;
 		countdownCount = 3;
 		callbacks.onCountdownUpdate(countdownCount);
-		
+
 		// Start the loop immediately to render approaching notes
 		rafId = requestAnimationFrame(loop);
 	}
 
 	function endGame() {
 		cancelAnimationFrame(rafId);
-		setPhase("finished");
+		setPhase('finished');
 		callbacks.onSongEnd();
 		if (gameSocket) {
-			gameSocket.send("match_finished", {
+			gameSocket.send('match_finished', {
 				score: engine.state.score,
-				maxCombo: engine.state.maxCombo,
+				maxCombo: engine.state.maxCombo
 			});
 		}
-		setTimeout(() => setPhase("summary"), 2000);
+		setTimeout(() => setPhase('summary'), 2000);
 	}
 
-	const isTestEnv = typeof process !== "undefined" && !!process.env?.BUN_TEST;
+	const isTestEnv = typeof process !== 'undefined' && !!process.env?.BUN_TEST;
 
 	// Notify that audio is loaded (for multiplayer ready-up)
 	if (soundInstance) {
@@ -310,7 +286,7 @@ export async function createGame(
 	}
 
 	if (isTestEnv) {
-		setPhase("playing");
+		setPhase('playing');
 		loop(); // Trigger the loop immediately in test mode
 	} else if (!options.manualStart) {
 		// Solo mode: start immediately
@@ -322,13 +298,13 @@ export async function createGame(
 		pauseGame: () => {
 			isPaused = true;
 			clock.pause();
-			console.log("Paused game");
+			console.log('Paused game');
 		},
 		resumeGame: () => {
 			isPaused = false;
 			clock.resume();
-			if (phase === "countdown") {
-				leadInEndTime = performance.now() + (countdownCount * 1000); 
+			if (phase === 'countdown') {
+				leadInEndTime = performance.now() + countdownCount * 1000;
 			}
 		},
 		handleKeyPress,
@@ -336,7 +312,7 @@ export async function createGame(
 		beginGameplaySequence: () => {
 			if (started) return;
 			if (isTestEnv) {
-				setPhase("playing");
+				setPhase('playing');
 				loop();
 			} else {
 				startSequence();
@@ -373,7 +349,7 @@ export async function createGame(
 			__setPhaseForTest: (p: GamePhase) => {
 				phase = p;
 			},
-			__getEngineForTest: () => engine,
-		}),
+			__getEngineForTest: () => engine
+		})
 	};
 }

@@ -1,356 +1,352 @@
 <script lang="ts">
-import ComboMeter from "$lib/components/ComboMeter.svelte";
-import CountdownOverlay from "$lib/components/CountdownOverlay.svelte";
-import FinishOverlay from "$lib/components/FinishOverlay.svelte";
-import LevitatingTextOverlay from "$lib/components/LevitatingTextOverlay.svelte";
-import PauseScreen from "$lib/components/PauseScreen.svelte";
-import ScreenPulse from "$lib/components/ScreenPulse.svelte";
-import SummaryScreen from "$lib/components/SummaryScreen.svelte";
-import ScoreDisplay from "$lib/components/ScoreDisplay.svelte";
-import { createGame, type GamePhase } from "$lib/game/game.client.js";
-import MultiplayerLeaderboard from "$lib/components/game/MultiplayerLeaderboard.svelte";
-import { socketStatus, gameSocket, currentRoomState, matchState, clearMatchState } from "$lib/network/socket";
-import { authClient } from "$lib/auth-client";
-import { Colors } from "$lib/types/game";
-import { onMount, tick } from "svelte";
+	import ComboMeter from '$lib/components/ComboMeter.svelte';
+	import CountdownOverlay from '$lib/components/CountdownOverlay.svelte';
+	import FinishOverlay from '$lib/components/FinishOverlay.svelte';
+	import LevitatingTextOverlay from '$lib/components/LevitatingTextOverlay.svelte';
+	import PauseScreen from '$lib/components/PauseScreen.svelte';
+	import ScreenPulse from '$lib/components/ScreenPulse.svelte';
+	import SummaryScreen from '$lib/components/SummaryScreen.svelte';
+	import ScoreDisplay from '$lib/components/ScoreDisplay.svelte';
+	import { createGame, type GamePhase } from '$lib/game/game.client.js';
+	import MultiplayerLeaderboard from '$lib/components/game/MultiplayerLeaderboard.svelte';
+	import {
+		socketStatus,
+		gameSocket,
+		currentRoomState,
+		matchState,
+		clearMatchState
+	} from '$lib/network/socket';
+	import { authClient } from '$lib/auth-client';
+	import { Colors } from '$lib/types/game';
+	import { onMount, tick } from 'svelte';
 
-let { 
-	songData, 
-	chartData, 
-	callbacks, 
-	showMultiplayerLeaderboard = false, 
-	canPause = true, 
-	isMultiplayer = false, 
-	suppressSummaryScreen = false,
-	triggerExit = $bindable()
-} = $props();
+	let {
+		songData,
+		chartData,
+		callbacks,
+		showMultiplayerLeaderboard = false,
+		canPause = true,
+		isMultiplayer = false,
+		suppressSummaryScreen = false,
+		triggerExit = $bindable()
+	} = $props();
 
-const session = authClient.useSession();
-const currentUser = $derived($session.data?.user);
+	const session = authClient.useSession();
+	const currentUser = $derived($session.data?.user);
 
-// Multiplayer state
-let isWaitingForPlayers = $state(false);
+	// Multiplayer state
+	let isWaitingForPlayers = $state(false);
 
-let gamePhaseStore = $state<GamePhase>("loading");
-let countdownValueStore = $state<number>(3);
-let currentScoreStore = $state<number>(0);
-let currentComboStore = $state<number>(0);
-let maxComboSoFarStore = $state<number>(0);
-let isPausedStore = $state<boolean>(false);
-let currentSongTimeMsStore = $state<number>(0);
-let songDurationMsStore = $state<number>(0);
-let gameKey = $state(0); // Used to force-remount canvas on retry
+	let gamePhaseStore = $state<GamePhase>('loading');
+	let countdownValueStore = $state<number>(3);
+	let currentScoreStore = $state<number>(0);
+	let currentComboStore = $state<number>(0);
+	let maxComboSoFarStore = $state<number>(0);
+	let isPausedStore = $state<boolean>(false);
+	let currentSongTimeMsStore = $state<number>(0);
+	let songDurationMsStore = $state<number>(0);
+	let gameKey = $state(0); // Used to force-remount canvas on retry
 
-let canvasElementContainer: HTMLDivElement;
-let pixiContainer = $state<HTMLDivElement>();
-let screenPulseComponent: ScreenPulse;
+	let canvasElementContainer: HTMLDivElement;
+	let pixiContainer = $state<HTMLDivElement>();
+	let screenPulseComponent: ScreenPulse;
 
-let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
+	let gameInstance: Awaited<ReturnType<typeof createGame>> | null = null;
 
-// --- UI derived states ---
-const showCountdownOverlay = $derived(gamePhaseStore === "countdown");
-const showFinishOverlay = $derived(gamePhaseStore === "finished");
-const showSummaryScreen = $derived(
-	!suppressSummaryScreen && gamePhaseStore === "summary"
-);
-const showPauseScreen = $derived(
-	isPausedStore &&
-		gamePhaseStore !== "summary" &&
-		gamePhaseStore !== "finished",
-);
-const showLevitatingTextOverlay = $derived(
-	gamePhaseStore === "playing" || gamePhaseStore === "countdown",
-);
-const showComboMeter = $derived(
-	currentComboStore > 0 &&
-		(gamePhaseStore === "playing" || gamePhaseStore === "countdown"),
-);
+	// --- UI derived states ---
+	const showCountdownOverlay = $derived(gamePhaseStore === 'countdown');
+	const showFinishOverlay = $derived(gamePhaseStore === 'finished');
+	const showSummaryScreen = $derived(!suppressSummaryScreen && gamePhaseStore === 'summary');
+	const showPauseScreen = $derived(
+		isPausedStore && gamePhaseStore !== 'summary' && gamePhaseStore !== 'finished'
+	);
+	const showLevitatingTextOverlay = $derived(
+		gamePhaseStore === 'playing' || gamePhaseStore === 'countdown'
+	);
+	const showComboMeter = $derived(
+		currentComboStore > 0 && (gamePhaseStore === 'playing' || gamePhaseStore === 'countdown')
+	);
 
-// --- Svelte Lifecycle ---
-let initializeGame: () => Promise<void>;
+	// --- Svelte Lifecycle ---
+	let initializeGame: () => Promise<void>;
 
-onMount(() => {
-	let cleanupCalled = false;
+	onMount(() => {
+		let cleanupCalled = false;
 
-	const handleKeyDown = (event: KeyboardEvent) => {
-		// Don't process events when game has ended
-		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
+		const handleKeyDown = (event: KeyboardEvent) => {
+			// Don't process events when game has ended
+			if (gamePhaseStore === 'summary' || gamePhaseStore === 'finished') return;
 
-		if (event.key === "Escape" && canPause) {
-			if (isPausedStore && gameInstance) {
-				gameInstance.resumeGame();
-				isPausedStore = false;
-			} else if (
-				(gamePhaseStore === "playing" || gamePhaseStore === "countdown") &&
-				gameInstance
-			) {
-				gameInstance.pauseGame();
-				isPausedStore = true;
+			if (event.key === 'Escape' && canPause) {
+				if (isPausedStore && gameInstance) {
+					gameInstance.resumeGame();
+					isPausedStore = false;
+				} else if (
+					(gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') &&
+					gameInstance
+				) {
+					gameInstance.pauseGame();
+					isPausedStore = true;
+				}
+				event.preventDefault();
+				return;
 			}
-			event.preventDefault();
-			return;
-		}
-		if (!gameInstance || isPausedStore || gamePhaseStore !== "playing") return;
-		gameInstance.handleKeyPress(event.key.toLowerCase());
-	};
+			if (!gameInstance || isPausedStore || gamePhaseStore !== 'playing') return;
+			gameInstance.handleKeyPress(event.key.toLowerCase());
+		};
 
-	const handleKeyUp = (event: KeyboardEvent) => {
-		// Don't process events when game has ended
-		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
-		if (!gameInstance) return;
-		gameInstance.handleKeyRelease(event.key.toLowerCase());
-	};
+		const handleKeyUp = (event: KeyboardEvent) => {
+			// Don't process events when game has ended
+			if (gamePhaseStore === 'summary' || gamePhaseStore === 'finished') return;
+			if (!gameInstance) return;
+			gameInstance.handleKeyRelease(event.key.toLowerCase());
+		};
 
-	const handleResize = () => {
-		gameInstance?.handleResize();
-	};
+		const handleResize = () => {
+			gameInstance?.handleResize();
+		};
 
-	const handlePageFocusChange = () => {
-		console.log("Page focus changed");
-		// Don't process events when game has ended
-		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
-		if (!gameInstance || !canPause) return;
+		const handlePageFocusChange = () => {
+			console.log('Page focus changed');
+			// Don't process events when game has ended
+			if (gamePhaseStore === 'summary' || gamePhaseStore === 'finished') return;
+			if (!gameInstance || !canPause) return;
 
-		if (document.hidden) {
+			if (document.hidden) {
+				if (
+					(gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') &&
+					!isPausedStore &&
+					gameInstance
+				) {
+					gameInstance.pauseGame();
+					isPausedStore = true;
+					console.log('Game paused due to page visibility change (hidden)');
+				}
+			}
+		};
+
+		const handleWindowBlur = () => {
+			console.log('Window blurred');
+			// Don't process events when game has ended
+			if (gamePhaseStore === 'summary' || gamePhaseStore === 'finished') return;
+			if (!gameInstance || !canPause) return;
 			if (
-				(gamePhaseStore === "playing" || gamePhaseStore === "countdown") &&
+				(gamePhaseStore === 'playing' || gamePhaseStore === 'countdown') &&
 				!isPausedStore &&
 				gameInstance
 			) {
 				gameInstance.pauseGame();
 				isPausedStore = true;
-				console.log("Game paused due to page visibility change (hidden)");
+				console.log('Game paused due to window losing focus (blur)');
 			}
-		}
-	};
+		};
 
-	const handleWindowBlur = () => {
-		console.log("Window blurred");
-		// Don't process events when game has ended
-		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
-		if (!gameInstance || !canPause) return;
-		if (
-			(gamePhaseStore === "playing" || gamePhaseStore === "countdown") &&
-			!isPausedStore &&
-			gameInstance
-		) {
-			gameInstance.pauseGame();
-			isPausedStore = true;
-			console.log("Game paused due to window losing focus (blur)");
-		}
-	};
+		initializeGame = async () => {
+			console.log('[GameSession] Initializing game...');
 
-	initializeGame = async () => {
-		console.log("[GameSession] Initializing game...");
-		
-		// Reset local match state tracking
-		clearMatchState();
+			// Reset local match state tracking
+			clearMatchState();
 
-		// Cleanup existing instance if any
-		if (gameInstance) {
-			console.log("[GameSession] Cleaning up previous instance");
-			gameInstance.cleanup();
-			gameInstance = null;
-		}
+			// Cleanup existing instance if any
+			if (gameInstance) {
+				console.log('[GameSession] Cleaning up previous instance');
+				gameInstance.cleanup();
+				gameInstance = null;
+			}
 
-		// Force canvas recreation to ensure clean WebGL context
-		gameKey++;
-		await tick();
+			// Force canvas recreation to ensure clean WebGL context
+			gameKey++;
+			await tick();
 
-		// Ensure container is present
-		if (!pixiContainer) {
-			console.error("[GameSession] Pixi container not found!");
-			return;
-		}
-		
-		// Clear any previous children (e.g. from previous Pixi instances if they weren't cleaned up)
-		pixiContainer.innerHTML = '';
-
-		try {
-			console.log("[GameSession] Creating new game instance");
-			const instance = await createGame(
-				songData,
-				chartData,
-				pixiContainer, // Pass the container, not the canvas
-				{
-					onPhaseChange: (phase: GamePhase) => {
-						gamePhaseStore = phase;
-						if (!(phase === "playing" || phase === "countdown")) {
-							isPausedStore = false;
-						}
-						// Notify parent when match finishes
-						if (phase === "summary") {
-							callbacks.onMatchFinished?.(currentScoreStore, maxComboSoFarStore);
-						}
-					},
-					onCountdownUpdate: (value: number) => (countdownValueStore = value),
-					onSongEnd: () => {},
-					onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
-						currentScoreStore = score;
-						currentComboStore = combo;
-						maxComboSoFarStore = maxCombo;
-						callbacks.onScoreUpdate?.(score, combo, maxCombo);
-
-						// Update own state in multiplayer leaderboard
-						if (isMultiplayer && currentUser) {
-							const displayName = currentUser.username || currentUser.name || `GUEST-${currentUser.id.slice(0, 5).toUpperCase()}`;
-							matchState.update(s => ({
-								...s,
-								[currentUser!.id]: {
-									userId: currentUser!.id,
-									username: displayName,
-									score: score,
-									combo: combo,
-									maxCombo: maxCombo,
-									finished: false
-								}
-							}));
-						}
-					},
-					onNoteHit: (note, judgment) => {
-						if (screenPulseComponent && pixiContainer) {
-							const canvasRect = pixiContainer.getBoundingClientRect();
-							const highwayMetrics = gameInstance?.getHighwayMetrics();
-							if (!highwayMetrics) return;
-
-							const color =
-								Colors.LANE_COLORS[note.lane % Colors.LANE_COLORS.length];
-
-							const laneX =
-								canvasRect.left +
-								highwayMetrics.x +
-								highwayMetrics.laneWidth * note.lane +
-								highwayMetrics.laneWidth / 2;
-							const laneY = canvasRect.top + highwayMetrics.judgmentLineYPosition;
-
-							screenPulseComponent.triggerPulse(
-								laneX,
-								laneY,
-								color,
-								0.3,
-								50,
-								300,
-							);
-						}
-					},
-					onNoteMiss: () => {},
-					getGamePhase: () => gamePhaseStore,
-					getIsPaused: () => isPausedStore,
-					getCountdownValue: () => countdownValueStore,
-					onTimeUpdate: (timeMs: number) => {
-						currentSongTimeMsStore = timeMs;
-					},
-					onAudioLoaded: (durationMs: number) => {
-						songDurationMsStore = durationMs;
-						if (isMultiplayer) {
-							isWaitingForPlayers = true;
-							gameSocket.send("client_ready", {});
-						}
-					},
-				},
-				{ manualStart: isMultiplayer },
-			);
-
-			// Prevent zombie game instance if component unmounted during creation
-			if (cleanupCalled) {
-				console.log("[GameSession] Component unmounted during creation, cleaning up");
-				instance.cleanup();
+			// Ensure container is present
+			if (!pixiContainer) {
+				console.error('[GameSession] Pixi container not found!');
 				return;
 			}
 
-			gameInstance = instance;
-			console.log("[GameSession] Game instance created");
+			// Clear any previous children (e.g. from previous Pixi instances if they weren't cleaned up)
+			pixiContainer.innerHTML = '';
 
-			if (!isMultiplayer) {
-				gameInstance.beginGameplaySequence();
+			try {
+				console.log('[GameSession] Creating new game instance');
+				const instance = await createGame(
+					songData,
+					chartData,
+					pixiContainer, // Pass the container, not the canvas
+					{
+						onPhaseChange: (phase: GamePhase) => {
+							gamePhaseStore = phase;
+							if (!(phase === 'playing' || phase === 'countdown')) {
+								isPausedStore = false;
+							}
+							// Notify parent when match finishes
+							if (phase === 'summary') {
+								callbacks.onMatchFinished?.(currentScoreStore, maxComboSoFarStore);
+							}
+						},
+						onCountdownUpdate: (value: number) => (countdownValueStore = value),
+						onSongEnd: () => {},
+						onScoreUpdate: (score: number, combo: number, maxCombo: number) => {
+							currentScoreStore = score;
+							currentComboStore = combo;
+							maxComboSoFarStore = maxCombo;
+							callbacks.onScoreUpdate?.(score, combo, maxCombo);
+
+							// Update own state in multiplayer leaderboard
+							if (isMultiplayer && currentUser) {
+								const displayName =
+									currentUser.username ||
+									currentUser.name ||
+									`GUEST-${currentUser.id.slice(0, 5).toUpperCase()}`;
+								matchState.update((s) => ({
+									...s,
+									[currentUser!.id]: {
+										userId: currentUser!.id,
+										username: displayName,
+										score: score,
+										combo: combo,
+										maxCombo: maxCombo,
+										finished: false
+									}
+								}));
+							}
+						},
+						onNoteHit: (note, judgment) => {
+							if (screenPulseComponent && pixiContainer) {
+								const canvasRect = pixiContainer.getBoundingClientRect();
+								const highwayMetrics = gameInstance?.getHighwayMetrics();
+								if (!highwayMetrics) return;
+
+								const color = Colors.LANE_COLORS[note.lane % Colors.LANE_COLORS.length];
+
+								const laneX =
+									canvasRect.left +
+									highwayMetrics.x +
+									highwayMetrics.laneWidth * note.lane +
+									highwayMetrics.laneWidth / 2;
+								const laneY = canvasRect.top + highwayMetrics.judgmentLineYPosition;
+
+								screenPulseComponent.triggerPulse(laneX, laneY, color, 0.3, 50, 300);
+							}
+						},
+						onNoteMiss: () => {},
+						getGamePhase: () => gamePhaseStore,
+						getIsPaused: () => isPausedStore,
+						getCountdownValue: () => countdownValueStore,
+						onTimeUpdate: (timeMs: number) => {
+							currentSongTimeMsStore = timeMs;
+						},
+						onAudioLoaded: (durationMs: number) => {
+							songDurationMsStore = durationMs;
+							if (isMultiplayer) {
+								isWaitingForPlayers = true;
+								gameSocket.send('client_ready', {});
+							}
+						}
+					},
+					{ manualStart: isMultiplayer }
+				);
+
+				// Prevent zombie game instance if component unmounted during creation
+				if (cleanupCalled) {
+					console.log('[GameSession] Component unmounted during creation, cleaning up');
+					instance.cleanup();
+					return;
+				}
+
+				gameInstance = instance;
+				console.log('[GameSession] Game instance created');
+
+				if (!isMultiplayer) {
+					gameInstance.beginGameplaySequence();
+				}
+			} catch (e) {
+				console.error('[GameSession] Fatal error creating game:', e);
 			}
-		} catch (e) {
-			console.error("[GameSession] Fatal error creating game:", e);
-		}
-	};
+		};
 
-	initializeGame();
-
-	window.addEventListener("keydown", handleKeyDown);
-	window.addEventListener("keyup", handleKeyUp);
-	window.addEventListener("resize", handleResize);
-	
-	console.log("Game can pause:", canPause);
-	if (canPause) {
-		document.addEventListener("visibilitychange", handlePageFocusChange);
-		window.addEventListener("blur", handleWindowBlur);
-	}
-
-	// Subscribe to room state changes for multiplayer countdown sync
-	let unsubRoomState: (() => void) | undefined;
-	if (isMultiplayer) {
-		unsubRoomState = currentRoomState.subscribe((state) => {
-			if (!state) return;
-
-			// When room transitions to 'starting', all players are ready - start countdown
-			if (state.status === "starting" && isWaitingForPlayers && gameInstance) {
-				console.log("[GameSession] All players ready! Starting countdown");
-				isWaitingForPlayers = false;
-				gameInstance.startCountdown();
-			}
-		});
-	}
-
-	return () => {
-		if (cleanupCalled) return;
-		cleanupCalled = true;
-		window.removeEventListener("keydown", handleKeyDown);
-		window.removeEventListener("keyup", handleKeyUp);
-		window.removeEventListener("resize", handleResize);
-		
-		if (canPause) {
-			document.removeEventListener("visibilitychange", handlePageFocusChange);
-			window.removeEventListener("blur", handleWindowBlur);
-		}
-
-		unsubRoomState?.();
-		gameInstance?.cleanup();
-		gameInstance = null;
-	};
-});
-
-function handleRetry() {
-	console.log("[GameSession] Retry requested");
-	currentScoreStore = 0;
-	currentComboStore = 0;
-	maxComboSoFarStore = 0;
-	isPausedStore = false;
-	callbacks.onRetry?.();
-	// Re-initialize the game instead of just calling beginGameplaySequence
-	if (initializeGame) {
 		initializeGame();
-	}
-}
 
-function handleExit() {
-	if (gameInstance) {
-		gameInstance.cleanup();
-		gameInstance = null;
-	}
-	callbacks.onExit();
-}
+		window.addEventListener('keydown', handleKeyDown);
+		window.addEventListener('keyup', handleKeyUp);
+		window.addEventListener('resize', handleResize);
 
-// Assign the internal handleExit to the bindable prop so parent can call it
-$effect(() => {
-	triggerExit = handleExit;
-});
+		console.log('Game can pause:', canPause);
+		if (canPause) {
+			document.addEventListener('visibilitychange', handlePageFocusChange);
+			window.addEventListener('blur', handleWindowBlur);
+		}
+
+		// Subscribe to room state changes for multiplayer countdown sync
+		let unsubRoomState: (() => void) | undefined;
+		if (isMultiplayer) {
+			unsubRoomState = currentRoomState.subscribe((state) => {
+				if (!state) return;
+
+				// When room transitions to 'starting', all players are ready - start countdown
+				if (state.status === 'starting' && isWaitingForPlayers && gameInstance) {
+					console.log('[GameSession] All players ready! Starting countdown');
+					isWaitingForPlayers = false;
+					gameInstance.startCountdown();
+				}
+			});
+		}
+
+		return () => {
+			if (cleanupCalled) return;
+			cleanupCalled = true;
+			window.removeEventListener('keydown', handleKeyDown);
+			window.removeEventListener('keyup', handleKeyUp);
+			window.removeEventListener('resize', handleResize);
+
+			if (canPause) {
+				document.removeEventListener('visibilitychange', handlePageFocusChange);
+				window.removeEventListener('blur', handleWindowBlur);
+			}
+
+			unsubRoomState?.();
+			gameInstance?.cleanup();
+			gameInstance = null;
+		};
+	});
+
+	function handleRetry() {
+		console.log('[GameSession] Retry requested');
+		currentScoreStore = 0;
+		currentComboStore = 0;
+		maxComboSoFarStore = 0;
+		isPausedStore = false;
+		callbacks.onRetry?.();
+		// Re-initialize the game instead of just calling beginGameplaySequence
+		if (initializeGame) {
+			initializeGame();
+		}
+	}
+
+	function handleExit() {
+		if (gameInstance) {
+			gameInstance.cleanup();
+			gameInstance = null;
+		}
+		callbacks.onExit();
+	}
+
+	// Assign the internal handleExit to the bindable prop so parent can call it
+	$effect(() => {
+		triggerExit = handleExit;
+	});
 </script>
 
 <div
 	class="gameplay-container"
 	bind:this={canvasElementContainer}
 	style="--bg-url: url('{songData.imageUrl}');"
->	
+>
 	<!-- PixiJS Container - Recreated on retry -->
 	{#key gameKey}
 		<div bind:this={pixiContainer} class="absolute inset-0"></div>
 	{/key}
-	
+
 	<ScreenPulse bind:this={screenPulseComponent} />
 	{#if isWaitingForPlayers}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -358,9 +354,7 @@ $effect(() => {
 				<div class="text-3xl font-bold text-cyan-400 mb-4 animate-pulse">
 					WAITING FOR PLAYERS...
 				</div>
-				<div class="text-lg text-gray-400">
-					All players must load the song before starting
-				</div>
+				<div class="text-lg text-gray-400">All players must load the song before starting</div>
 			</div>
 		</div>
 	{/if}
@@ -379,7 +373,7 @@ $effect(() => {
 			difficultyName={chartData.difficultyName}
 			onRetry={handleRetry}
 			onExit={handleExit}
-			isMultiplayer={isMultiplayer}
+			{isMultiplayer}
 		/>
 	{/if}
 	{#if showPauseScreen && canPause}
@@ -405,7 +399,6 @@ $effect(() => {
 			durationMs={songDurationMsStore}
 		/>
 	{/if}
-
 
 	{#if showComboMeter}
 		<ComboMeter combo={currentComboStore} />

@@ -1,55 +1,42 @@
-import { db, schema } from "@mug/db";
-import { type } from "arktype";
-import {
-	and,
-	asc,
-	desc,
-	count as drizzleCount,
-	eq,
-	isNotNull,
-} from "drizzle-orm";
-import { routerBaseContext } from "../context";
-import { requireAuth } from "../middleware/auth";
+import { db, schema } from '@mug/db';
+import { type } from 'arktype';
+import { and, asc, desc, count as drizzleCount, eq, isNotNull } from 'drizzle-orm';
+import { routerBaseContext } from '../context';
+import { requireAuth } from '../middleware/auth';
 
-const getDisplayName = (user: {
-	name: string;
-	displayUsername?: string | null;
-}) => user.displayUsername ?? user.name;
+const getDisplayName = (user: { name: string; displayUsername?: string | null }) =>
+	user.displayUsername ?? user.name;
 
 const activeConnections = new Map<
 	string,
 	{ userId: string; roomId: number; lastHeartbeat: number }
 >();
 export const CreateRoomInput = type({
-	roomName: "string>0",
-	roomPassword: "(string>0)?",
-	currentChartId: "(string & /^[0-9a-fA-F-]{36}$/)?",
+	roomName: 'string>0',
+	roomPassword: '(string>0)?',
+	currentChartId: '(string & /^[0-9a-fA-F-]{36}$/)?'
 });
 
 const JoinRoomInput = type({
-	roomName: "string>0",
-	roomPassword: "(string>0)?",
+	roomName: 'string>0',
+	roomPassword: '(string>0)?'
 });
 
 const RoomIdInput = type({
-	roomId: "number > 0",
+	roomId: 'number > 0'
 });
 
 const UpdateRoomInput = type({
-	roomName: "string>0",
-	newName: "(string>0)?",
-	newPassword: "(string>0)?",
-	currentChartId: "(string & /^[0-9a-fA-F-]{36}$/)?",
+	roomName: 'string>0',
+	newName: '(string>0)?',
+	newPassword: '(string>0)?',
+	currentChartId: '(string & /^[0-9a-fA-F-]{36}$/)?'
 });
 
-async function handlePlayerLeftRoom(
-	dbInstance: typeof db,
-	userId: string,
-	roomIdToUpdate: number,
-) {
+async function handlePlayerLeftRoom(dbInstance: typeof db, userId: string, roomIdToUpdate: number) {
 	const currentRoom = await dbInstance.query.room.findFirst({
 		where: eq(schema.room.id, roomIdToUpdate),
-		columns: { ownerId: true, id: true, name: true },
+		columns: { ownerId: true, id: true, name: true }
 	});
 
 	if (!currentRoom) {
@@ -60,16 +47,10 @@ async function handlePlayerLeftRoom(
 		await dbInstance
 			.delete(schema.roomPlayer)
 			.where(
-				and(
-					eq(schema.roomPlayer.roomId, roomIdToUpdate),
-					eq(schema.roomPlayer.userId, userId),
-				),
+				and(eq(schema.roomPlayer.roomId, roomIdToUpdate), eq(schema.roomPlayer.userId, userId))
 			);
 	} catch (error) {
-		console.error(
-			`Error removing player ${userId} from room ${roomIdToUpdate}:`,
-			error,
-		);
+		console.error(`Error removing player ${userId} from room ${roomIdToUpdate}:`, error);
 	}
 
 	const remainingPlayersResult = await dbInstance
@@ -83,12 +64,8 @@ async function handlePlayerLeftRoom(
 
 	if (remainingPlayersCount === 0) {
 		try {
-			await dbInstance
-				.delete(schema.room)
-				.where(eq(schema.room.id, roomIdToUpdate));
-			console.log(
-				`Deleted empty room ${currentRoom.name} (ID: ${roomIdToUpdate})`,
-			);
+			await dbInstance.delete(schema.room).where(eq(schema.room.id, roomIdToUpdate));
+			console.log(`Deleted empty room ${currentRoom.name} (ID: ${roomIdToUpdate})`);
 		} catch (dbError) {
 			console.error(`Error deleting empty room ${roomIdToUpdate}:`, dbError);
 		}
@@ -96,7 +73,7 @@ async function handlePlayerLeftRoom(
 		const nextPlayer = await dbInstance.query.roomPlayer.findFirst({
 			where: eq(schema.roomPlayer.roomId, roomIdToUpdate),
 			orderBy: [asc(schema.roomPlayer.joinedAt)],
-			columns: { userId: true },
+			columns: { userId: true }
 		});
 
 		if (nextPlayer) {
@@ -105,26 +82,16 @@ async function handlePlayerLeftRoom(
 					.update(schema.room)
 					.set({ ownerId: nextPlayer.userId, lastActivityAt: new Date() })
 					.where(eq(schema.room.id, roomIdToUpdate));
-				console.log(
-					`Transferred ownership of room ${currentRoom.name} to ${nextPlayer.userId}`,
-				);
+				console.log(`Transferred ownership of room ${currentRoom.name} to ${nextPlayer.userId}`);
 			} catch (dbError) {
-				console.error(
-					`Error transferring ownership for room ${roomIdToUpdate}:`,
-					dbError,
-				);
+				console.error(`Error transferring ownership for room ${roomIdToUpdate}:`, dbError);
 			}
 		} else {
 			try {
-				await dbInstance
-					.delete(schema.room)
-					.where(eq(schema.room.id, roomIdToUpdate));
+				await dbInstance.delete(schema.room).where(eq(schema.room.id, roomIdToUpdate));
 				console.log(`Deleted room ${currentRoom.name} (fallback)`);
 			} catch (dbError) {
-				console.error(
-					`Error deleting room ${roomIdToUpdate} as fallback:`,
-					dbError,
-				);
+				console.error(`Error deleting room ${roomIdToUpdate} as fallback:`, dbError);
 			}
 		}
 	} else {
@@ -134,10 +101,7 @@ async function handlePlayerLeftRoom(
 				.set({ lastActivityAt: new Date() })
 				.where(eq(schema.room.id, roomIdToUpdate));
 		} catch (dbError) {
-			console.error(
-				`Error updating lastActivityAt for room ${roomIdToUpdate}:`,
-				dbError,
-			);
+			console.error(`Error updating lastActivityAt for room ${roomIdToUpdate}:`, dbError);
 		}
 	}
 }
@@ -147,24 +111,24 @@ export const createRoomProcedure = routerBaseContext
 	.input(CreateRoomInput)
 	.handler(async ({ input, context }) => {
 		const existingRoom = await db.query.room.findFirst({
-			where: eq(schema.room.name, input.roomName),
+			where: eq(schema.room.name, input.roomName)
 		});
 		if (existingRoom) {
 			return {
 				success: false,
 				error: {
-					code: "CONFLICT",
-					message: "Room with this name already exists.",
-				},
+					code: 'CONFLICT',
+					message: 'Room with this name already exists.'
+				}
 			};
 		}
 
 		let passwordHash: string | null = null;
 		if (input.roomPassword) {
 			passwordHash = await Bun.password.hash(input.roomPassword, {
-				algorithm: "argon2id",
+				algorithm: 'argon2id',
 				memoryCost: 65536,
-				timeCost: 2,
+				timeCost: 2
 			});
 		}
 
@@ -177,7 +141,7 @@ export const createRoomProcedure = routerBaseContext
 				ownerId: context.auth.user.id,
 				currentChartId: input.currentChartId,
 				createdAt: new Date(),
-				lastActivityAt: new Date(),
+				lastActivityAt: new Date()
 			};
 
 			const newRoomResults = await db
@@ -187,7 +151,7 @@ export const createRoomProcedure = routerBaseContext
 					id: schema.room.id,
 					name: schema.room.name,
 					ownerId: schema.room.ownerId,
-					currentChartId: schema.room.currentChartId,
+					currentChartId: schema.room.currentChartId
 				})
 				.execute();
 
@@ -197,9 +161,9 @@ export const createRoomProcedure = routerBaseContext
 				return {
 					success: false,
 					error: {
-						code: "INTERNAL_SERVER_ERROR",
-						message: "Failed to create room and get ID.",
-					},
+						code: 'INTERNAL_SERVER_ERROR',
+						message: 'Failed to create room and get ID.'
+					}
 				};
 			}
 
@@ -208,26 +172,20 @@ export const createRoomProcedure = routerBaseContext
 				.values({
 					roomId: newRoom.id,
 					userId: context.auth.user.id,
-					joinedAt: new Date(),
+					joinedAt: new Date()
 				})
 				.execute();
 
-			console.log(
-				`Room '${newRoom.name}' created by ${ownerDisplayName} (ID: ${newRoom.id})`,
-			);
+			console.log(`Room '${newRoom.name}' created by ${ownerDisplayName} (ID: ${newRoom.id})`);
 			let chartDetails = null;
 			if (newRoom.currentChartId) {
 				const chartData = await db.query.chart.findFirst({
 					where: eq(schema.chart.id, newRoom.currentChartId),
 					with: {
-						song: { columns: { title: true, artist: true, imageS3Key: true } },
-					},
+						song: { columns: { title: true, artist: true, imageS3Key: true } }
+					}
 				});
-				if (
-					chartData?.song &&
-					typeof chartData.song === "object" &&
-					"title" in chartData.song
-				) {
+				if (chartData?.song && typeof chartData.song === 'object' && 'title' in chartData.song) {
 					const song = chartData.song as {
 						title: string;
 						artist: string;
@@ -237,7 +195,7 @@ export const createRoomProcedure = routerBaseContext
 						name: song.title,
 						artist: song.artist,
 						coverUrl: song.imageS3Key,
-						difficultyName: chartData.difficultyName,
+						difficultyName: chartData.difficultyName
 					};
 				}
 			}
@@ -247,17 +205,17 @@ export const createRoomProcedure = routerBaseContext
 				room: {
 					ownerUsername: ownerDisplayName,
 					...newRoom,
-					currentChart: chartDetails,
-				},
+					currentChart: chartDetails
+				}
 			};
 		} catch (error) {
-			console.error("Error creating room:", error);
+			console.error('Error creating room:', error);
 			return {
 				success: false,
 				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Could not create room.",
-				},
+					code: 'INTERNAL_SERVER_ERROR',
+					message: 'Could not create room.'
+				}
 			};
 		}
 	});
@@ -268,13 +226,13 @@ export const joinRoomProcedure = routerBaseContext
 	.handler(async ({ input, context }) => {
 		const roomToJoin = await db.query.room.findFirst({
 			where: eq(schema.room.name, input.roomName),
-			columns: { id: true, passwordHash: true, name: true },
+			columns: { id: true, passwordHash: true, name: true }
 		});
 
 		if (!roomToJoin) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Room not found." },
+				error: { code: 'NOT_FOUND', message: 'Room not found.' }
 			};
 		}
 
@@ -283,19 +241,16 @@ export const joinRoomProcedure = routerBaseContext
 				return {
 					success: false,
 					error: {
-						code: "BAD_REQUEST",
-						message: "Password required to join this room.",
-					},
+						code: 'BAD_REQUEST',
+						message: 'Password required to join this room.'
+					}
 				};
 			}
-			const isMatch = await Bun.password.verify(
-				input.roomPassword,
-				roomToJoin.passwordHash,
-			);
+			const isMatch = await Bun.password.verify(input.roomPassword, roomToJoin.passwordHash);
 			if (!isMatch) {
 				return {
 					success: false,
-					error: { code: "UNAUTHORIZED", message: "Invalid password." },
+					error: { code: 'UNAUTHORIZED', message: 'Invalid password.' }
 				};
 			}
 		}
@@ -305,8 +260,8 @@ export const joinRoomProcedure = routerBaseContext
 			const existingPlayer = await db.query.roomPlayer.findFirst({
 				where: and(
 					eq(schema.roomPlayer.roomId, roomToJoin.id),
-					eq(schema.roomPlayer.userId, context.auth.user.id),
-				),
+					eq(schema.roomPlayer.userId, context.auth.user.id)
+				)
 			});
 
 			if (!existingPlayer) {
@@ -315,7 +270,7 @@ export const joinRoomProcedure = routerBaseContext
 					.values({
 						roomId: roomToJoin.id,
 						userId: context.auth.user.id,
-						joinedAt: new Date(),
+						joinedAt: new Date()
 					})
 					.execute();
 			}
@@ -327,23 +282,23 @@ export const joinRoomProcedure = routerBaseContext
 				.execute();
 
 			console.log(
-				`User ${userDisplayName} joined room '${roomToJoin.name}' (ID: ${roomToJoin.id})`,
+				`User ${userDisplayName} joined room '${roomToJoin.name}' (ID: ${roomToJoin.id})`
 			);
 			return {
 				success: true,
 				room: {
 					id: roomToJoin.id,
-					name: roomToJoin.name,
-				},
+					name: roomToJoin.name
+				}
 			};
 		} catch (error) {
 			console.error(`Error joining room ${roomToJoin.id}:`, error);
 			return {
 				success: false,
 				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Could not join room.",
-				},
+					code: 'INTERNAL_SERVER_ERROR',
+					message: 'Could not join room.'
+				}
 			};
 		}
 	});
@@ -354,110 +309,105 @@ export const leaveRoomProcedure = routerBaseContext
 	.handler(async ({ input, context }) => {
 		const roomToLeave = await db.query.room.findFirst({
 			where: eq(schema.room.id, input.roomId),
-			columns: { id: true, name: true },
+			columns: { id: true, name: true }
 		});
 		if (!roomToLeave) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Room not found." },
+				error: { code: 'NOT_FOUND', message: 'Room not found.' }
 			};
 		}
 
 		await handlePlayerLeftRoom(db, context.auth.user.id, input.roomId);
 		console.log(
-			`User ${getDisplayName(context.auth.user)} explicitly left room '${roomToLeave.name}' (ID: ${input.roomId})`,
+			`User ${getDisplayName(context.auth.user)} explicitly left room '${roomToLeave.name}' (ID: ${input.roomId})`
 		);
-		return { success: true, message: "Successfully left room." };
+		return { success: true, message: 'Successfully left room.' };
 	});
 
-export const listRoomsProcedure = routerBaseContext.handler(
-	async () => {
-		try {
-			const roomsData = await db
-				.select({
-					id: schema.room.id,
-					name: schema.room.name,
-					ownerId: schema.room.ownerId,
-					ownerName: schema.user.name,
-					ownerDisplayUsername: schema.user.displayUsername,
-					ownerAvatar: schema.user.image,
-					createdAt: schema.room.createdAt,
-					lastActivityAt: schema.room.lastActivityAt,
-					playerCount: drizzleCount(schema.roomPlayer.userId),
-					isPasswordProtected: isNotNull(schema.room.passwordHash),
-					currentChartId: schema.room.currentChartId,
-					chartDifficultyName: schema.chart.difficultyName,
-					songTitle: schema.song.title,
-					songArtist: schema.song.artist,
-					songImageS3Key: schema.song.imageS3Key,
-				})
-				.from(schema.room)
-				.leftJoin(
-					schema.roomPlayer,
-					eq(schema.room.id, schema.roomPlayer.roomId),
-				)
-				.leftJoin(schema.user, eq(schema.room.ownerId, schema.user.id))
-				.leftJoin(schema.chart, eq(schema.room.currentChartId, schema.chart.id))
-				.leftJoin(schema.song, eq(schema.chart.songId, schema.song.id))
-				.groupBy(
-					schema.room.id,
-					schema.room.name,
-					schema.room.ownerId,
-					schema.user.name,
-					schema.user.displayUsername,
-					schema.user.image,
-					schema.room.createdAt,
-					schema.room.lastActivityAt,
-					schema.room.passwordHash,
-					schema.room.currentChartId,
-					schema.chart.difficultyName,
-					schema.song.title,
-					schema.song.artist,
-					schema.song.imageS3Key,
-				)
-				.orderBy(desc(schema.room.lastActivityAt))
-				.execute();
+export const listRoomsProcedure = routerBaseContext.handler(async () => {
+	try {
+		const roomsData = await db
+			.select({
+				id: schema.room.id,
+				name: schema.room.name,
+				ownerId: schema.room.ownerId,
+				ownerName: schema.user.name,
+				ownerDisplayUsername: schema.user.displayUsername,
+				ownerAvatar: schema.user.image,
+				createdAt: schema.room.createdAt,
+				lastActivityAt: schema.room.lastActivityAt,
+				playerCount: drizzleCount(schema.roomPlayer.userId),
+				isPasswordProtected: isNotNull(schema.room.passwordHash),
+				currentChartId: schema.room.currentChartId,
+				chartDifficultyName: schema.chart.difficultyName,
+				songTitle: schema.song.title,
+				songArtist: schema.song.artist,
+				songImageS3Key: schema.song.imageS3Key
+			})
+			.from(schema.room)
+			.leftJoin(schema.roomPlayer, eq(schema.room.id, schema.roomPlayer.roomId))
+			.leftJoin(schema.user, eq(schema.room.ownerId, schema.user.id))
+			.leftJoin(schema.chart, eq(schema.room.currentChartId, schema.chart.id))
+			.leftJoin(schema.song, eq(schema.chart.songId, schema.song.id))
+			.groupBy(
+				schema.room.id,
+				schema.room.name,
+				schema.room.ownerId,
+				schema.user.name,
+				schema.user.displayUsername,
+				schema.user.image,
+				schema.room.createdAt,
+				schema.room.lastActivityAt,
+				schema.room.passwordHash,
+				schema.room.currentChartId,
+				schema.chart.difficultyName,
+				schema.song.title,
+				schema.song.artist,
+				schema.song.imageS3Key
+			)
+			.orderBy(desc(schema.room.lastActivityAt))
+			.execute();
 
-			return {
-				success: true,
-				rooms: roomsData.map((r: (typeof roomsData)[0]) => ({
-					id: r.id,
-					name: r.name,
-					owner: {
-						id: r.ownerId,
-						name: getDisplayName({
-							name: r.ownerName ?? "Unknown Owner",
-							displayUsername: r.ownerDisplayUsername,
-						}),
-						avatarUrl: r.ownerAvatar,
-					},
-					playerCount: Number(r.playerCount),
-					createdAt: r.createdAt,
-					lastActivityAt: r.lastActivityAt,
-					isPasswordProtected: r.isPasswordProtected,
-					currentChart: r.currentChartId
-						? {
-								id: r.currentChartId,
-								name: r.songTitle,
-								artist: r.songArtist,
-								coverUrl: r.songImageS3Key,
-								difficultyName: r.chartDifficultyName,
-							}
-						: null,
-				})),
-			};
-		} catch (error) {
-			console.error("Error listing rooms:", error);
-			return {
-				success: false,
-				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Could not list rooms.",
+		return {
+			success: true,
+			rooms: roomsData.map((r: (typeof roomsData)[0]) => ({
+				id: r.id,
+				name: r.name,
+				owner: {
+					id: r.ownerId,
+					name: getDisplayName({
+						name: r.ownerName ?? 'Unknown Owner',
+						displayUsername: r.ownerDisplayUsername
+					}),
+					avatarUrl: r.ownerAvatar
 				},
-			};
-		}
-	},
-);
+				playerCount: Number(r.playerCount),
+				createdAt: r.createdAt,
+				lastActivityAt: r.lastActivityAt,
+				isPasswordProtected: r.isPasswordProtected,
+				currentChart: r.currentChartId
+					? {
+							id: r.currentChartId,
+							name: r.songTitle,
+							artist: r.songArtist,
+							coverUrl: r.songImageS3Key,
+							difficultyName: r.chartDifficultyName
+						}
+					: null
+			}))
+		};
+	} catch (error) {
+		console.error('Error listing rooms:', error);
+		return {
+			success: false,
+			error: {
+				code: 'INTERNAL_SERVER_ERROR',
+				message: 'Could not list rooms.'
+			}
+		};
+	}
+});
 
 export const getRoomProcedure = routerBaseContext
 	.use(requireAuth)
@@ -470,29 +420,29 @@ export const getRoomProcedure = routerBaseContext
 				name: true,
 				createdAt: true,
 				lastActivityAt: true,
-				ownerId: true,
+				ownerId: true
 			},
 			with: {
 				currentChart: {
 					columns: {
 						difficultyName: true,
 						id: true,
-						songId: true,
+						songId: true
 					},
 					with: {
 						song: {
 							columns: {
 								imageS3Key: true,
 								artist: true,
-								title: true,
-							},
-						},
-					},
+								title: true
+							}
+						}
+					}
 				},
 				players: {
 					columns: {
 						userId: true,
-						joinedAt: true,
+						joinedAt: true
 					},
 					with: {
 						user: {
@@ -500,30 +450,28 @@ export const getRoomProcedure = routerBaseContext
 								id: true,
 								name: true,
 								displayUsername: true,
-								image: true,
-							},
-						},
-					},
-				},
-			},
+								image: true
+							}
+						}
+					}
+				}
+			}
 		});
 
 		if (!roomData) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Room not found." },
+				error: { code: 'NOT_FOUND', message: 'Room not found.' }
 			};
 		}
 
-		const playersInRoom = Array.isArray(roomData.players)
-			? roomData.players
-			: [];
+		const playersInRoom = Array.isArray(roomData.players) ? roomData.players : [];
 
 		let chartDetails = null;
 		if (
 			roomData.currentChart?.song &&
-			typeof roomData.currentChart.song === "object" &&
-			"title" in roomData.currentChart.song
+			typeof roomData.currentChart.song === 'object' &&
+			'title' in roomData.currentChart.song
 		) {
 			const song = roomData.currentChart.song as {
 				title: string;
@@ -535,7 +483,7 @@ export const getRoomProcedure = routerBaseContext
 				name: song.title,
 				artist: song.artist,
 				coverUrl: song.imageS3Key,
-				difficultyName: roomData.currentChart.difficultyName,
+				difficultyName: roomData.currentChart.difficultyName
 			};
 		}
 
@@ -546,19 +494,19 @@ export const getRoomProcedure = routerBaseContext
 				name: roomData.name,
 				owner: {
 					id: roomData.ownerId,
-					name: "Unknown Owner",
-					avatarUrl: null,
+					name: 'Unknown Owner',
+					avatarUrl: null
 				},
 				players: playersInRoom.map((p: (typeof playersInRoom)[0]) => ({
 					userId: p.user.id,
 					username: getDisplayName(p.user),
 					joinedAt: p.joinedAt,
-					avatarUrl: p.user?.image,
+					avatarUrl: p.user?.image
 				})),
 				createdAt: roomData.createdAt,
 				lastActivityAt: roomData.lastActivityAt,
-				currentChart: chartDetails,
-			},
+				currentChart: chartDetails
+			}
 		};
 	});
 
@@ -568,13 +516,13 @@ export const deleteRoomProcedure = routerBaseContext
 	.handler(async ({ input, context }) => {
 		const roomToDelete = await db.query.room.findFirst({
 			where: eq(schema.room.id, input.roomId),
-			columns: { ownerId: true, id: true, name: true },
+			columns: { ownerId: true, id: true, name: true }
 		});
 
 		if (!roomToDelete) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Room not found." },
+				error: { code: 'NOT_FOUND', message: 'Room not found.' }
 			};
 		}
 
@@ -582,29 +530,26 @@ export const deleteRoomProcedure = routerBaseContext
 			return {
 				success: false,
 				error: {
-					code: "FORBIDDEN",
-					message: "You are not the owner of this room.",
-				},
+					code: 'FORBIDDEN',
+					message: 'You are not the owner of this room.'
+				}
 			};
 		}
 
 		try {
-			await db
-				.delete(schema.room)
-				.where(eq(schema.room.id, input.roomId))
-				.execute();
+			await db.delete(schema.room).where(eq(schema.room.id, input.roomId)).execute();
 			console.log(
-				`Room '${roomToDelete.name}' (ID: ${input.roomId}) deleted by owner ${getDisplayName(context.auth.user)}.`,
+				`Room '${roomToDelete.name}' (ID: ${input.roomId}) deleted by owner ${getDisplayName(context.auth.user)}.`
 			);
-			return { success: true, message: "Room deleted successfully." };
+			return { success: true, message: 'Room deleted successfully.' };
 		} catch (error) {
 			console.error(`Error deleting room ${input.roomId}:`, error);
 			return {
 				success: false,
 				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Could not delete room.",
-				},
+					code: 'INTERNAL_SERVER_ERROR',
+					message: 'Could not delete room.'
+				}
 			};
 		}
 	});
@@ -615,13 +560,13 @@ export const updateRoomProcedure = routerBaseContext
 	.handler(async ({ input, context }) => {
 		const roomToUpdate = await db.query.room.findFirst({
 			where: eq(schema.room.name, input.roomName),
-			columns: { id: true, ownerId: true },
+			columns: { id: true, ownerId: true }
 		});
 
 		if (!roomToUpdate) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: "Room not found." },
+				error: { code: 'NOT_FOUND', message: 'Room not found.' }
 			};
 		}
 
@@ -629,28 +574,28 @@ export const updateRoomProcedure = routerBaseContext
 			return {
 				success: false,
 				error: {
-					code: "FORBIDDEN",
-					message: "You are not the owner of this room.",
-				},
+					code: 'FORBIDDEN',
+					message: 'You are not the owner of this room.'
+				}
 			};
 		}
 
 		const updates: Partial<typeof schema.room.$inferInsert> = {
-			lastActivityAt: new Date(),
+			lastActivityAt: new Date()
 		};
 
 		if (input.newName) {
 			if (input.newName !== input.roomName) {
 				const existingRoomWithNewName = await db.query.room.findFirst({
-					where: eq(schema.room.name, input.newName),
+					where: eq(schema.room.name, input.newName)
 				});
 				if (existingRoomWithNewName) {
 					return {
 						success: false,
 						error: {
-							code: "CONFLICT",
-							message: "A room with the new name already exists.",
-						},
+							code: 'CONFLICT',
+							message: 'A room with the new name already exists.'
+						}
 					};
 				}
 			}
@@ -658,11 +603,11 @@ export const updateRoomProcedure = routerBaseContext
 		}
 		if (input.newPassword) {
 			updates.passwordHash = await Bun.password.hash(input.newPassword, {
-				algorithm: "argon2id",
+				algorithm: 'argon2id',
 				memoryCost: 65536,
-				timeCost: 2,
+				timeCost: 2
 			});
-		} else if (input.newPassword === "") {
+		} else if (input.newPassword === '') {
 			updates.passwordHash = null;
 		}
 
@@ -677,17 +622,17 @@ export const updateRoomProcedure = routerBaseContext
 				.where(eq(schema.room.id, roomToUpdate.id))
 				.execute();
 			console.log(
-				`Room (ID: ${roomToUpdate.id}) updated by owner ${getDisplayName(context.auth.user)}.`,
+				`Room (ID: ${roomToUpdate.id}) updated by owner ${getDisplayName(context.auth.user)}.`
 			);
-			return { success: true, message: "Room updated successfully." };
+			return { success: true, message: 'Room updated successfully.' };
 		} catch (error) {
 			console.error(`Error updating room ${roomToUpdate.id}:`, error);
 			return {
 				success: false,
 				error: {
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Could not update room.",
-				},
+					code: 'INTERNAL_SERVER_ERROR',
+					message: 'Could not update room.'
+				}
 			};
 		}
 	});
@@ -701,16 +646,13 @@ export const subscribeToRoomEvents = routerBaseContext
 		const userDisplayName = getDisplayName(context.auth.user);
 
 		const playerEntry = await db.query.roomPlayer.findFirst({
-			where: and(
-				eq(schema.roomPlayer.roomId, roomId),
-				eq(schema.roomPlayer.userId, userId),
-			),
+			where: and(eq(schema.roomPlayer.roomId, roomId), eq(schema.roomPlayer.userId, userId))
 		});
 
 		if (!playerEntry) {
 			yield {
 				success: false,
-				message: "Not a member of this room or room does not exist.",
+				message: 'Not a member of this room or room does not exist.'
 			};
 			return;
 		}
@@ -718,15 +660,15 @@ export const subscribeToRoomEvents = routerBaseContext
 		console.log(`User ${userDisplayName} connected to room ${roomId}`);
 		yield {
 			success: true,
-			type: "CONNECTION_ESTABLISHED",
-			message: `Subscribed to room ${roomId}`,
+			type: 'CONNECTION_ESTABLISHED',
+			message: `Subscribed to room ${roomId}`
 		};
 
 		const connectionId = `${userId}-${roomId}`;
 		activeConnections.set(connectionId, {
 			userId,
 			roomId,
-			lastHeartbeat: Date.now(),
+			lastHeartbeat: Date.now()
 		});
 
 		try {
@@ -740,9 +682,7 @@ export const subscribeToRoomEvents = routerBaseContext
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 			}
 		} catch (_error) {
-			console.log(
-				`Connection aborted for user ${userDisplayName} in room ${roomId}`,
-			);
+			console.log(`Connection aborted for user ${userDisplayName} in room ${roomId}`);
 		} finally {
 			console.log(`User ${userDisplayName} disconnected from room ${roomId}`);
 
@@ -751,10 +691,7 @@ export const subscribeToRoomEvents = routerBaseContext
 			try {
 				await handlePlayerLeftRoom(db, userId, roomId);
 			} catch (cleanupError) {
-				console.error(
-					`Cleanup error for user ${userId} in room ${roomId}:`,
-					cleanupError,
-				);
+				console.error(`Cleanup error for user ${userId} in room ${roomId}:`, cleanupError);
 			}
 		}
 	});
@@ -771,26 +708,21 @@ setInterval(async () => {
 	}
 
 	if (staleConnections.length > 0) {
-		console.log(
-			`Found ${staleConnections.length} stale connections to clean up`,
-		);
+		console.log(`Found ${staleConnections.length} stale connections to clean up`);
 
 		for (const { connectionId, connection } of staleConnections) {
 			console.log(
-				`Cleaning up stale connection: User ${connection.userId} in room ${connection.roomId} (last heartbeat: ${new Date(connection.lastHeartbeat).toISOString()})`,
+				`Cleaning up stale connection: User ${connection.userId} in room ${connection.roomId} (last heartbeat: ${new Date(connection.lastHeartbeat).toISOString()})`
 			);
 			activeConnections.delete(connectionId);
 
 			try {
 				await handlePlayerLeftRoom(db, connection.userId, connection.roomId);
 				console.log(
-					`Successfully cleaned up stale connection for user ${connection.userId} in room ${connection.roomId}`,
+					`Successfully cleaned up stale connection for user ${connection.userId} in room ${connection.roomId}`
 				);
 			} catch (error) {
-				console.error(
-					`Error cleaning up stale connection ${connectionId}:`,
-					error,
-				);
+				console.error(`Error cleaning up stale connection ${connectionId}:`, error);
 			}
 		}
 	}

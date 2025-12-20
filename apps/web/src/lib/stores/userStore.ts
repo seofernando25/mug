@@ -1,7 +1,7 @@
-import { writable } from "svelte/store";
-import { browser } from "$app/environment"; // Import browser check
+import { writable } from 'svelte/store';
+import { browser } from '$app/environment'; // Import browser check
 
-const LOCAL_STORAGE_KEY = "mug_username";
+const LOCAL_STORAGE_KEY = 'mug_username';
 
 // Function to get initial value from localStorage (only in browser)
 function getInitialUsername(): string | null {

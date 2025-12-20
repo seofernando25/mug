@@ -17,9 +17,9 @@ import type {
 	Account,
 	NewAccount,
 	Verification,
-	NewVerification,
-} from "@mug/db";
-import type { orpcClient } from "$lib/rpc/client";
+	NewVerification
+} from '@mug/db';
+import type { orpcClient } from '$lib/rpc/client';
 
 export type {
 	Song,
@@ -37,7 +37,7 @@ export type {
 	Account,
 	NewAccount,
 	Verification,
-	NewVerification,
+	NewVerification
 };
 
 // Chart representation for client, including hit objects
@@ -49,4 +49,4 @@ export type ClientChart = ClientSong extends { charts: (infer T)[] }
 		: never;
 
 // Re-export other specific type modules
-export * from "./game";
+export * from './game';

@@ -1,23 +1,22 @@
 <script lang="ts">
-import { authClient } from "$lib/auth-client";
-import { goto } from "$app/navigation";
-import { page } from "$app/stores";
+	import { authClient } from '$lib/auth-client';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
-const { children } = $props();
+	const { children } = $props();
 
-// Use client-side session store
-const session = authClient.useSession();
+	// Use client-side session store
+	const session = authClient.useSession();
 
-// Client-side authentication check for protected routes
-$effect(() => {
-	const sessionData = $session;
-	
-	// If user is not logged in and not loading, redirect to home
-	if (!sessionData.isPending && !sessionData?.data?.session) {
-		goto("/", { replaceState: true });
-	}
-});
+	// Client-side authentication check for protected routes
+	$effect(() => {
+		const sessionData = $session;
+
+		// If user is not logged in and not loading, redirect to home
+		if (!sessionData.isPending && !sessionData?.data?.session) {
+			goto('/', { replaceState: true });
+		}
+	});
 </script>
 
 {@render children()}
-

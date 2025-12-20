@@ -1,37 +1,37 @@
 <script lang="ts">
-import { fade, fly } from "svelte/transition";
-import { goto } from "$app/navigation";
-import type { SongListItem } from "./types";
+	import { fade, fly } from 'svelte/transition';
+	import { goto } from '$app/navigation';
+	import type { SongListItem } from './types';
 
-const {
-	song,
-	selectedDifficulty = "",
-	onDifficultySelect = () => {},
-}: {
-	song: SongListItem;
-	selectedDifficulty?: string;
-	onDifficultySelect?: (diff: string) => void;
-} = $props();
+	const {
+		song,
+		selectedDifficulty = '',
+		onDifficultySelect = () => {}
+	}: {
+		song: SongListItem;
+		selectedDifficulty?: string;
+		onDifficultySelect?: (diff: string) => void;
+	} = $props();
 
-// Dummy leaderboard data
-const leaderboard = [
-	{
-		rank: 1,
-		user: { id: "1", username: "Mikayla", displayUsername: "Mikayla", image: "" },
-		score: 1293803,
-		accuracy: 99.1,
-		maxCombo: 668,
-		playDate: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000),
-	},
-	{
-		rank: 2,
-		user: { id: "2", username: "Haxwell", displayUsername: "Haxwell", image: "" },
-		score: 1270072,
-		accuracy: 98.52,
-		maxCombo: 667,
-		playDate: new Date(Date.now() - 7 * 365 * 24 * 60 * 60 * 1000),
-	},
-];
+	// Dummy leaderboard data
+	const leaderboard = [
+		{
+			rank: 1,
+			user: { id: '1', username: 'Mikayla', displayUsername: 'Mikayla', image: '' },
+			score: 1293803,
+			accuracy: 99.1,
+			maxCombo: 668,
+			playDate: new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000)
+		},
+		{
+			rank: 2,
+			user: { id: '2', username: 'Haxwell', displayUsername: 'Haxwell', image: '' },
+			score: 1270072,
+			accuracy: 98.52,
+			maxCombo: 667,
+			playDate: new Date(Date.now() - 7 * 365 * 24 * 60 * 60 * 1000)
+		}
+	];
 </script>
 
 {#if song}
@@ -54,7 +54,9 @@ const leaderboard = [
 		</div>
 
 		<!-- Info Panel -->
-		<div class="flex-1 bg-black/40 rounded-xl border border-white/10 overflow-hidden flex flex-col backdrop-blur-md">
+		<div
+			class="flex-1 bg-black/40 rounded-xl border border-white/10 overflow-hidden flex flex-col backdrop-blur-md"
+		>
 			<div class="bg-black/50 p-4 border-b border-white/10 flex justify-between items-center">
 				<span class="font-bold text-lg tracking-widest text-gray-200">CHART INFO</span>
 				<span class="text-xs text-gray-500">DETAILS</span>
@@ -64,7 +66,9 @@ const leaderboard = [
 				<!-- Difficulties -->
 				{#if song.difficulties && song.difficulties.length > 0}
 					<div>
-						<h4 class="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">Select Difficulty</h4>
+						<h4 class="text-sm font-bold text-gray-300 mb-2 uppercase tracking-wider">
+							Select Difficulty
+						</h4>
 						<div class="space-y-1">
 							{#each song.difficulties as difficulty}
 								<button
@@ -95,7 +99,9 @@ const leaderboard = [
 									<span class="text-sm text-gray-200">{entry.user.displayUsername}</span>
 								</div>
 								<div class="text-right">
-									<span class="text-sm font-bold text-purple-300">{entry.score.toLocaleString()}</span>
+									<span class="text-sm font-bold text-purple-300"
+										>{entry.score.toLocaleString()}</span
+									>
 								</div>
 							</div>
 						{/each}

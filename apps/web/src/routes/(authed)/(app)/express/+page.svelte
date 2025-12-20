@@ -1,43 +1,41 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { authClient } from "$lib/auth-client";
-import { stretchIn } from "$lib/transitions/stretchIn";
-import { onMount } from "svelte";
-const { data } = $props();
+	import { goto } from '$app/navigation';
+	import { authClient } from '$lib/auth-client';
+	import { stretchIn } from '$lib/transitions/stretchIn';
+	import { onMount } from 'svelte';
+	const { data } = $props();
 
-let joinButtonElement = $state<HTMLButtonElement | undefined>();
-let isLoading = $state(false);
-let error = $state<string | null>(null);
+	let joinButtonElement = $state<HTMLButtonElement | undefined>();
+	let isLoading = $state(false);
+	let error = $state<string | null>(null);
 
-async function handleLogout() {
-	isLoading = true;
-	error = null;
-	const { error: signOutError } = await authClient.signOut();
-	if (signOutError) {
-		error = signOutError.message || null;
-		isLoading = false;
-	} else {
-		window.location.href = "/"; // Redirect to home after logout
+	async function handleLogout() {
+		isLoading = true;
+		error = null;
+		const { error: signOutError } = await authClient.signOut();
+		if (signOutError) {
+			error = signOutError.message || null;
+			isLoading = false;
+		} else {
+			window.location.href = '/'; // Redirect to home after logout
+		}
 	}
-}
 
-function handleJoinGame() {
-	console.log("join game");
-	goto("/home"); // Navigate to the actual game/home screen
-}
+	function handleJoinGame() {
+		console.log('join game');
+		goto('/home'); // Navigate to the actual game/home screen
+	}
 
-onMount(() => {
-	if (joinButtonElement) joinButtonElement.focus();
-});
+	onMount(() => {
+		if (joinButtonElement) joinButtonElement.focus();
+	});
 </script>
 
 <svelte:head>
 	<title>Welcome Back - MUG</title>
 </svelte:head>
 
-<div
-	class="flex flex-col items-center justify-center text-white p-6 w-full"
->
+<div class="flex flex-col items-center justify-center text-white p-6 w-full">
 	{#if data.session?.user}
 		<!-- Should always be true here due to server load -->
 		<div

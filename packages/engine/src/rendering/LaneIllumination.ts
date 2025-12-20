@@ -1,4 +1,4 @@
-import { Sprite, Texture, BlurFilter } from "pixi.js";
+import { Sprite, Texture, BlurFilter } from 'pixi.js';
 
 function hexToRgba(hex: number, alpha: number): string {
 	const r = (hex >> 16) & 255;
@@ -8,15 +8,11 @@ function hexToRgba(hex: number, alpha: number): string {
 }
 
 export class LaneIllumination extends Sprite {
-	constructor(
-		laneWidth: number,
-		highwayHeight: number,
-		illuminationColor: number = 0xffffff,
-	) {
+	constructor(laneWidth: number, highwayHeight: number, illuminationColor: number = 0xffffff) {
 		const gradientTexture = LaneIllumination.createGradientTexture(
 			laneWidth,
 			highwayHeight,
-			illuminationColor,
+			illuminationColor
 		);
 		super(gradientTexture);
 
@@ -27,20 +23,14 @@ export class LaneIllumination extends Sprite {
 		this.filters = [blurFilter];
 	}
 
-	private static createGradientTexture(
-		width: number,
-		height: number,
-		color: number,
-	): Texture {
-		const canvas = document.createElement("canvas");
+	private static createGradientTexture(width: number, height: number, color: number): Texture {
+		const canvas = document.createElement('canvas');
 		canvas.width = Math.max(1, width); // Ensure width is at least 1
 		canvas.height = Math.max(1, height); // Ensure height is at least 1
-		const ctx = canvas.getContext("2d");
+		const ctx = canvas.getContext('2d');
 
 		if (!ctx) {
-			console.error(
-				"Failed to get 2D context for gradient texture. Returning empty texture.",
-			);
+			console.error('Failed to get 2D context for gradient texture. Returning empty texture.');
 			return Texture.EMPTY; // Use an empty texture as a fallback
 		}
 

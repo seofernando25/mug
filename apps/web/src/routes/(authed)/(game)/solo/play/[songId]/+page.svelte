@@ -1,8 +1,8 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import GameSession from "$lib/components/game/GameSession.svelte";
+	import { goto } from '$app/navigation';
+	import GameSession from '$lib/components/game/GameSession.svelte';
 
-const { data } = $props();
+	const { data } = $props();
 </script>
 
 <svelte:head>
@@ -18,6 +18,6 @@ const { data } = $props();
 		onRetry: () => {},
 		onExit: () => {
 			goto('/solo');
-		},
+		}
 	}}
 />

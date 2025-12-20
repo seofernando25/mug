@@ -1,125 +1,123 @@
 <script lang="ts">
-import { onMount } from "svelte";
-import { goto } from "$app/navigation";
-import { fade } from "svelte/transition";
-import { orpcClient } from "$lib/rpc/client";
-import SongWheel, { type SongWheelItem } from "$lib/components/song-select/SongWheel.svelte";
-import SongDetailPanel from "./SongDetailPanel.svelte";
-import BottomBar from "$lib/components/BottomBar.svelte";
-import type { SongListItem } from "./types";
-import { masterVolume, musicVolume } from "$lib/stores/settingsStore";
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { fade } from 'svelte/transition';
+	import { orpcClient } from '$lib/rpc/client';
+	import SongWheel, { type SongWheelItem } from '$lib/components/song-select/SongWheel.svelte';
+	import SongDetailPanel from './SongDetailPanel.svelte';
+	import BottomBar from '$lib/components/BottomBar.svelte';
+	import type { SongListItem } from './types';
+	import { masterVolume, musicVolume } from '$lib/stores/settingsStore';
 
-let allSongs = $state<SongListItem[]>([]);
-let currentError = $state<string | null>(null);
-let isLoadingSongs = $state(true);
+	let allSongs = $state<SongListItem[]>([]);
+	let currentError = $state<string | null>(null);
+	let isLoadingSongs = $state(true);
 
-let searchTerm = $state("");
-let selectedSongId = $state<string | null>(null);
-let selectedDifficulty = $state<string>("");
-let audioElement = $state<HTMLAudioElement | undefined>();
+	let searchTerm = $state('');
+	let selectedSongId = $state<string | null>(null);
+	let selectedDifficulty = $state<string>('');
+	let audioElement = $state<HTMLAudioElement | undefined>();
 
-const selectedSong = $derived(
-	allSongs.find((song) => song.id === selectedSongId),
-);
+	const selectedSong = $derived(allSongs.find((song) => song.id === selectedSongId));
 
-// Convert to SongWheelItem format
-const wheelSongs = $derived<SongWheelItem[]>(
-	allSongs.map((song) => ({
-		id: song.id,
-		title: song.title,
-		artist: song.artist,
-		imageUrl: song.imageUrl,
-		difficulties: song.difficulties,
-		audioUrl: song.audioUrl,
-		previewStartTime: song.previewStartTime
-	})),
-);
+	// Convert to SongWheelItem format
+	const wheelSongs = $derived<SongWheelItem[]>(
+		allSongs.map((song) => ({
+			id: song.id,
+			title: song.title,
+			artist: song.artist,
+			imageUrl: song.imageUrl,
+			difficulties: song.difficulties,
+			audioUrl: song.audioUrl,
+			previewStartTime: song.previewStartTime
+		}))
+	);
 
-// Handle Song Preview
-$effect(() => {
-	if (selectedSong && audioElement) {
-		// Stop previous
-		audioElement.pause();
-		
-		const url = selectedSong.audioUrl;
-		
-		if (url) {
-			audioElement.src = url;
-			// Convert ms to seconds
-			const startMs = selectedSong.previewStartTime ?? 0;
-			audioElement.currentTime = startMs > 0 ? startMs / 1000 : 0;
-			audioElement.volume = 0; // Start silent for fade in
-			
-			const targetVolume = $masterVolume * $musicVolume * 0.3; // 0.3 is base preview volume factor
+	// Handle Song Preview
+	$effect(() => {
+		if (selectedSong && audioElement) {
+			// Stop previous
+			audioElement.pause();
 
-			const playPromise = audioElement.play();
-			if (playPromise !== undefined) {
-				playPromise
-					.then(() => {
-						// Fade in volume
-						let vol = 0;
-						const fadeInterval = setInterval(() => {
-							if (!audioElement || audioElement.paused) {
-								clearInterval(fadeInterval);
-								return;
-							}
-							vol +=  targetVolume;
-							if (vol >= targetVolume) {
-								audioElement.volume = targetVolume;
-								clearInterval(fadeInterval);
-							} else {
-								audioElement.volume = vol;
-							}
-						}, 50);
-					})
-					.catch((e) => console.warn("Preview auto-play blocked/failed:", e));
+			const url = selectedSong.audioUrl;
+
+			if (url) {
+				audioElement.src = url;
+				// Convert ms to seconds
+				const startMs = selectedSong.previewStartTime ?? 0;
+				audioElement.currentTime = startMs > 0 ? startMs / 1000 : 0;
+				audioElement.volume = 0; // Start silent for fade in
+
+				const targetVolume = $masterVolume * $musicVolume * 0.3; // 0.3 is base preview volume factor
+
+				const playPromise = audioElement.play();
+				if (playPromise !== undefined) {
+					playPromise
+						.then(() => {
+							// Fade in volume
+							let vol = 0;
+							const fadeInterval = setInterval(() => {
+								if (!audioElement || audioElement.paused) {
+									clearInterval(fadeInterval);
+									return;
+								}
+								vol += targetVolume;
+								if (vol >= targetVolume) {
+									audioElement.volume = targetVolume;
+									clearInterval(fadeInterval);
+								} else {
+									audioElement.volume = vol;
+								}
+							}, 50);
+						})
+						.catch((e) => console.warn('Preview auto-play blocked/failed:', e));
+				}
 			}
+		} else if (audioElement) {
+			audioElement.pause();
 		}
-	} else if (audioElement) {
-		audioElement.pause();
-	}
-});
+	});
 
-onMount(async () => {
-	isLoadingSongs = true;
-	try {
-		const response = await orpcClient.song.list({});
-		allSongs = response.items;
-		// Auto-select first song
-		if (allSongs.length > 0 && !selectedSongId) {
-			selectedSongId = allSongs[0].id;
-			if (allSongs[0].difficulties?.length > 0) {
-				selectedDifficulty = allSongs[0].difficulties[0];
+	onMount(async () => {
+		isLoadingSongs = true;
+		try {
+			const response = await orpcClient.song.list({});
+			allSongs = response.items;
+			// Auto-select first song
+			if (allSongs.length > 0 && !selectedSongId) {
+				selectedSongId = allSongs[0].id;
+				if (allSongs[0].difficulties?.length > 0) {
+					selectedDifficulty = allSongs[0].difficulties[0];
+				}
 			}
+		} catch (error) {
+			console.error('Error fetching songs:', error);
+			currentError = 'Failed to fetch songs';
 		}
-	} catch (error) {
-		console.error("Error fetching songs:", error);
-		currentError = "Failed to fetch songs";
-	}
-	isLoadingSongs = false;
-});
+		isLoadingSongs = false;
+	});
 
-function handleSongSelect(song: SongWheelItem) {
-	selectedSongId = song.id;
-	if (song.difficulties && song.difficulties.length > 0) {
-		// If the previously selected difficulty exists in the new song, keep it.
-		// Otherwise, default to the first available difficulty.
-		if (!song.difficulties.includes(selectedDifficulty)) {
-			selectedDifficulty = song.difficulties[0];
+	function handleSongSelect(song: SongWheelItem) {
+		selectedSongId = song.id;
+		if (song.difficulties && song.difficulties.length > 0) {
+			// If the previously selected difficulty exists in the new song, keep it.
+			// Otherwise, default to the first available difficulty.
+			if (!song.difficulties.includes(selectedDifficulty)) {
+				selectedDifficulty = song.difficulties[0];
+			}
+		} else {
+			selectedDifficulty = '';
 		}
-	} else {
-		selectedDifficulty = "";
 	}
-}
 
-function handleSongConfirm(song: SongWheelItem) {
-	const diff = selectedDifficulty || song.difficulties?.[0] || "Normal";
-	goto(`/solo/play/${song.id}?difficulty=${encodeURIComponent(diff)}`);
-}
+	function handleSongConfirm(song: SongWheelItem) {
+		const diff = selectedDifficulty || song.difficulties?.[0] || 'Normal';
+		goto(`/solo/play/${song.id}?difficulty=${encodeURIComponent(diff)}`);
+	}
 
-function handleSearchChange(term: string) {
-	searchTerm = term;
-}
+	function handleSearchChange(term: string) {
+		searchTerm = term;
+	}
 </script>
 
 <svelte:head>
@@ -192,7 +190,7 @@ function handleSearchChange(term: string) {
 
 		<BottomBar>
 			<button
-				onclick={() => goto("/home")}
+				onclick={() => goto('/home')}
 				class="px-6 py-3 rounded-lg font-bold text-red-400 hover:bg-red-900/30 hover:text-red-200 transition"
 			>
 				BACK
