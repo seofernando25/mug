@@ -14,7 +14,7 @@ export default defineConfig({
 	build: {
 		sourcemap: true,
 		rollupOptions: {
-			external: ["pixi.js"],
+			external: [],
 		},
 	},
 	ssr: {
