@@ -15,6 +15,7 @@ let isLoadingSongs = $state(true);
 let searchTerm = $state("");
 let selectedSongId = $state<string | null>(null);
 let selectedDifficulty = $state<string>("");
+let audioElement = $state<HTMLAudioElement | undefined>();
 
 const selectedSong = $derived(
 	allSongs.find((song) => song.id === selectedSongId),
@@ -28,8 +29,54 @@ const wheelSongs = $derived<SongWheelItem[]>(
 		artist: song.artist,
 		imageUrl: song.imageUrl,
 		difficulties: song.difficulties,
+		audioUrl: song.audioUrl,
+		previewStartTime: song.previewStartTime
 	})),
 );
+
+// Handle Song Preview
+$effect(() => {
+	if (selectedSong && audioElement) {
+		// Stop previous
+		audioElement.pause();
+		
+		const url = selectedSong.audioUrl;
+		
+		if (url) {
+			audioElement.src = url;
+			// Convert ms to seconds
+			const startMs = selectedSong.previewStartTime ?? 0;
+			audioElement.currentTime = startMs > 0 ? startMs / 1000 : 0;
+			audioElement.volume = 0; // Start silent for fade in
+			
+			const playPromise = audioElement.play();
+			if (playPromise !== undefined) {
+				playPromise
+					.then(() => {
+						// Fade in volume
+						let vol = 0;
+						const fadeInterval = setInterval(() => {
+							if (!audioElement || audioElement.paused) {
+								clearInterval(fadeInterval);
+								return;
+							}
+							vol += 0.05;
+							if (vol >= 0.3) { // Target volume
+								vol = 0.3;
+								audioElement.volume = vol;
+								clearInterval(fadeInterval);
+							} else {
+								audioElement.volume = vol;
+							}
+						}, 50);
+					})
+					.catch((e) => console.warn("Preview auto-play blocked/failed:", e));
+			}
+		}
+	} else if (audioElement) {
+		audioElement.pause();
+	}
+});
 
 onMount(async () => {
 	isLoadingSongs = true;
@@ -76,6 +123,9 @@ function handleSearchChange(term: string) {
 <svelte:head>
 	<title>Solo - Song Select - MUG</title>
 </svelte:head>
+
+<!-- Hidden Audio Element for Preview -->
+<audio bind:this={audioElement} loop />
 
 <div class="fixed inset-0 flex overflow-hidden bg-gray-900 text-white font-sans select-none">
 	<!-- Dynamic Background -->

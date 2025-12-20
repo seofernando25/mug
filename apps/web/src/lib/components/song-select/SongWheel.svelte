@@ -7,6 +7,8 @@ export interface SongWheelItem {
 	artist: string;
 	imageUrl?: string | null;
 	difficulties?: string[];
+	audioUrl?: string | null;
+	previewStartTime?: number;
 }
 
 interface Props {

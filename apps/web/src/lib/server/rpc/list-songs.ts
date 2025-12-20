@@ -30,17 +30,25 @@ export const listSongsProcedure = routerBaseContext
 
 			const itemsWithSignedUrls = await Promise.all(
 				items.map(async (item: (typeof items)[0]) => {
+					let imageUrl: string | null = null;
+					let audioUrl: string | null = null;
+
 					if (item.imageS3Key) {
-						return {
-							...item,
-							imageUrl: s3.presign(item.imageS3Key, {
-								acl: "public-read",
-							}),
-						};
+						imageUrl = s3.presign(item.imageS3Key, {
+							acl: "public-read",
+						});
 					}
+
+					if (item.audioS3Key) {
+						audioUrl = s3.presign(item.audioS3Key, {
+							acl: "public-read",
+						});
+					}
+
 					return {
 						...item,
-						imageUrl: null,
+						imageUrl,
+						audioUrl,
 					};
 				}),
 			);

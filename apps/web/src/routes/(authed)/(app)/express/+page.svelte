@@ -36,7 +36,7 @@ onMount(() => {
 </svelte:head>
 
 <div
-	class="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6 w-screen overflow-clip"
+	class="flex flex-col items-center justify-center text-white p-6 w-full"
 >
 	{#if data.session?.user}
 		<!-- Should always be true here due to server load -->

@@ -6,6 +6,7 @@ import { gameSocket, currentRoomState, socketStatus } from "$lib/network/socket"
 import GameSession from "$lib/components/game/GameSession.svelte";
 import { orpcClient } from "$lib/rpc/client";
 import type { ClientSong, ClientChart } from "$lib/types";
+import { fly } from "svelte/transition";
 
 // State
 let roomId = $state<string | null>(null);
@@ -13,6 +14,11 @@ let isLoading = $state(true);
 let error = $state<string | null>(null);
 let songData = $state<ClientSong | null>(null);
 let chartData = $state<ClientChart | null>(null);
+
+// Forfeit State
+let forfeitProgress = $state(0);
+let isHoldingEsc = $state(false);
+let forfeitAnimationFrame: number;
 
 // Derived from room state
 const roomState = $derived($currentRoomState);
@@ -119,7 +125,54 @@ function handleExit() {
 	}
 	goto("/multiplayer");
 }
+
+// Forfeit Logic
+function handleKeyDown(e: KeyboardEvent) {
+	// Only handle if we are in the game
+	if (isLoading || error) return;
+	
+	if (e.key === 'Escape' && !isHoldingEsc) {
+		isHoldingEsc = true;
+		startForfeitTimer();
+	}
+}
+
+function handleKeyUp(e: KeyboardEvent) {
+	if (e.key === 'Escape') {
+		isHoldingEsc = false;
+		cancelForfeitTimer();
+	}
+}
+
+function startForfeitTimer() {
+	const startTime = performance.now();
+	const duration = 2000; // 2 seconds
+
+	const animate = (currentTime: number) => {
+		if (!isHoldingEsc) return;
+
+		const elapsed = currentTime - startTime;
+		forfeitProgress = Math.min((elapsed / duration) * 100, 100);
+
+		if (forfeitProgress >= 100) {
+			handleExit();
+		} else {
+			forfeitAnimationFrame = requestAnimationFrame(animate);
+		}
+	};
+
+	forfeitAnimationFrame = requestAnimationFrame(animate);
+}
+
+function cancelForfeitTimer() {
+	if (forfeitAnimationFrame) {
+		cancelAnimationFrame(forfeitAnimationFrame);
+	}
+	forfeitProgress = 0;
+}
 </script>
+
+<svelte:window onkeydown={handleKeyDown} onkeyup={handleKeyUp} />
 
 <svelte:head>
 	<title>Multiplayer Match{songData ? `: ${songData.title}` : ''}</title>
@@ -159,6 +212,29 @@ function handleExit() {
 			onExit: handleExit,
 		}}
 	/>
+{/if}
+
+{#if isHoldingEsc && !isLoading && !error}
+	<div 
+		class="fixed bottom-0 left-0 w-full h-32 z-[100] flex flex-col justify-end pointer-events-none pb-0"
+		transition:fly={{ y: 50, duration: 200 }}
+	>
+		<!-- Warning Text Area -->
+		<div class="w-full text-center pb-4 bg-gradient-to-t from-gray-900/90 to-transparent">
+			<p class="text-red-500 font-black tracking-[0.3em] text-xl uppercase drop-shadow-[0_2px_10px_rgba(220,38,38,0.5)] animate-pulse">
+				Hold to Forfeit
+			</p>
+		</div>
+		
+		<!-- Progress Bar Background -->
+		<div class="w-full h-2 bg-gray-900">
+			<!-- Progress Bar Fill -->
+			<div 
+				class="h-full bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.8)] transition-all duration-75 ease-linear"
+				style="width: {forfeitProgress}%"
+			></div>
+		</div>
+	</div>
 {/if}
 
 <style>

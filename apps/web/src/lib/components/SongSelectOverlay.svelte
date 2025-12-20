@@ -19,6 +19,7 @@ const {
 let searchTerm = $state("");
 let selectedId = $state<string | null>(null);
 let selectedDifficulty = $state<string>("");
+let audioElement = $state<HTMLAudioElement | undefined>();
 
 // Derived
 const activeSong = $derived(
@@ -42,6 +43,63 @@ $effect(() => {
 		selectedDifficulty = "";
 	}
 });
+
+// Handle Audio Preview
+$effect(() => {
+	// If overlay is closed or no song selected, stop audio
+	if (!isOpen || !activeSong || !audioElement) {
+		if (audioElement) {
+			audioElement.pause();
+			audioElement.currentTime = 0;
+		}
+		return;
+	}
+
+	// Play preview
+	const url = activeSong.audioUrl;
+	if (url) {
+		// Prevent re-playing if src hasn't changed (optimization)
+		const currentSrcPath = audioElement.src ? new URL(audioElement.src).pathname : "";
+		const newSrcPath = new URL(url, window.location.origin).pathname; 
+		// Note: comparing full URLs might be safer but presigned URLs change signature. 
+		// Actually, standard HTMLAudioElement behavior: setting src resets it.
+		// So we should only set it if the song ID changed.
+		// But we don't track previous ID easily here inside the effect without a ref.
+		// However, the effect runs when `activeSong` changes.
+		
+		audioElement.src = url;
+		const startMs = activeSong.previewStartTime ?? 0;
+		audioElement.currentTime = startMs > 0 ? startMs / 1000 : 0;
+		audioElement.volume = 0;
+
+		const playPromise = audioElement.play();
+		if (playPromise !== undefined) {
+			playPromise
+				.then(() => {
+					// Fade in
+					let vol = 0;
+					const fadeInterval = setInterval(() => {
+						if (!audioElement || audioElement.paused) {
+							clearInterval(fadeInterval);
+							return;
+						}
+						vol += 0.05;
+						if (vol >= 0.3) {
+							vol = 0.3;
+							audioElement.volume = vol;
+							clearInterval(fadeInterval);
+						} else {
+							audioElement.volume = vol;
+						}
+					}, 50);
+				})
+				.catch((e) => console.warn("Preview auto-play blocked/failed:", e));
+		}
+	} else {
+		audioElement.pause();
+	}
+});
+
 
 function handleKeydown(e: KeyboardEvent) {
 	if (!isOpen) return;
@@ -70,6 +128,9 @@ function handleSearchChange(term: string) {
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
+
+<!-- Hidden Audio Element -->
+<audio bind:this={audioElement} loop />
 
 {#if isOpen}
 	<div
