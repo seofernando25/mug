@@ -2,8 +2,8 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import { authClient } from "$lib/auth-client";
-import { stretchIn } from "$lib/transitions/stretchIn";
 import { onMount, tick } from "svelte";
+import { fade, fly } from "svelte/transition";
 
 let isLoading = $state(false);
 let error = $state<string | null>(null);
@@ -17,11 +17,8 @@ onMount(() => {
 	if (urlUsername) {
 		nonExistentUsername = urlUsername;
 	} else {
-		// Fallback or redirect if no username is provided,
-		// as this page doesn't make sense without it.
-		goto("/"); // Or show an error message
+		goto("/"); 
 	}
-	// Focus on claim button when the panel is shown
 	tick().then(() => {
 		claimButtonElement?.focus();
 	});
@@ -47,7 +44,6 @@ function handleRegisterNonExistentUser() {
 }
 
 function handleGoBack() {
-	// Navigate back to the main page, possibly with the username prefilled
 	goto(`/?username=${encodeURIComponent(nonExistentUsername)}`);
 }
 </script>
@@ -56,62 +52,69 @@ function handleGoBack() {
 	<title>Claim Username - MUG</title>
 </svelte:head>
 
-<div
-	class="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6 w-screen overflow-clip"
->
-	<div
-		transition:stretchIn={{ startScaleX: 4, startScaleY: 0.1 }}
-		class="
-			fixed left-1/2 top-1/2
-			-translate-x-1/2 -translate-y-1/2
-			w-[calc(728px-2em)] max-w-[calc(95vw-2em)] max-h-[calc(95vh-2em)]
-			z-[100000000]
-			bg-gray-800 text-gray-300
-			rounded-[3px]
-			shadow-lg
-			flex flex-col justify-center
-			border border-gray-700
-			text-left
-		"
+<div class="min-h-screen flex items-center justify-center bg-gray-900 p-6 overflow-hidden relative">
+	<!-- Ambient Background Glow -->
+	<div class="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/10 blur-[120px] rounded-full"></div>
+	<div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/10 blur-[120px] rounded-full"></div>
+
+	<div 
+		class="w-full max-w-lg space-y-10 relative z-10"
+		in:fade={{ duration: 400 }}
 	>
-		<div class="p-4 pb-2">
-			<h2 class="text-3xl font-bold mb-2 text-purple-400">Want to join?</h2>
-			<p class="text-gray-500 text-left">
-				The username <span class="font-semibold text-teal-400">{nonExistentUsername}</span> hasn't been
-				registered.
+		<!-- Header -->
+		<header class="text-center space-y-2">
+			<h1 class="text-7xl font-black italic tracking-tighter text-white drop-shadow-2xl">
+				CLAIM<span class="text-cyan-400">.</span>
+			</h1>
+			<p class="text-gray-400 font-bold uppercase tracking-[0.3em] text-xs px-4 leading-relaxed">
+				User <span class="text-cyan-400">{nonExistentUsername}</span> is available for initialization
 			</p>
-			<p class="text-gray-500 text-left mt-2">
-				Do you want to claim it as yours, or play anonymously? You won't be able to submit scores to
-				the leaderboards or play in matchmaking when anonymous.
-			</p>
-		</div>
-		<hr class="m-0 border-gray-700" />
-		<div class="p-4 pt-3 flex flex-col space-y-3">
-			<button
-				bind:this={claimButtonElement}
-				onclick={handleRegisterNonExistentUser}
-				class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition"
-			>
-				Claim <span class="font-semibold">{nonExistentUsername}</span> & Register
-			</button>
-			<button
-				onclick={handleStayAnonymous}
-				disabled={isLoading}
-				class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition disabled:opacity-50"
-			>
-				{isLoading ? 'Joining...' : 'Stay Anonymous & Play'}
-			</button>
-			<button
-				onclick={handleGoBack}
-				class="w-full bg-transparent hover:bg-gray-700 text-gray-300 font-bold py-2 px-4 rounded border border-gray-600 focus:outline-none focus:shadow-outline transition"
-			>
-				Back
-			</button>
-		</div>
-		{#if error}
-			<div class="p-4 pt-0 text-center">
-				<p class="text-red-400 text-sm">{error}</p>
+		</header>
+
+		<!-- Info Card -->
+		<div 
+			class="p-10 bg-black/40 backdrop-blur-xl border border-white/5 rounded-[40px] shadow-2xl space-y-10"
+			in:fly={{ y: 40, delay: 100, duration: 600 }}
+		>
+			<div class="space-y-4">
+				<p class="text-gray-300 leading-relaxed italic font-bold text-center">
+					Don't lose your name!
+				</p>
+				<p class="text-xs text-gray-500 text-center leading-relaxed font-medium">
+					Anonymous users cannot submit leaderboard scores or participate in ranked matchmaking.
+				</p>
 			</div>
-		{/if}
+
+			<div class="flex flex-col gap-4">
+				<button
+					bind:this={claimButtonElement}
+					onclick={handleRegisterNonExistentUser}
+					class="w-full py-5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-2xl font-black text-xl italic tracking-widest text-white shadow-lg shadow-pink-500/20 hover:scale-[1.02] hover:shadow-pink-500/40 transition active:scale-[0.98]"
+				>
+					CLAIM & REGISTER
+				</button>
+
+				<button
+					onclick={handleStayAnonymous}
+					disabled={isLoading}
+					class="w-full py-4 bg-white/5 hover:bg-cyan-500/10 border border-white/10 hover:border-cyan-500/30 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400 hover:text-cyan-400 transition-all active:scale-[0.98] disabled:opacity-50"
+				>
+					{isLoading ? 'INITIALIZING...' : 'STAY ANONYMOUS'}
+				</button>
+
+				<button
+					onclick={handleGoBack}
+					class="w-full py-3 text-[10px] font-black uppercase tracking-[0.4em] text-gray-600 hover:text-gray-400 transition-colors"
+				>
+					GO BACK
+				</button>
+			</div>
+
+			{#if error}
+				<div class="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+					<p class="text-red-400 text-[10px] font-black uppercase tracking-widest">{error}</p>
+				</div>
+			{/if}
+		</div>
 	</div>
 </div>

@@ -1,4 +1,7 @@
 <script lang="ts">
+import { fade, fly } from "svelte/transition";
+import { printElement } from "$lib/utils";
+
 const GAME_NAME = "MUG";
 const COMPANY_NAME = "MUG Inc.";
 const WEBSITE_URL = "https://mug.rocks";
@@ -9,31 +12,8 @@ const JURISDICTION = "Canada";
 
 let copyrightContainer: HTMLDivElement | null = $state(null);
 
-function downloadCopyright() {
-	if (copyrightContainer) {
-		const printWindow = window.open("", "_blank");
-		if (printWindow) {
-			printWindow.document.write(`
-					<html>
-						<head>
-							<title>${GAME_NAME} - Copyright Policy</title>
-							<style>
-								body { font-family: Arial, sans-serif; padding: 20px; }
-								h1 { font-size: 24px; margin-bottom: 20px; }
-								h2 { font-size: 20px; margin-top: 30px; }
-								p { margin-bottom: 15px; line-height: 1.5; }
-							</style>
-						</head>
-						<body>
-							${copyrightContainer.innerHTML}
-						</body>
-					</html>
-				`);
-			printWindow.document.close();
-			printWindow.print();
-			printWindow.close();
-		}
-	}
+function handlePrint() {
+	printElement(copyrightContainer, `${GAME_NAME} - Copyright Policy`);
 }
 </script>
 
@@ -41,140 +21,90 @@ function downloadCopyright() {
 	<title>Copyright Policy - {GAME_NAME}</title>
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8 bg-white text-black" bind:this={copyrightContainer}>
-	<h1 class="text-4xl font-bold mb-6 pt-4 text-gray-900">{GAME_NAME} - Copyright Policy</h1>
+<div class="max-w-4xl mx-auto space-y-12 pb-12" in:fade={{ duration: 300 }}>
+	<!-- Header -->
+	<header class="flex justify-between items-end gap-4">
+		<div class="space-y-2">
+			<h1 class="text-6xl font-black italic tracking-tighter text-white drop-shadow-2xl">
+				IP & COPYRIGHT<span class="text-yellow-500">.</span>
+			</h1>
+			<p class="text-gray-400 font-bold uppercase tracking-[0.3em] text-sm ml-1">
+				Intellectual Property Protection
+			</p>
+		</div>
+		
+		<button
+			class="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-gray-400 hover:text-white transition-all mb-2"
+			onclick={handlePrint}
+		>
+			Print Document
+		</button>
+	</header>
 
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		<strong class="font-semibold text-gray-900">Last Updated:</strong>
-		{LAST_UPDATED}
-	</p>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		This document outlines our policy regarding copyright infringement on the {GAME_NAME} service ({WEBSITE_URL}).
-	</p>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		{GAME_NAME} is a community-oriented game where users can create and upload their own beatmap charts
-		and associated assets, including audio files and background images. While we encourage creativity
-		and the sharing of content, it is essential that all user-submitted content respects the intellectual
-		property rights of others.
-	</p>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">It is our policy to:</p>
-
-	<ul class="list-disc pl-6 mb-4 text-gray-700">
-		<li class="mb-2">
-			Promptly address notices of claimed copyright infringement that we believe in good faith may
-			contain material that infringes the copyrights of third parties.
-		</li>
-		<li class="mb-2">Remove or disable access to infringing content.</li>
-		<li class="mb-2">Terminate the accounts of users who are found to be repeat infringers.</li>
-	</ul>
-
-	<h2 class="text-2xl font-semibold my-8 pt-4 text-gray-800">Reporting Copyright Infringements</h2>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		If you believe that content residing on or accessible through the {GAME_NAME} service infringes your
-		copyright, please send a notice of claimed copyright infringement containing the following information
-		to the contact details listed below. Please note that you may be liable for damages (including costs
-		and attorneys' fees) if you materially misrepresent that content is infringing your copyright.
-	</p>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">Your notice should include:</p>
-
-	<ol class="list-decimal pl-6 mb-4 text-gray-700">
-		<li class="mb-2">
-			Sufficient information to identify the copyrighted work(s) claimed to have been infringed. If
-			multiple works are involved, a representative list is acceptable.
-		</li>
-		<li class="mb-2">
-			Sufficient information to identify the material on our service that is claimed to be
-			infringing, and that you want removed or access disabled. Please provide enough detail to
-			allow us to locate the material (e.g., specific beatmap title and artist, username of the
-			uploader, URLs if applicable).
-		</li>
-		<li class="mb-2">
-			Your contact information, such as your full name, address, telephone number, and email
-			address.
-		</li>
-		<li class="mb-2">
-			A statement that you have a good faith belief that the use of the material in the manner
-			complained of is not authorized by the copyright owner, its agent, or the law.
-		</li>
-		<li class="mb-2">
-			A statement that the information in the notification is accurate, and under penalty of
-			perjury, that you are authorized to act on behalf of the owner of the copyright that is
-			allegedly infringed.
-		</li>
-	</ol>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		Once we receive a complete and proper notice of claimed copyright infringement, or if we
-		otherwise come to believe in good faith that content on the Service may contain infringing
-		material, it is our policy to:
-	</p>
-
-	<ul class="list-disc pl-6 mb-4 text-gray-700">
-		<li class="mb-2">Remove or disable access to the content identified in the notice.</li>
-		<li class="mb-2">
-			Notify the user who provided the content that we have removed or disabled access to it.
-		</li>
-		<li class="mb-2">
-			Terminate the accounts of users who are repeat infringers in appropriate circumstances.
-		</li>
-	</ul>
-
-	<h2 class="text-2xl font-semibold my-8 pt-4 text-gray-800">Submitting Counter-Notices</h2>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		If you believe that the content you provided was removed or access disabled as a result of a
-		mistake or misidentification, you may send us a counter-notice containing the following
-		information to the contact details listed below:
-	</p>
-
-	<ol class="list-decimal pl-6 mb-4 text-gray-700">
-		<li class="mb-2">
-			Sufficient information to identify the content that has been removed or to which access has
-			been disabled and the location at which the material appeared before it was removed or access
-			to it was disabled.
-		</li>
-		<li class="mb-2">Your name, address, telephone number, and email address.</li>
-		<li class="mb-2">
-			A statement that you consent to the jurisdiction of the courts in {JURISDICTION} and that you will
-			accept service of process from the person who provided the original notification of the alleged
-			infringement.
-		</li>
-		<li class="mb-2">
-			A statement under penalty of perjury that you have a good faith belief that the material was
-			removed or disabled as a result of mistake or a misidentification of the material to be
-			removed or disabled.
-		</li>
-	</ol>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		Upon receiving a counter-notice, we may send a copy of the counter-notice to the original
-		complaining party. The removed content may potentially be replaced or access restored in 10 to
-		14 business days or more after receiving the counter-notice, at our sole discretion, unless the
-		copyright owner files a legal action seeking a court order against you.
-	</p>
-
-	<h2 class="text-2xl font-semibold my-8 pt-4 text-gray-800">Copyright Contact Information</h2>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		Please send all notices of claimed copyright infringement and counter-notices to:
-	</p>
-
-	<p class="text-base leading-7 mb-4 text-gray-700">
-		<strong>Email:</strong>
-		{COPYRIGHT_EMAIL}
-	</p>
-</div>
-
-<div class="flex mt-8">
-	<button
-		class="ml-4 bg-purple-400 text-white px-4 py-2 rounded-md transition-all duration-300 hover:bg-purple-500"
-		onclick={downloadCopyright}
+	<!-- Content Card -->
+	<div 
+		class="p-10 bg-black/40 backdrop-blur-md border border-white/5 rounded-3xl shadow-2xl prose prose-invert prose-yellow max-w-none text-gray-400"
+		in:fly={{ y: 20, delay: 100, duration: 400 }}
 	>
-		Download Copyright Policy
-	</button>
+		<div bind:this={copyrightContainer} class="legal-content">
+			<h1 class="hidden-from-view">{GAME_NAME} - Copyright Policy</h1>
+
+			<p class="text-yellow-500 font-bold uppercase tracking-widest text-xs mb-8">
+				Last Updated: {LAST_UPDATED}
+			</p>
+
+			<p class="text-gray-200 leading-relaxed text-lg italic mb-8">
+				We respect the intellectual property rights of others and expect our users to do the same.
+			</p>
+
+			<p class="mb-8 leading-relaxed">
+				{GAME_NAME} allows users to upload content including audio and images. It is essential that all user-submitted content respects the intellectual property rights of others.
+			</p>
+
+			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2">Our Policy</h2>
+			<ul class="list-disc pl-6 space-y-2 mb-8">
+				<li>Address notices of claimed copyright infringement promptly.</li>
+				<li>Remove or disable access to infringing material.</li>
+				<li>Terminate accounts of repeat infringers.</li>
+			</ul>
+
+			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase text-yellow-500 border-b border-white/5 pb-2">Reporting Infringements</h2>
+			<p class="mb-4">
+				If you believe content on our Service infringes your copyright, please send a notice containing:
+			</p>
+			<ol class="list-decimal pl-6 space-y-4">
+				<li>Identification of the copyrighted work(s).</li>
+				<li>Identification of the infringing material (URLs, beatmap titles, etc.).</li>
+				<li>Your contact information (Name, address, email).</li>
+				<li>A good faith statement that the use is not authorized.</li>
+				<li>A statement under penalty of perjury that the info is accurate.</li>
+			</ol>
+
+			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2">Counter-Notices</h2>
+			<p class="mb-4 leading-relaxed italic border-l-2 border-yellow-500/30 pl-6 py-2">
+				If your content was removed by mistake, you may send a counter-notice including identification of the removed content and a statement of good faith belief that it was a mistake.
+			</p>
+
+			<h2 class="text-white font-black italic tracking-tight text-2xl mt-12 mb-4 uppercase border-b border-white/5 pb-2">Contact Info</h2>
+			<p class="leading-relaxed">
+				Direct all IP-related inquiries to: <span class="text-yellow-500 font-bold">{COPYRIGHT_EMAIL}</span>
+			</p>
+		</div>
+	</div>
+
+	<!-- Back Button -->
+	<div class="flex justify-center pt-4">
+		<a
+			href="/about"
+			class="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl font-bold text-sm uppercase tracking-widest text-gray-400 transition-all hover:text-white"
+		>
+			Return to About
+		</a>
+	</div>
 </div>
+
+<style lang="postcss">
+	.hidden-from-view {
+		display: none;
+	}
+</style>
