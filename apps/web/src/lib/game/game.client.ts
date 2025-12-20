@@ -140,15 +140,44 @@ export async function createGame(
 	let rafId = 0;
 	let started = false;
 	let audioFinished = false;
+	let leadInEndTime = 0;
 
-	const setPhase = (p: GamePhase) => {
+	function setPhase(p: GamePhase) {
 		phase = p;
 		callbacks.onPhaseChange(p);
-	};
+	}
 
 	// 3) Loop
-	const loop = () => {
-		if (phase === "playing" && !isPaused) {
+	function loop() {
+		if (isPaused) {
+			rafId = requestAnimationFrame(loop);
+			return;
+		}
+
+		if (phase === "countdown") {
+			const now = performance.now();
+			const timeRemaining = leadInEndTime - now;
+			const time = -timeRemaining; // Negative time relative to start (0)
+
+			// Update Countdown UI
+			const currentCount = Math.ceil(timeRemaining / 1000);
+			if (currentCount !== countdownCount) {
+				countdownCount = currentCount;
+				callbacks.onCountdownUpdate(Math.max(0, countdownCount));
+			}
+
+			// Render notes approaching
+			renderer.render(engine.state, time);
+
+			// Check if lead-in is finished
+			if (timeRemaining <= 0) {
+				setPhase("playing");
+				// Start Audio
+				clock.play(() => {
+					audioFinished = true;
+				});
+			}
+		} else if (phase === "playing") {
 			const time = clock.currentTimeMs;
 			const events = engine.update(time);
 
@@ -202,10 +231,10 @@ export async function createGame(
 			}
 		}
 		rafId = requestAnimationFrame(loop);
-	};
+	}
 
 	// 4) Input
-	const handleKeyPress = (key: string) => {
+	function handleKeyPress(key: string) {
 		if (isPaused || phase !== "playing") return;
 		const lane = Preferences.prefs.gameplay.keybindings.indexOf(
 			key.toLowerCase(),
@@ -232,9 +261,9 @@ export async function createGame(
 				});
 			}
 		}
-	};
+	}
 
-	const handleKeyRelease = (key: string) => {
+	function handleKeyRelease(key: string) {
 		if (phase !== "playing") return;
 		const lane = Preferences.prefs.gameplay.keybindings.indexOf(
 			key.toLowerCase(),
@@ -242,39 +271,23 @@ export async function createGame(
 		if (lane !== -1) {
 			engine.releaseInput(lane, clock.currentTimeMs);
 		}
-	};
+	}
 
 	// 5) Lifecycle
-	const startCountdownTimer = () => {
-		if (countdownTimer) clearInterval(countdownTimer);
-
-		countdownTimer = setInterval(async () => {
-			countdownCount--;
-			callbacks.onCountdownUpdate(countdownCount);
-			if (countdownCount <= 0) {
-				if (countdownTimer) {
-					clearInterval(countdownTimer);
-				}
-				countdownTimer = null;
-				await clock.play(() => {
-					audioFinished = true;
-				});
-				setPhase("playing");
-				loop();
-			}
-		}, 1000);
-	};
-
-	const startSequence = () => {
+	function startSequence() {
 		if (started) return;
 		started = true;
 		setPhase("countdown");
+		// 3 seconds lead-in
+		leadInEndTime = performance.now() + 3000;
 		countdownCount = 3;
 		callbacks.onCountdownUpdate(countdownCount);
-		startCountdownTimer();
-	};
+		
+		// Start the loop immediately to render approaching notes
+		rafId = requestAnimationFrame(loop);
+	}
 
-	const endGame = () => {
+	function endGame() {
 		cancelAnimationFrame(rafId);
 		setPhase("finished");
 		callbacks.onSongEnd();
@@ -285,7 +298,7 @@ export async function createGame(
 			});
 		}
 		setTimeout(() => setPhase("summary"), 2000);
-	};
+	}
 
 	const isTestEnv = typeof process !== "undefined" && !!process.env?.BUN_TEST;
 
@@ -305,17 +318,13 @@ export async function createGame(
 		pauseGame: () => {
 			isPaused = true;
 			clock.pause();
-			if (countdownTimer) {
-				clearInterval(countdownTimer);
-				countdownTimer = null;
-			}
 			console.log("Paused game");
 		},
 		resumeGame: () => {
 			isPaused = false;
 			clock.resume();
 			if (phase === "countdown") {
-				startCountdownTimer();
+				leadInEndTime = performance.now() + (countdownCount * 1000); 
 			}
 		},
 		handleKeyPress,
