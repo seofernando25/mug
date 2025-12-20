@@ -235,12 +235,10 @@ class GameSocket {
 				break;
 			}
 			case "room_state": {
-				// ArkType guarantees the data structure
 				currentRoomState.set(packet.data as RoomState);
 				break;
 			}
 			case "peer_score_update": {
-				// ArkType guarantees userId and score are present and correct types
 				const { userId, username, score, combo, maxCombo, health } =
 					packet.data;
 				matchState.update((state) => ({
@@ -259,7 +257,6 @@ class GameSocket {
 				break;
 			}
 			case "peer_match_finished": {
-				// ArkType guarantees userId and finalScore are present and correct types
 				const { userId, finalScore, maxCombo } = packet.data;
 				matchState.update((state) => ({
 					...state,
@@ -274,7 +271,6 @@ class GameSocket {
 				break;
 			}
 			case "pong":
-				// ArkType guarantees the pong data structure
 				if (this.pongCallback && packet.data) {
 					this.pongCallback(packet.data);
 				}

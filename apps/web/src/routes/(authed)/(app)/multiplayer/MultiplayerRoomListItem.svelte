@@ -11,6 +11,7 @@ type RoomListItem = {
 		name?: string | null;
 		artist?: string | null;
 		difficultyName?: string | null;
+		difficulty?: string | null;
 	} | null;
 	owner?: { id: string; name?: string | null; avatarUrl?: string | null };
 	isPasswordProtected?: boolean;
@@ -18,89 +19,92 @@ type RoomListItem = {
 
 const { room }: { room: RoomListItem } = $props();
 
-// TODO: Later, more sophisticated status/game mode icons or colors
-const getStatusColor = (status: string | undefined | null) => {
-	if (status === "Playing") return "bg-red-500";
-	if (status === "Freestyle") return "bg-blue-500";
-	return "bg-green-500"; // Open
-};
-
 const isPasswordProtected = $derived(room.isPasswordProtected);
 const coverUrl = $derived(room.currentChart?.coverUrl ?? null);
 const beatmapName = $derived(room.currentChart?.name ?? "No beatmap selected");
 const beatmapArtist = $derived(room.currentChart?.artist ?? "");
-const difficultyName = $derived(room.currentChart?.difficultyName ?? "");
+const difficultyName = $derived(room.currentChart?.difficultyName ?? room.currentChart?.difficulty ?? "");
 const ownerName = $derived(room.hostName ?? room.owner?.name ?? "Unknown Host");
 const ownerAvatar = $derived(room.owner?.avatarUrl ?? null);
+
+const status = $derived(room.status ?? 'idle');
 </script>
 
 <div
-	class="relative rounded-lg shadow-lg text-white overflow-hidden transition-all duration-200 ease-in-out hover:scale-[1.02] cursor-pointer group"
+	class="relative w-full h-24 bg-gray-800/40 hover:bg-gray-800/60 border border-white/5 hover:border-purple-500/50 rounded-xl overflow-hidden transition-all duration-200 group flex items-center shadow-lg backdrop-blur-sm"
 >
-	<!-- Background Image with Gradient -->
-	<div
-		class="absolute inset-0 bg-cover bg-center transition-transform duration-300 ease-in-out group-hover:scale-110"
-		style:background-image={coverUrl
-			? `linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.8) 70%, rgba(0,0,0,0.95) 100%), url(${coverUrl})`
-			: 'linear-gradient(to bottom, rgba(55, 65, 81, 0.8) 0%, rgba(31, 41, 55, 0.95) 100%)'}
-	></div>
-
-	<!-- Content -->
-	<div class="relative p-4 flex flex-col justify-between h-full min-h-[180px]">
-		<div>
-			<div class="flex justify-between items-start mb-2">
-				<span
-					class="px-2 py-0.5 text-xs font-semibold rounded-full uppercase tracking-wider shadow"
-					class:bg-green-500={!room.currentChart}
-					class:text-green-900={!room.currentChart}
-					class:bg-purple-500={!!room.currentChart}
-					class:text-purple-100={!!room.currentChart}
-				>
-					{room.currentChart ? 'Playing' : 'Open'}
-				</span>
-				{#if isPasswordProtected}
-					<div class="p-1.5 bg-black/30 rounded-full">
-						<!-- <LockClosedSolid class="h-4 w-4 text-gray-300" /> -->
-						<span class="text-xs text-gray-300 px-1">[Lock]</span>
-					</div>
-				{/if}
+	<!-- Left: Song Art -->
+	<div class="relative w-40 h-full overflow-hidden shrink-0">
+		{#if coverUrl}
+			<div
+				class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+				style:background-image="url({coverUrl})"
+			></div>
+		{:else}
+			<div class="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
+				<span class="text-3xl opacity-20">🎵</span>
 			</div>
+		{/if}
+		<div class="absolute inset-0 bg-gradient-to-r from-transparent to-gray-800/20"></div>
+	</div>
 
-			<h3 class="text-xl font-bold truncate" title={room.name}>{room.name}</h3>
-
-			{#if room.currentChart}
-				<div class="text-sm text-gray-300 mt-1">
-					<p class="truncate" title={beatmapName}>{beatmapName}</p>
-					<p class="text-xs text-gray-400 truncate" title={beatmapArtist}>{beatmapArtist}</p>
-					{#if difficultyName}
-						<p class="text-xs text-gray-400 mt-0.5">Difficulty: {difficultyName}</p>
-					{/if}
-				</div>
-			{:else}
-				<div class="text-sm text-gray-400 mt-1 italic">No beatmap selected</div>
+	<!-- Center: Room & Map Info -->
+	<div class="flex-1 px-6 flex flex-col justify-center min-w-0">
+		<div class="flex items-center gap-3 mb-1">
+			<h3 class="text-xl font-black italic tracking-tighter text-white truncate group-hover:text-purple-400 transition-colors" title={room.name}>
+				{room.name.toUpperCase()}
+			</h3>
+			{#if isPasswordProtected}
+				<span class="text-yellow-500 text-xs bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20 font-bold uppercase tracking-widest">PRIVATE</span>
 			{/if}
 		</div>
 
-		<div class="mt-auto pt-3">
-			<div class="flex items-center justify-between text-xs text-gray-400">
-				<div class="flex items-center">
-					{#if ownerAvatar}
-						<img
-							src={ownerAvatar}
-							alt="{ownerName}'s avatar"
-							class="h-5 w-5 rounded-full mr-1.5 border border-gray-600"
-						/>
-					{/if}
-					<span class="truncate">Hosted by {ownerName}</span>
-				</div>
-				<div class="flex items-center">
-					<!-- <UserGroupSolid class="h-4 w-4 mr-1 text-gray-500" /> -->
-					<span class="mr-1">Players:</span>
-					<span>{room.playerCount ?? 0}</span>
-					<!-- Max players can be added if needed -->
-				</div>
+		<div class="flex items-center gap-2 text-sm">
+			<span class="text-gray-400 font-medium truncate">{beatmapName}</span>
+			{#if beatmapArtist}
+				<span class="text-gray-600">•</span>
+				<span class="text-gray-500 truncate">{beatmapArtist}</span>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Right: Stats & Status -->
+	<div class="px-8 flex items-center gap-8 shrink-0">
+		<!-- Difficulty Badge -->
+		{#if difficultyName}
+			<div class="hidden md:flex flex-col items-end">
+				<span class="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-0.5">Difficulty</span>
+				<span class="text-sm font-black text-purple-400 italic">{difficultyName.toUpperCase()}</span>
+			</div>
+		{/if}
+
+		<!-- Player Count -->
+		<div class="flex flex-col items-end min-w-[80px]">
+			<span class="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-0.5">Players</span>
+			<div class="flex items-baseline gap-1">
+				<span class="text-xl font-black text-white">{room.playerCount ?? 0}</span>
+				<span class="text-xs text-gray-600 font-bold">/ 16</span>
 			</div>
 		</div>
+
+		<!-- Status Indicator -->
+		<div class="flex flex-col items-end min-w-[100px]">
+			<span class="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-0.5">Status</span>
+			<div class="flex items-center gap-2">
+				<div class="w-2 h-2 rounded-full {status === 'playing' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}"></div>
+				<span class="text-xs font-bold uppercase tracking-widest {status === 'playing' ? 'text-red-400' : 'text-green-400'}">
+					{status === 'playing' ? 'Playing' : 'In Lobby'}
+				</span>
+			</div>
+		</div>
+	</div>
+
+	<!-- Host Overlay (Small) -->
+	<div class="absolute bottom-2 left-44 flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+		{#if ownerAvatar}
+			<img src={ownerAvatar} alt="" class="w-4 h-4 rounded-full border border-white/20" />
+		{/if}
+		<span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Host: {ownerName}</span>
 	</div>
 </div>
 

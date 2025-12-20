@@ -31,6 +31,7 @@ export interface PlayerData {
 type Room = {
 	id: string;
 	name: string;
+	password?: string;
 	hostId: string;
 	players: Set<ServerWebSocket<PlayerData>>;
 	status: "idle" | "loading" | "starting" | "playing" | "finished";
@@ -67,7 +68,11 @@ export class RoomManager {
 		this.clearTimeoutFn = clearTimeoutFn;
 	}
 
-	createRoom(player: ServerWebSocket<PlayerData>, name: string): Room {
+	createRoom(
+		player: ServerWebSocket<PlayerData>,
+		name: string,
+		password?: string,
+	): Room {
 		// Enforce single room per host (by user id). If this user already hosts a room, remove it.
 		for (const [id, room] of this.rooms.entries()) {
 			if (room.hostId === player.data.user.id) {
@@ -80,6 +85,7 @@ export class RoomManager {
 		const room: Room = {
 			id: roomId,
 			name: name.slice(0, 50),
+			password: password,
 			hostId: player.data.user.id,
 			players: new Set([player]),
 			status: "idle",
@@ -270,6 +276,7 @@ export class RoomManager {
 			status: r.status,
 			hostId: r.hostId,
 			hostName: this.getHostName(r),
+			currentChart: r.currentChart,
 		}));
 	}
 

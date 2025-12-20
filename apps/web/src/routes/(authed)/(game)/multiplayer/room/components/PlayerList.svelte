@@ -1,6 +1,4 @@
 <script lang="ts">
-import { fly } from "svelte/transition";
-
 interface Player {
 	userId: string;
 	username?: string | null;
@@ -15,40 +13,50 @@ interface Props {
 const { players, hostId }: Props = $props();
 </script>
 
-<div class="w-1/4 h-full flex flex-col justify-center gap-4 pl-8" in:fly={{ x: -50, duration: 500 }}>
-    <h3 class="text-gray-500 text-sm font-bold tracking-widest uppercase mb-2">Players ({players.length}/8)</h3>
+<div class="h-full flex flex-col gap-2 p-4 overflow-y-auto">
+    <div class="flex items-center justify-between mb-2">
+        <h3 class="text-gray-500 text-xs font-bold tracking-widest uppercase">Participants</h3>
+        <span class="text-xs text-gray-600 font-bold">{players.length} / 16</span>
+    </div>
 
+    <!-- Active Players -->
     {#each players as player (player.userId)}
-        <div class="group relative bg-gray-800/60 border-l-4 border-gray-600 p-3 rounded-r-lg flex items-center gap-3 backdrop-blur-sm transition-all duration-300 hover:bg-gray-700/80 hover:pl-5 hover:border-cyan-400">
-            {#if player.avatarUrl}
-                <img src={player.avatarUrl} alt={player.username} class="w-10 h-10 rounded-full border border-gray-500" />
-            {:else}
-                <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">?</div>
-            {/if}
-
-            <div class="flex flex-col">
-                <span class="font-bold text-sm tracking-wide group-hover:text-cyan-300 transition-colors">
-                    {player.username || 'Anonymous'}
-                </span>
-                <span class="text-xs text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                    {#if hostId === player.userId}
-                        <span class="text-yellow-500">👑 Host</span>
-                    {:else}
-                        <span class="text-gray-500">Guest</span>
-                    {/if}
-                </span>
+        <div class="group relative bg-gray-800 border-l-4 border-transparent p-2 rounded flex items-center gap-3 transition-colors hover:bg-gray-750
+            {hostId === player.userId ? 'border-yellow-500 bg-yellow-500/5' : 'border-green-500'}">
+            
+            <div class="relative">
+                {#if player.avatarUrl}
+                    <img src={player.avatarUrl} alt={player.username} class="w-8 h-8 rounded border border-white/10" />
+                {:else}
+                    <div class="w-8 h-8 rounded bg-gray-700 flex items-center justify-center text-[10px] font-bold text-gray-400">?</div>
+                {/if}
+                
+                {#if hostId === player.userId}
+                    <div class="absolute -top-2 -right-2 text-[10px]" title="Host">👑</div>
+                {/if}
             </div>
 
-            <div class="ml-auto pr-2">
-                 <div class="w-3 h-3 rounded-full bg-gray-600 shadow-[0_0_5px_rgba(0,0,0,0.5)]"></div>
+            <div class="flex flex-col min-w-0">
+                <span class="font-bold text-xs text-white truncate group-hover:text-purple-300 transition-colors">
+                    {player.username || 'Anonymous'}
+                </span>
+                <span class="text-[10px] text-gray-500 font-mono">#{player.userId.slice(0, 4)}</span>
+            </div>
+
+            <div class="ml-auto">
+                 <!-- Ready Status Indicator (Mock) -->
+                 <div class="px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-[9px] font-bold border border-green-500/30 uppercase">
+                    Ready
+                 </div>
             </div>
         </div>
     {/each}
 
-    {#each Array(Math.max(0, 4 - players.length)) as _}
-         <div class="bg-gray-900/30 border-l-4 border-transparent p-3 rounded-r-lg flex items-center gap-3 opacity-50 border-dashed border-gray-700">
-            <div class="w-10 h-10 rounded-full bg-gray-800/50"></div>
-            <span class="text-gray-600 text-sm italic">Empty Slot</span>
+    <!-- Empty Slots -->
+    {#each Array(Math.max(0, 8 - players.length)) as _, i}
+         <div class="bg-black/20 border border-white/5 p-2 rounded flex items-center gap-3 opacity-60">
+            <div class="w-8 h-8 rounded bg-white/5"></div>
+            <span class="text-gray-600 text-xs italic">Empty</span>
          </div>
     {/each}
 </div>

@@ -196,19 +196,6 @@ function handleSearchChange(term: string) {
 				BACK
 			</button>
 
-			<div class="flex gap-4">
-				<button
-					class="px-6 py-3 rounded-lg font-bold text-gray-400 hover:bg-gray-800 hover:text-white transition"
-				>
-					MODS
-				</button>
-				<button
-					class="px-6 py-3 rounded-lg font-bold text-gray-400 hover:bg-gray-800 hover:text-white transition"
-				>
-					OPTIONS
-				</button>
-			</div>
-
 			<button
 				onclick={() => {
 					if (selectedSong) {

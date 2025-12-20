@@ -9,9 +9,10 @@ import {
 } from "$lib/network/socket";
 import { fade } from "svelte/transition";
 import PlayerList from "../components/PlayerList.svelte";
-import SongSelector from "../components/SongSelector.svelte";
-import RoomInfo from "../components/RoomInfo.svelte";
+import BeatmapCard from "../components/SongSelector.svelte";
+import RoomHeader from "../components/RoomHeader.svelte";
 import RoomControls from "../components/RoomControls.svelte";
+import ChatPanel from "../components/ChatPanel.svelte";
 import SongSelectOverlay from "$lib/components/SongSelectOverlay.svelte";
 import { orpcClient } from "$lib/rpc/client";
 
@@ -99,6 +100,21 @@ function startGame() {
 function openSongSelect() {
 	if (!isHost) return;
 	isSongSelectOpen = true;
+}
+
+async function handleUpdateRoom(name: string, password?: string) {
+	if (!roomId || !isHost) return;
+	
+	try {
+		gameSocket.send("update_room", {
+			roomId,
+			name,
+			password
+		});
+		console.log("Sent room update:", name);
+	} catch (error) {
+		console.error("Error updating room:", error);
+	}
 }
 
 async function handleSongSelection(data: { song: any; difficulty: string }) {
@@ -196,8 +212,79 @@ onMount(() => {
 });
 </script>
 
-<div class="flex-1 w-full bg-gray-900 text-white overflow-hidden flex flex-col font-sans">
+<div class="fixed inset-0 z-50 flex flex-col bg-gray-950 text-white font-sans overflow-hidden">
+    <!-- Dynamic Background (Blurred) -->
+    {#if roomDetails?.currentChart?.coverUrl}
+        <div class="absolute inset-0 z-0">
+            <div 
+                class="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-110"
+                style:background-image="url({roomDetails.currentChart.coverUrl})"
+            ></div>
+            <div class="absolute inset-0 bg-gray-950/80"></div>
+        </div>
+    {/if}
 
+    <!-- Content Wrapper -->
+    <div class="relative z-10 flex flex-col h-full">
+        
+        {#if isLoading}
+            <div class="flex-1 flex items-center justify-center">
+                <div class="animate-pulse text-2xl font-light tracking-widest text-cyan-400">CONNECTING...</div>
+            </div>
+        {:else if error}
+            <div class="flex-1 flex items-center justify-center">
+                <div class="bg-red-900/80 border border-red-500 p-6 rounded-xl text-center backdrop-blur-sm">
+                    <h2 class="text-xl font-bold mb-2">Connection Error</h2>
+                    <p>{error}</p>
+                    <button onclick={() => goto('/multiplayer')} class="mt-4 px-6 py-2 bg-white text-red-900 font-bold rounded hover:bg-gray-200">
+                        RETURN TO LOBBY
+                    </button>
+                </div>
+            </div>
+        {:else if roomDetails}
+            <!-- 1. Header -->
+            <RoomHeader 
+                roomName={roomDetails.name} 
+                roomId={roomId || '???'} 
+                isHost={isHost}
+                onUpdateRoom={handleUpdateRoom}
+            />
+
+            <!-- 2. Main Dashboard (3 Columns) -->
+            <div class="flex-1 grid grid-cols-[300px_1fr_350px] min-h-0">
+                <!-- Left: Participants -->
+                <div class="border-r border-white/5 bg-black/20 backdrop-blur-sm">
+                    <PlayerList players={roomDetails.players} hostId={roomDetails.hostId} />
+                </div>
+
+                <!-- Center: Dashboard / Mods / Beatmap -->
+                <div class="p-8 flex flex-col gap-6 overflow-y-auto">
+                    <!-- Beatmap Card -->
+                    <BeatmapCard
+                        currentChart={roomDetails.currentChart}
+                        isHost={isHost}
+                        openSongSelect={openSongSelect}
+                    />
+
+                </div>
+
+                <!-- Right: Chat -->
+                <div class="border-l border-white/5 bg-black/20 backdrop-blur-sm">
+                    <ChatPanel />
+                </div>
+            </div>
+
+            <!-- 3. Footer / Controls -->
+            <RoomControls
+                handleLeaveRoom={handleLeaveRoom}
+                isLeaving={isLeaving}
+                isHost={isHost}
+                startGame={startGame}
+            />
+        {/if}
+    </div>
+
+    <!-- Overlays -->
     <SongSelectOverlay
         isOpen={isSongSelectOpen}
         onClose={() => isSongSelectOpen = false}
@@ -206,70 +293,15 @@ onMount(() => {
     />
 
     {#if showCountdownOverlay}
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div class="text-center">
-                <div class="text-8xl font-black text-white mb-4 animate-pulse">
+                <div class="text-9xl font-black text-white mb-4 animate-pulse tabular-nums">
                     {countdownValue ?? 3}
                 </div>
-                <div class="text-xl text-cyan-400 font-bold tracking-widest">
-                    GET READY!
+                <div class="text-2xl text-cyan-400 font-bold tracking-[1em] uppercase">
+                    GET READY
                 </div>
             </div>
         </div>
-    {/if}
-
-    {#if isLoading}
-        <div class="flex-1 flex items-center justify-center">
-        <div class="z-10 animate-pulse text-2xl font-light tracking-widest text-cyan-400">CONNECTING...</div>
-        </div>
-    {:else if error}
-        <div class="flex-1 flex items-center justify-center">
-        <div class="z-10 bg-red-900/80 border border-red-500 p-6 rounded-xl text-center backdrop-blur-sm">
-            <h2 class="text-xl font-bold mb-2">Connection Error</h2>
-            <p>{error}</p>
-            <button onclick={() => goto('/multiplayer')} class="mt-4 px-6 py-2 bg-white text-red-900 font-bold rounded hover:bg-gray-200">
-                RETURN TO LOBBY
-            </button>
-            </div>
-        </div>
-    {:else if roomDetails}
-        <!-- Song Info Header -->
-        <div class="w-full bg-linear-to-b from-gray-800/50 to-transparent border-b border-gray-700/50 backdrop-blur-sm py-6">
-            <div class="max-w-7xl mx-auto px-6 text-center">
-                <h1 class="text-4xl font-black italic tracking-tighter text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] mb-2">
-                    {roomDetails.currentChart?.name || 'NO SONG SELECTED'}
-                </h1>
-                <div class="flex items-center justify-center gap-3 text-cyan-400 font-bold uppercase tracking-widest text-sm">
-                    {#if roomDetails.currentChart?.artist}
-                        <span>{roomDetails.currentChart.artist}</span>
-                    {/if}
-                    {#if roomDetails.currentChart?.difficulty}
-                        <span class="text-gray-500">|</span>
-                        <span class="text-purple-400">{roomDetails.currentChart.difficulty}</span>
-                    {/if}
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content Area -->
-        <div class="flex-1 w-full max-w-7xl mx-auto flex relative px-6 py-8 pb-24 overflow-hidden">
-            <PlayerList players={roomDetails.players} hostId={roomDetails.hostId} />
-
-            <SongSelector
-                currentChart={roomDetails.currentChart}
-                isHost={isHost}
-                openSongSelect={openSongSelect}
-            />
-
-            <RoomInfo roomId={roomId} connectionStatus={connectionStatus} />
-        </div>
-
-        <!-- Bottom Controls -->
-        <RoomControls
-            handleLeaveRoom={handleLeaveRoom}
-            isLeaving={isLeaving}
-            isHost={isHost}
-            startGame={startGame}
-        />
     {/if}
 </div>

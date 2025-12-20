@@ -113,7 +113,8 @@ const server = Bun.serve<PlayerData>({
 					case "create_room": {
 						if (socket.data.roomId) roomManager.leaveRoom(rawWs);
 						const name = packet.data?.name ?? "Room";
-						const room = roomManager.createRoom(rawWs, name);
+						const password = packet.data?.password;
+						const room = roomManager.createRoom(rawWs, name, password);
 						socket.send("ack", { message: "room_created" });
 
 						// Send updated lobby list to all
@@ -135,7 +136,7 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case "join_room": {
-						const roomId = packet.data.roomId; // ArkType guarantees this exists
+						const roomId = packet.data.roomId; 
 						try {
 							if (socket.data.roomId && socket.data.roomId !== roomId)
 								roomManager.leaveRoom(rawWs);
@@ -168,7 +169,7 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case "get_room_state": {
-						const roomId = packet.data.roomId; // ArkType guarantees this exists
+						const roomId = packet.data.roomId; 
 						const state = roomManager.getRoomState(roomId);
 						if (state) socket.send("room_state", state);
 						else
@@ -199,7 +200,7 @@ const server = Bun.serve<PlayerData>({
 						break;
 					}
 					case "update_room": {
-						const { roomId, currentChart } = packet.data; // ArkType guarantees these exist
+						const { roomId, currentChart, name, password } = packet.data; 
 
 						// Validate that the sender is the host
 						const room = roomManager.getRoomById(roomId);
@@ -211,14 +212,24 @@ const server = Bun.serve<PlayerData>({
 							break;
 						}
 
-						// Update the room's current chart
-						room.currentChart = currentChart;
-						console.log(
-							"[bancho] updated room",
-							roomId,
-							"chart to:",
-							currentChart.name,
-						);
+						// Update fields if provided
+						if (currentChart) {
+							room.currentChart = currentChart;
+							console.log(
+								"[bancho] updated room",
+								roomId,
+								"chart to:",
+								currentChart.name,
+							);
+						}
+
+						if (name) {
+							room.name = name.slice(0, 50);
+						}
+
+						if (password !== undefined) {
+							room.password = password;
+						}
 
 						// Broadcast the updated room state to all clients
 						const state = roomManager.getRoomState(roomId);
@@ -229,11 +240,34 @@ const server = Bun.serve<PlayerData>({
 							});
 						}
 
+						// Also broadcast lobby update if name changed
+						if (name) {
+							roomManager.getLobbyList().forEach((r) => {
+								if (r.id === roomId) {
+									// Notify lobby of update
+									// Note: RoomManager doesn't expose a direct 'updateLobby' broadcast easily here 
+									// without iterating all connections again, but getLobbyList() is efficient.
+									// Let's just re-broadcast the lobby list to everyone in lobby.
+									// Optimally we'd have a specific event for room name change.
+									// For now, let's reuse the existing loop pattern from create_room/leave_room
+									// or add a notify Update to roomManager. But notify logic is internal.
+									// Let's just re-send list.
+									const lobby = roomManager.getLobbyList();
+									for (const client of connections) {
+										if (client.readyState === 1) {
+											const clientSocket = new TypedSocket(client);
+											clientSocket.send("room_list", lobby);
+										}
+									}
+								}
+							});
+						}
+
 						socket.send("ack", { message: "room_updated" });
 						break;
 					}
 				case "start_match": {
-					const roomId = packet.data.roomId; // ArkType guarantees this exists
+					const roomId = packet.data.roomId; 
 
 					// Validate that the sender is the host
 					const room = roomManager.getRoomById(roomId);

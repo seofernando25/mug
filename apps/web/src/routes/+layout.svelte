@@ -22,7 +22,7 @@ $effect(() => {
 
 	// If user is logged in but on a public page, redirect to app dashboard
 	if (sessionData?.data?.session && isPublicPage) {
-		goto("/express", { replaceState: true });
+		goto("/home", { replaceState: true });
 	}
 });
 </script>

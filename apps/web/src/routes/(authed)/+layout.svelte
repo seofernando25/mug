@@ -12,8 +12,8 @@ const session = authClient.useSession();
 $effect(() => {
 	const sessionData = $session;
 	
-	// If user is not logged in, redirect to home
-	if (!sessionData?.data?.session) {
+	// If user is not logged in and not loading, redirect to home
+	if (!sessionData.isPending && !sessionData?.data?.session) {
 		goto("/", { replaceState: true });
 	}
 });

@@ -10,15 +10,6 @@ const UserInfo = type({
 	"avatarUrl?": "string|null",
 });
 
-const RoomInfo = type({
-	id: "string",
-	name: "string",
-	"playerCount?": "number",
-	"status?": "string", // 'idle' | 'starting' | 'playing'
-	"hostId?": "string|null",
-	"hostName?": "string|null",
-});
-
 const ChartInfo = type({
 	"coverUrl?": "string",
 	"name?": "string",
@@ -26,6 +17,16 @@ const ChartInfo = type({
 	"difficulty?": "string",
 	"songId?": "string",
 	"difficulties?": "string[]",
+});
+
+const RoomInfo = type({
+	id: "string",
+	name: "string",
+	"playerCount?": "number",
+	"status?": "string", // 'idle' | 'starting' | 'playing'
+	"hostId?": "string|null",
+	"hostName?": "string|null",
+	"currentChart?": ChartInfo,
 });
 
 const ScoreData = type({
@@ -43,7 +44,7 @@ const PingPacket = type({ op: "'ping'", "data?": { "t1?": "number" } });
 const NoopPacket = type({ op: "'noop'" });
 const CreateRoomPacket = type({
 	op: "'create_room'",
-	"data?": { "name?": "string" },
+	"data?": { "name?": "string", "password?": "string" },
 });
 const JoinRoomPacket = type({ op: "'join_room'", data: { roomId: "string" } });
 const LeaveRoomPacket = type({
@@ -56,7 +57,12 @@ const GetRoomStatePacket = type({
 });
 const UpdateRoomPacket = type({
 	op: "'update_room'",
-	data: { roomId: "string", currentChart: ChartInfo },
+	data: {
+		roomId: "string",
+		"currentChart?": ChartInfo,
+		"name?": "string",
+		"password?": "string",
+	},
 });
 const StartMatchPacket = type({
 	op: "'start_match'",
