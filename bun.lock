@@ -122,6 +122,7 @@
       "dependencies": {
         "@mug/contract": "workspace:*",
         "@mug/db": "workspace:*",
+        "pixi.js": "^8.14.3",
       },
       "devDependencies": {
         "@types/bun": "^1.0.0",
