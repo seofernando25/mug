@@ -58,15 +58,6 @@ $effect(() => {
 	// Play preview
 	const url = activeSong.audioUrl;
 	if (url) {
-		// Prevent re-playing if src hasn't changed (optimization)
-		const currentSrcPath = audioElement.src ? new URL(audioElement.src).pathname : "";
-		const newSrcPath = new URL(url, window.location.origin).pathname; 
-		// Note: comparing full URLs might be safer but presigned URLs change signature. 
-		// Actually, standard HTMLAudioElement behavior: setting src resets it.
-		// So we should only set it if the song ID changed.
-		// But we don't track previous ID easily here inside the effect without a ref.
-		// However, the effect runs when `activeSong` changes.
-		
 		audioElement.src = url;
 		const startMs = activeSong.previewStartTime ?? 0;
 		audioElement.currentTime = startMs > 0 ? startMs / 1000 : 0;

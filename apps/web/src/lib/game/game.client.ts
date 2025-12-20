@@ -43,6 +43,13 @@ export async function createGame(
 	const { RhythmEngine, AudioClock, GameRenderer } = await import("@mug/engine");
 	const { Sound } = await import("@pixi/sound");
 
+	// Attempt to resume AudioContext if suspended (common in multiplayer/autoplay scenarios)
+	if (Sound.context?.audioContext?.state === "suspended") {
+		Sound.context.audioContext.resume().catch((e) =>
+			console.warn("[MUG] Failed to resume AudioContext:", e),
+		);
+	}
+
 	if (chartData.hitObjects.length === 0)
 		console.warn("[MUG] ⚠️ WARNING: Chart has 0 notes!");
 	// 1) Initialize modules
@@ -292,6 +299,7 @@ export async function createGame(
 		pauseGame: () => {
 			isPaused = true;
 			clock.pause();
+			console.log("Paused game");
 		},
 		resumeGame: () => {
 			isPaused = false;

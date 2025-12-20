@@ -12,26 +12,8 @@ import MultiplayerLeaderboard from "$lib/components/game/MultiplayerLeaderboard.
 import { socketStatus, gameSocket, currentRoomState } from "$lib/network/socket";
 import { Colors } from "$lib/types/game";
 import { onMount } from "svelte";
-import type { ClientSong, ClientChart } from "$lib/types";
 
-interface GameSessionCallbacks {
-	onScoreUpdate?: (score: number, combo: number, maxCombo: number) => void;
-	onMatchFinished?: (finalScore: number, maxCombo: number) => void;
-	onRetry?: () => void;
-	onExit: () => void;
-}
-
-interface Props {
-	songData: ClientSong;
-	chartData: ClientChart;
-	callbacks: GameSessionCallbacks;
-	showMultiplayerLeaderboard?: boolean;
-	canPause?: boolean;
-	isMultiplayer?: boolean;
-	suppressSummaryScreen?: boolean;
-}
-
-const { songData, chartData, callbacks, showMultiplayerLeaderboard = false, canPause = true, isMultiplayer = false, suppressSummaryScreen = false }: Props = $props();
+const { songData, chartData, callbacks, showMultiplayerLeaderboard = false, canPause = true, isMultiplayer = false, suppressSummaryScreen = false } = $props();
 
 // Multiplayer state
 let isWaitingForPlayers = $state(false);
@@ -107,6 +89,7 @@ onMount(() => {
 	};
 
 	const handlePageFocusChange = () => {
+		console.log("Page focus changed");
 		// Don't process events when game has ended
 		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
 		if (!gameInstance || !canPause) return;
@@ -125,6 +108,7 @@ onMount(() => {
 	};
 
 	const handleWindowBlur = () => {
+		console.log("Window blurred");
 		// Don't process events when game has ended
 		if (gamePhaseStore === "summary" || gamePhaseStore === "finished") return;
 		if (!gameInstance || !canPause) return;
@@ -213,8 +197,12 @@ onMount(() => {
 		window.addEventListener("keydown", handleKeyDown);
 		window.addEventListener("keyup", handleKeyUp);
 		window.addEventListener("resize", handleResize);
-		document.addEventListener("visibilitychange", handlePageFocusChange);
-		window.addEventListener("blur", handleWindowBlur);
+		
+		console.log("Game can pause:", canPause);
+		if (canPause) {
+			document.addEventListener("visibilitychange", handlePageFocusChange);
+			window.addEventListener("blur", handleWindowBlur);
+		}
 	};
 
 	initializeGame();
@@ -240,8 +228,11 @@ onMount(() => {
 		window.removeEventListener("keydown", handleKeyDown);
 		window.removeEventListener("keyup", handleKeyUp);
 		window.removeEventListener("resize", handleResize);
-		document.removeEventListener("visibilitychange", handlePageFocusChange);
-		window.removeEventListener("blur", handleWindowBlur);
+		
+		if (canPause) {
+			document.removeEventListener("visibilitychange", handlePageFocusChange);
+			window.removeEventListener("blur", handleWindowBlur);
+		}
 
 		unsubRoomState?.();
 		gameInstance?.cleanup();
@@ -271,7 +262,7 @@ function handleExit() {
 	class="gameplay-container"
 	bind:this={canvasElementContainer}
 	style="--bg-url: url('{songData.imageUrl}');"
->
+>	
 	<canvas bind:this={canvasElement}></canvas>
 	<ScreenPulse bind:this={screenPulseComponent} />
 	{#if isWaitingForPlayers}

@@ -1,4 +1,7 @@
-import type { Sound, IMediaInstance } from "@pixi/sound";
+import type { IMediaInstance, Sound } from "@pixi/sound";
+import { sound } from "@pixi/sound";
+
+sound.disableAutoPause = true;
 
 /**
  * Thin wrapper to expose an authoritative time source.
@@ -23,6 +26,7 @@ export class AudioClock {
 	}
 
 	pause() {
+		console.log("Pausing audio");
 		if (this.instance) {
 			this.instance.set("paused", true);
 		}
@@ -48,7 +52,7 @@ export class AudioClock {
 			this.isSeekingInternal = true; // Set flag
 			const durationMs = this.sound.duration * 1000;
 			const clampedTimeMs = Math.max(0, Math.min(timeMs, durationMs));
-			const progress = clampedTimeMs / durationMs;
+			console.log("Seeking audio to", clampedTimeMs / 1000);
 			(this.instance as any).currentTime = clampedTimeMs / 1000;
 			this.isSeekingInternal = false; // Reset flag
 		}
@@ -56,6 +60,7 @@ export class AudioClock {
 
 	get currentTimeMs(): number {
 		// Check the internal flag to avoid reading progress while it's being set by seek()
+		console.log("Getting current time ms", this.instance?.progress, this.sound.duration, this.isSeekingInternal, this.instance?.paused);
 		if (
 			this.instance &&
 			typeof this.instance.progress === "number" &&
