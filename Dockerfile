@@ -1,4 +1,4 @@
-FROM oven/bun:1 AS base
+FROM oven/bun:1.4.4 AS base
 
 # Set the working directory
 WORKDIR /app
@@ -17,4 +17,4 @@ EXPOSE 5173
 
 # Start the SvelteKit development server
 # Using --host to make it accessible from outside the container
-CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0"] 
+CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0"]
