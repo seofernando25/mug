@@ -8,7 +8,7 @@ function installEngineMocks() {
 	// These mocks prevent any external dependencies from affecting the engine
 	mock.module('$app/environment', () => ({}));
 	mock.module('svelte/store', () => ({}));
-	
+
 	mock.module('$lib/preferences', () => ({}));
 }
 

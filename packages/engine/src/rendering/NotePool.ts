@@ -137,7 +137,9 @@ export class NotePool {
 		});
 		this.activeNotes.clear();
 
-		this.tapNotePool.forEach((note) => note.headGraphics.destroy());
+		this.tapNotePool.forEach((note) => {
+			note.headGraphics.destroy();
+		});
 		this.tapNotePool = [];
 
 		this.holdNotePool.forEach((note) => {

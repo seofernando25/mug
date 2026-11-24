@@ -3,7 +3,7 @@ import { validateSession } from '@mug/db';
 import { RoomManager, type PlayerData } from './state';
 import { TypedSocket } from './socket-helper';
 import { type } from 'arktype';
-import type { ServerWebSocket } from 'bun';
+import type { Server, ServerWebSocket } from 'bun';
 import { redis } from 'bun';
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -22,10 +22,10 @@ const roomManager = new RoomManager((event) => {
 	}
 });
 
-function upgradeAsGuest(srv: any, req: Request) {
+function upgradeAsGuest(srv: Server<PlayerData>, req: Request) {
 	const guestId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 	const guestName = `GUEST-${guestId.slice(0, 5).toUpperCase()}`;
-	
+
 	const success = srv.upgrade(req, {
 		data: {
 			user: {

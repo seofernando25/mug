@@ -56,7 +56,7 @@ export async function createGame(
 	}
 
 	if (chartData.hitObjects.length === 0) console.warn('[MUG] ⚠️ WARNING: Chart has 0 notes!');
-	
+
 	// 1) Initialize modules
 	const engine = new RhythmEngine(chartData.hitObjects, {
 		timingWindows: {
@@ -69,7 +69,7 @@ export async function createGame(
 	});
 
 	let soundInstance: WebAudioInstance | null = null;
-	
+
 	try {
 		soundInstance = await WebAudioInstance.fromUrl(audioContext, songData.audioUrl);
 	} catch (err) {

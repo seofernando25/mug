@@ -14,18 +14,17 @@ export default defineConfig({
 	build: {
 		sourcemap: true,
 		rollupOptions: {
-			external: [],
-		},
+			external: []
+		}
 	},
 	ssr: {
 		external: [
-			"@mug/common",
-			"@mug/contract",
-			"@mug/db",
-			"@mug/engine",
-			"@mug/game-logic",
-			"pixi.js",
-		],
-	},
-
+			'@mug/common',
+			'@mug/contract',
+			'@mug/db',
+			'@mug/engine',
+			'@mug/game-logic',
+			'pixi.js'
+		]
+	}
 });

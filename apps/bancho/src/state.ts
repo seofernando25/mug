@@ -118,9 +118,8 @@ export class RoomManager {
 			{
 				op: 'room_event',
 				data: {
-					op: 'room_event',
-					roomId,
-					event: 'join',
+					type: 'join',
+					id: roomId,
 					payload: { userId: player.data.user.id }
 				}
 			},
@@ -155,9 +154,8 @@ export class RoomManager {
 				{
 					op: 'room_event',
 					data: {
-						op: 'room_event',
-						roomId,
-						event: 'leave',
+						type: 'leave',
+						id: roomId,
 						payload: { userId: player.data.user.id }
 					}
 				},
@@ -341,7 +339,7 @@ export class RoomManager {
 			op: 'peer_score_update',
 			data: {
 				userId,
-				username: player.data.user?.username ?? null,
+				...(player.data.user?.username ? { username: player.data.user.username } : {}),
 				score,
 				combo: typeof data?.combo === 'number' ? data.combo : undefined,
 				maxCombo: typeof data?.maxCombo === 'number' ? data.maxCombo : undefined,

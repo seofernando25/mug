@@ -5,7 +5,7 @@ import { session, user } from './schema/auth';
 export async function validateSession(token: string) {
 	// Debug logging for production troubleshooting
 	console.log(`[db] Validating session token: ${token.slice(0, 8)}...`);
-	
+
 	const result = await db
 		.select({
 			user: user,
@@ -16,7 +16,7 @@ export async function validateSession(token: string) {
 		.where(
 			or(
 				eq(session.token, token), // hashed token (default)
-				eq(session.id, token)    // raw session id (fallback)
+				eq(session.id, token) // raw session id (fallback)
 			)
 		)
 		.limit(1);

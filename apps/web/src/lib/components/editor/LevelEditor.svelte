@@ -47,10 +47,10 @@
 			const { GameRenderer, AudioClock, WebAudioInstance } = await import('@mug/engine');
 
 			const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-			
+
 			try {
 				audioInstance = await WebAudioInstance.fromUrl(audioContext, audioUrl);
-				
+
 				audioClock = new AudioClock(audioInstance);
 
 				// GameRenderer initialization
@@ -96,7 +96,7 @@
 
 				containerElement.addEventListener('wheel', handleWheel, { passive: false });
 			} catch (err) {
-				console.error("Failed to initialize editor audio/renderer:", err);
+				console.error('Failed to initialize editor audio/renderer:', err);
 			}
 		})();
 

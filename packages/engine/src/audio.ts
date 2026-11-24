@@ -89,7 +89,7 @@ export class WebAudioInstance implements AudioInstance {
 		this.source = this.audioContext.createBufferSource();
 		this.source.buffer = this.buffer;
 		this.source.connect(this.gainNode);
-		
+
 		this.source.onended = () => {
 			if (this._isPlaying) {
 				this._isPlaying = false;
