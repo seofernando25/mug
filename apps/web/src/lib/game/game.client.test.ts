@@ -29,29 +29,34 @@ mock.module('$lib/stores/settingsStore', () => ({
 import { setupSvelteKitMocks } from '$lib/test-utils';
 
 // Test-specific mocks (game engine and app modules)
-mock.module('@pixi/sound', () => ({
-	Sound: {
-		from: mock((options: any) => {
-			const mockSound = {
-				duration: 100,
-				isLoaded: true,
-				destroy: mock(),
-				play: mock(),
-				stop: mock(),
-				volume: 1
-			};
 
-			// Call loaded callback immediately
-			if (options.loaded) {
-				options.loaded(null, mockSound);
-			}
+// Flipped by the audio-failure test to make the mocked WebAudioInstance reject.
+let failAudioLoad = false;
 
-			return mockSound;
-		})
+// Stands in for the real WebAudioInstance, which needs a browser AudioContext and a
+// fetchable audio URL. `duration` is in seconds, as AudioInstance declares it.
+class MockWebAudioInstance {
+	duration = 100;
+	volume = 1;
+	currentTime = 0;
+	isPlaying = false;
+	play = mock();
+	pause = mock();
+	resume = mock();
+	stop = mock();
+	seek = mock();
+	destroy = mock();
+
+	static async fromUrl() {
+		if (failAudioLoad) {
+			throw new Error('Network error');
+		}
+		return new MockWebAudioInstance();
 	}
-}));
+}
 
 mock.module('@mug/engine', () => ({
+	WebAudioInstance: MockWebAudioInstance,
 	RhythmEngine: class {
 		constructor(chart: any[]) {
 			this.update = mock(() => []);
@@ -240,7 +245,7 @@ describe('Game Client - createGame', () => {
 		gameSocket.send.mockClear();
 	});
 
-	describe('Initialization & Audio Safety Valve', () => {
+	describe('Initialization', () => {
 		test('initializes game successfully', async () => {
 			const canvas = document.createElement('canvas');
 			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
@@ -256,27 +261,17 @@ describe('Game Client - createGame', () => {
 			game.cleanup();
 		});
 
-		test('handles audio load failure gracefully', async () => {
-			// Temporarily change the mock to fail
-			// Mock the Sound.from method to fail
-			mock.module('@pixi/sound', () => ({
-				Sound: {
-					from: mock((options: any) => {
-						// Call loaded with error immediately
-						if (options.loaded) {
-							options.loaded(new Error('Network error'), null);
-						}
-						return { duration: 0, destroy: mock() };
-					})
-				}
-			}));
+		test('rejects when audio fails to load', async () => {
+			// createGame has no audio fallback: a failed WebAudioInstance load propagates
+			// rather than starting a silent game.
+			failAudioLoad = true;
 
 			const canvas = document.createElement('canvas');
-			const game = await createGame(mockSong, mockChart, canvas, mockCallbacks);
+			await expect(createGame(mockSong, mockChart, canvas, mockCallbacks)).rejects.toThrow(
+				'Failed to load audio'
+			);
 
-			// Should still create game despite audio failure
-			expect(game).toBeDefined();
-			game.cleanup();
+			failAudioLoad = false;
 		});
 	});
 

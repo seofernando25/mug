@@ -86,7 +86,30 @@ export function setupSvelteKitMocks() {
 			clearTimeout: mock(),
 			setInterval: mock((cb, delay) => setInterval(cb, delay || 0)),
 			clearInterval: mock(),
-			navigator: { userAgent: 'Bun/Test' }
+			navigator: { userAgent: 'Bun/Test' },
+			// game.client.ts builds its own AudioContext, so tests need a constructible
+			// stand-in. It records state only; no audio graph is simulated.
+			AudioContext: class MockAudioContext {
+				state = 'running';
+				currentTime = 0;
+				destination = {};
+				resume = mock(async () => {
+					this.state = 'running';
+				});
+				createGain = mock(() => ({
+					connect: mock(),
+					disconnect: mock(),
+					gain: { value: 1, setTargetAtTime: mock() }
+				}));
+				createBufferSource = mock(() => ({
+					connect: mock(),
+					disconnect: mock(),
+					start: mock(),
+					stop: mock(),
+					onended: null
+				}));
+				decodeAudioData = mock(async () => ({ duration: 0 }));
+			}
 		} as unknown as Window & typeof globalThis;
 
 		global.navigator = global.window.navigator;
