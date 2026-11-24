@@ -22,6 +22,21 @@ const roomManager = new RoomManager((event) => {
 	}
 });
 
+function upgradeAsGuest(srv: any, req: Request) {
+	const guestId = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+	const guestName = `GUEST-${guestId.slice(0, 5).toUpperCase()}`;
+	
+	const success = srv.upgrade(req, {
+		data: {
+			user: {
+				id: guestId,
+				username: guestName
+			}
+		}
+	});
+	return success ? undefined : new Response('Upgrade failed', { status: 400 });
+}
+
 const server = Bun.serve<PlayerData>({
 	// Default to 3000 to match Coolify/exposed port
 	port: Number(process.env.BANCHO_PORT ?? 3000),
@@ -38,23 +53,28 @@ const server = Bun.serve<PlayerData>({
 		// better-auth sets cookie name "better-auth.session_token"
 		const rawCookie = parseCookie(cookies).get('better-auth.session_token');
 		if (!rawCookie) {
-			return new Response('Unauthorized', { status: 401 });
+			console.log('[bancho] No session cookie found, treating as GUEST');
+			return upgradeAsGuest(srv, req);
 		}
 
-		// better-auth cookie format: "<token>.<signature>"
+		// better-auth cookie format: "<token>.<signature>" or just "<token>"
 		const decoded = decodeURIComponent(rawCookie);
 		const presentedToken = decoded.split('.')[0] ?? decoded;
 
+		console.log(`[bancho] Validating token: ${presentedToken.slice(0, 8)}...`);
 		const session = await validateSession(presentedToken);
 		if (!session) {
-			return new Response('Invalid session', { status: 403 });
+			console.log('[bancho] Invalid session for token, treating as GUEST');
+			return upgradeAsGuest(srv, req);
 		}
+
+		console.log(`[bancho] Authenticated user: ${session.user.id} (${session.user.username})`);
 
 		// Fallback for guest usernames: use username, or name, or GUEST-ID
 		const displayName =
 			session.user.username ||
 			session.user.name ||
-			`GUEST-${session.user.id.slice(0, 5).toUpperCase()}`;
+			`USER-${session.user.id.slice(0, 5).toUpperCase()}`;
 
 		const success = srv.upgrade(req, {
 			data: {
