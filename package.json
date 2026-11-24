@@ -21,7 +21,7 @@
 		"docker:destroy": "docker compose down -v",
 		"docker:rebuild": "docker compose down -v && docker compose up -d --build",
 		"docker:restart-frontend": "docker compose -p mug restart frontend",
-		"auth:generate": "bunx --bun  @better-auth/cli generate  --config ./src/lib/server/auth.ts  --output ./src/lib/server/db/auth-schema.ts -y"
+		"auth:generate": "bunx --bun @better-auth/cli generate --config ./apps/web/src/lib/server/auth.ts --output ./apps/web/src/lib/server/db/auth-schema.ts -y"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.8",
